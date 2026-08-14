@@ -116,9 +116,9 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-black text-white flex flex-col font-sans">
       {/* Top Bar */}
-      <div className="h-16 border-b border-[#333333] px-8 flex items-center justify-between sticky top-0 bg-black/80 backdrop-blur-md z-50">
-        <div className="flex items-center gap-6">
-          <span className="text-[#C5A059] font-bold uppercase tracking-widest text-xs">
+      <div className="border-b border-[#333333] px-4 md:px-8 py-3 md:h-16 flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 sticky top-0 bg-black/80 backdrop-blur-md z-50">
+        <div className="flex flex-wrap items-center gap-3 md:gap-6">
+          <span className="text-[#C5A059] font-bold uppercase tracking-widest text-xs shrink-0">
             Admin Dashboard
           </span>
           <select
@@ -128,7 +128,7 @@ export default function AdminDashboard() {
                 pages.find((p) => p.slug === e.target.value) || null,
               )
             }
-            className="bg-[#111111] border border-[#333333] px-3 py-1 text-sm focus:outline-none">
+            className="bg-[#111111] border border-[#333333] px-3 py-1 text-sm focus:outline-none min-w-0 flex-1 md:flex-none">
             {pages.map((p) => (
               <option key={p.slug} value={p.slug}>
                 {p.title} ({p.status})
@@ -137,21 +137,21 @@ export default function AdminDashboard() {
           </select>
           <button
             onClick={createNewPage}
-            className="text-xs text-gray-500 hover:text-white uppercase tracking-widest">
+            className="text-xs text-gray-500 hover:text-white uppercase tracking-widest shrink-0">
             + New Page
           </button>
         </div>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="bg-[#C5A059] text-black px-6 py-2 font-bold uppercase tracking-widest text-xs hover:bg-white transition-colors disabled:opacity-50">
+          className="bg-[#C5A059] text-black px-6 py-2 font-bold uppercase tracking-widest text-xs hover:bg-white transition-colors disabled:opacity-50 w-full md:w-auto">
           {saving ? "Publishing..." : "Publish Site"}
         </button>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">
         {/* Sidebar Controls */}
-        <aside className="w-80 border-r border-[#333333] p-6 overflow-y-auto flex flex-col gap-8 bg-[#050505]">
+        <aside className="w-full md:w-80 border-b md:border-b-0 md:border-r border-[#333333] p-6 max-h-[50vh] md:max-h-none overflow-y-auto flex flex-col gap-8 bg-[#050505]">
           <div>
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
               Page Settings
@@ -220,7 +220,7 @@ export default function AdminDashboard() {
         </aside>
 
         {/* Builder Canvas */}
-        <main className="flex-1 overflow-y-auto p-12 bg-[#000000]">
+        <main className="flex-1 overflow-y-auto p-6 md:p-12 bg-[#000000]">
           <div className="max-w-4xl mx-auto flex flex-col gap-12">
             {activePage?.blocks.map((block) => (
               <div

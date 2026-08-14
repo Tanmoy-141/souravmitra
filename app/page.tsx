@@ -10,7 +10,7 @@ export default function Home() {
         <div className="w-full h-96 bg-[#222222] mb-8 flex items-center justify-center text-[#555555]">
           [Hero Artwork Placeholder]
         </div>
-        <h1 className="text-6xl font-serif text-[#FFFFFF] mb-4">
+        <h1 className="text-4xl md:text-6xl font-serif text-[#FFFFFF] mb-4">
           Sourav Mitra
         </h1>
         <p className="text-2xl text-[#D4D4D4] mb-6">

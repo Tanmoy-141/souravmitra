@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ProceduralPlaceholder } from "./BehanceCard";
 
@@ -35,33 +35,13 @@ export default function ProjectDetailView({
   type,
   genreOrMedium,
   year,
-  likes: initialLikes,
-  views,
   publisher,
   dimensions,
   availability,
   backUrl,
 }: ProjectDetailProps) {
-  // Server always renders "not liked". We only know the real liked state
-  // once we're in the browser and can read localStorage — doing that read
-  // here (post-mount) instead of during render keeps SSR output and the
-  // first client render identical, avoiding a hydration mismatch.
-  const [isLiked, setIsLiked] = useState(false);
-  const [likes, setLikes] = useState(initialLikes);
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    const savedLiked = localStorage.getItem(`liked-${id}`) === "true";
-    if (savedLiked) {
-      // Syncing with localStorage after mount is the point of this effect;
-      // mirrors the same pattern already used in components/BehanceCard.tsx.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIsLiked(true);
-      setLikes(initialLikes + 1);
-    }
-    // Only run on mount / when navigating to a different project.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  const [showShareDropdown, setShowShareDropdown] = useState(false);
+  const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
 
   // Comments state
   const [comments, setComments] = useState<Comment[]>([
@@ -92,22 +72,83 @@ export default function ProjectDetailView({
   ]);
   const [newComment, setNewComment] = useState("");
 
-  const handleLike = () => {
-    const newLikedState = !isLiked;
-    setIsLiked(newLikedState);
-    const newCount = newLikedState ? likes + 1 : likes - 1;
-    setLikes(newCount);
+  const copyToClipboard = async (text: string) => {
+    if (typeof window === "undefined") return false;
 
-    if (typeof window !== "undefined") {
-      localStorage.setItem(`liked-${id}`, String(newLikedState));
+    // Try modern Clipboard API first
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (err) {
+        console.warn("Modern clipboard copy failed, trying fallback...", err);
+      }
+    }
+
+    // Fallback: execCommand('copy') for older browsers or insecure contexts
+    try {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-9999px";
+      textArea.style.top = "0";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const successful = document.execCommand("copy");
+      document.body.removeChild(textArea);
+      return successful;
+    } catch (err) {
+      console.error("Clipboard fallback failed:", err);
+      return false;
     }
   };
 
-  const handleShare = () => {
-    if (typeof window !== "undefined") {
-      navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+  const handleShareClick = async (platform: string) => {
+    if (typeof window === "undefined") return;
+
+    const shareUrl = window.location.href;
+    const shareTitle = `Check out "${title}" by Sourav Mitra`;
+
+    let url = "";
+    switch (platform) {
+      case "whatsapp":
+        url = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareTitle + " - " + shareUrl)}`;
+        window.open(url, "_blank");
+        break;
+      case "email":
+        url = `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent("I found this amazing project on Sourav Mitra's Portfolio:\n\n" + shareUrl)}`;
+        window.open(url, "_blank");
+        break;
+      case "facebook":
+        url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+        window.open(url, "_blank");
+        break;
+      case "twitter":
+        url = `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareTitle)}`;
+        window.open(url, "_blank");
+        break;
+      case "pinterest":
+        url = `https://pinterest.com/pin/create/button/?url=${encodeURIComponent(shareUrl)}&description=${encodeURIComponent(shareTitle)}`;
+        window.open(url, "_blank");
+        break;
+      case "instagram":
+        await copyToClipboard(shareUrl);
+        setCopiedPlatform("Instagram");
+        window.open("https://www.instagram.com", "_blank");
+        setTimeout(() => setCopiedPlatform(null), 3000);
+        break;
+      case "behance":
+        await copyToClipboard(shareUrl);
+        setCopiedPlatform("Behance");
+        window.open("https://www.behance.net", "_blank");
+        setTimeout(() => setCopiedPlatform(null), 3000);
+        break;
+      case "copy":
+        await copyToClipboard(shareUrl);
+        setCopiedPlatform("Link");
+        setTimeout(() => setCopiedPlatform(null), 3000);
+        break;
     }
   };
 
@@ -357,43 +398,129 @@ export default function ProjectDetailView({
               </p>
             </div>
 
-            {/* Engagement Stats Strip */}
-            <div className="grid grid-cols-2 gap-4 border-y border-[#1e1e1e] py-4">
-              <div className="text-center">
-                <span className="text-xs text-gray-500 block uppercase tracking-wider">
-                  Appreciations
-                </span>
-                <span className="text-xl font-sans font-bold text-white mt-1 block">
-                  {likes}
-                </span>
-              </div>
-              <div className="text-center border-l border-[#1e1e1e]">
-                <span className="text-xs text-gray-500 block uppercase tracking-wider">
-                  Views
-                </span>
-                <span className="text-xl font-sans font-bold text-white mt-1 block">
-                  {views >= 1000 ? `${(views / 1000).toFixed(1)}k` : views}
-                </span>
-              </div>
-            </div>
-
             {/* Action Buttons */}
-            <div className="flex gap-4">
+            <div className="relative w-full">
               <button
-                onClick={handleLike}
-                className={`flex-1 py-3 rounded-lg font-bold tracking-wider text-xs uppercase transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 ${
-                  isLiked
-                    ? "bg-rose-600 text-white hover:bg-rose-700 shadow-lg shadow-rose-600/30"
-                    : "bg-[#C5A059] text-white hover:bg-[#a88849] hover:scale-[1.01]"
-                }`}>
-                {isLiked ? "Appreciated!" : "Appreciate Project"}
+                onClick={() => setShowShareDropdown(!showShareDropdown)}
+                className="w-full py-3 rounded-lg bg-black text-gray-300 border border-[#2a2a2a] hover:text-white hover:bg-[#111] hover:border-[#3a3a3a] font-bold tracking-wider text-xs uppercase transition-colors cursor-pointer flex items-center justify-center gap-2"
+              >
+                <svg
+                  className="w-4 h-4 text-[#C5A059]"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8.684 10.742l4.57 2.286M15.418 9l-4.57 2.286M16 5a3 3 0 11-6 0 3 3 0 016 0zm-6 12a3 3 0 11-6 0 3 3 0 016 0zm12 0a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+                {showShareDropdown ? "Close Share Menu" : "Share Project"}
               </button>
 
-              <button
-                onClick={handleShare}
-                className="flex-1 py-3 rounded-lg bg-black text-gray-300 border border-[#2a2a2a] hover:text-white hover:bg-[#111] hover:border-[#3a3a3a] font-bold tracking-wider text-xs uppercase transition-colors cursor-pointer flex items-center justify-center gap-2">
-                {copied ? "Link Copied!" : "Share Project"}
-              </button>
+              {/* Share Options Dropdown */}
+              {showShareDropdown && (
+                <div className="absolute top-full left-0 right-0 mt-3 p-4 bg-[#0d0d0d] rounded-lg border border-[#2a2a2a] shadow-2xl z-30 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <p className="text-[10px] tracking-widest uppercase text-gray-500 font-bold mb-3 text-center">
+                    Share this project via
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <button
+                      onClick={() => handleShareClick("whatsapp")}
+                      className="flex items-center gap-2.5 p-2 rounded-md hover:bg-[#1a1a1a] text-gray-400 hover:text-green-500 transition-colors text-xs font-semibold cursor-pointer justify-start"
+                    >
+                      <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12.012 2c-5.506 0-9.987 4.479-9.987 9.987 0 1.763.46 3.42 1.262 4.876L2 22l5.304-1.391c1.4.76 2.99 1.191 4.708 1.191 5.507 0 9.987-4.479 9.987-9.987A9.99 9.99 0 0012.012 2zm5.82 14.128c-.24.675-1.2 1.233-1.65 1.293-.41.055-.94.1-2.73-.645-2.29-.953-3.763-3.284-3.878-3.44-.115-.152-.94-1.25-.94-2.385 0-1.134.59-1.693.8-1.912.21-.219.462-.273.616-.273.154 0 .308.004.442.01.144.006.337-.056.529.41.198.48.675 1.644.733 1.763.058.12.096.259.015.419-.08.16-.12.259-.24.399-.12.14-.25.313-.356.42-.116.11-.237.23-.102.463.135.23.601.99 1.292 1.604.89.792 1.64 1.037 1.872 1.152.23.115.365.096.5-.059.134-.154.577-.674.731-.903.154-.23.308-.192.52-.115.21.077 1.346.634 1.577.749.23.115.385.173.442.272.058.1.058.577-.182 1.252z"/>
+                      </svg>
+                      WhatsApp
+                    </button>
+
+                    <button
+                      onClick={() => handleShareClick("email")}
+                      className="flex items-center gap-2.5 p-2 rounded-md hover:bg-[#1a1a1a] text-gray-400 hover:text-rose-400 transition-colors text-xs font-semibold cursor-pointer justify-start"
+                    >
+                      <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                        <polyline points="22,6 12,13 2,6" />
+                      </svg>
+                      Email
+                    </button>
+
+                    <button
+                      onClick={() => handleShareClick("facebook")}
+                      className="flex items-center gap-2.5 p-2 rounded-md hover:bg-[#1a1a1a] text-gray-400 hover:text-blue-500 transition-colors text-xs font-semibold cursor-pointer justify-start"
+                    >
+                      <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c4.56-.93 8-4.96 8-9.75z"/>
+                      </svg>
+                      Facebook
+                    </button>
+
+                    <button
+                      onClick={() => handleShareClick("instagram")}
+                      className="flex items-center gap-2.5 p-2 rounded-md hover:bg-[#1a1a1a] text-gray-400 hover:text-pink-500 transition-colors text-xs font-semibold cursor-pointer justify-start"
+                    >
+                      <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+                      </svg>
+                      Instagram
+                    </button>
+
+                    <button
+                      onClick={() => handleShareClick("twitter")}
+                      className="flex items-center gap-2.5 p-2 rounded-md hover:bg-[#1a1a1a] text-gray-400 hover:text-white transition-colors text-xs font-semibold cursor-pointer justify-start"
+                    >
+                      <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                      </svg>
+                      Twitter (X)
+                    </button>
+
+                    <button
+                      onClick={() => handleShareClick("behance")}
+                      className="flex items-center gap-2.5 p-2 rounded-md hover:bg-[#1a1a1a] text-gray-400 hover:text-blue-400 transition-colors text-xs font-semibold cursor-pointer justify-start"
+                    >
+                      <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8.2 5.03c1.32-.08 2.37.17 3.14.73.74.55 1.13 1.45 1.13 2.65 0 1.05-.3 1.83-.88 2.35-.45.42-1.02.68-1.74.8v.08c.95.1 1.7.43 2.25 1.02.58.62.88 1.48.88 2.6 0 1.42-.44 2.45-1.3 3.12-.87.68-2.17.92-3.83.92H1.5V5.03H8.2zm-.9 5.37c.75 0 1.28-.1 1.58-.3a.98.98 0 00.42-.85c0-.44-.15-.75-.43-.9-.33-.2-.93-.27-1.78-.27H4.37v2.32H7.3zm.35 6.03c.87 0 1.45-.1 1.76-.32.32-.23.5-.58.5-.98 0-.44-.15-.76-.46-.94-.3-.18-.94-.27-1.92-.27H4.37v2.51H7.65zm14.85-4.5h-7.65c.08 1.25.43 2.15 1.08 2.68.6.5 1.43.75 2.45.75 1.63 0 2.7-.6 3.12-1.8h2.6c-.4 1.5-1.33 2.65-2.82 3.42-1.46.73-3.23 1.1-5.32 1.1-2.95 0-5.18-.87-6.68-2.6-1.52-1.74-2.28-4.1-2.28-7.1 0-3.04.75-5.46 2.28-7.23C14 .94 16.2.03 19.12.03c2.73 0 4.8.84 6.2 2.5 1.4 1.67 2.1 4.02 2.1 7.03v1.37zm-2.45-1.96c-.05-1.04-.37-1.83-.93-2.34-.58-.52-1.35-.78-2.33-.78-1.03 0-1.8.28-2.37.82-.55.55-.83 1.32-.9 2.3h6.53zm-6.2-7.16h5.83v1.48h-5.83V2.8z"/>
+                      </svg>
+                      Behance
+                    </button>
+
+                    <button
+                      onClick={() => handleShareClick("pinterest")}
+                      className="flex items-center gap-2.5 p-2 rounded-md hover:bg-[#1a1a1a] text-gray-400 hover:text-red-500 transition-colors text-xs font-semibold cursor-pointer justify-start"
+                    >
+                      <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12.24 2C6.61 2 2 6.61 2 12.24c0 4.3 2.66 7.97 6.45 9.5-.09-.8-.17-2.03.04-2.9l1.72-7.3s-.44-.88-.44-2.18c0-2.04 1.18-3.57 2.66-3.57 1.25 0 1.86.94 1.86 2.07 0 1.26-.8 3.14-1.22 4.88-.35 1.46.73 2.66 2.17 2.66 2.6 0 4.6-2.74 4.6-6.7 0-3.5-2.52-5.95-6.1-5.95-4.16 0-6.6 3.12-6.6 6.35 0 1.26.48 2.6 1.08 3.34.12.14.14.27.1.43l-.42 1.72c-.07.27-.22.33-.5.2-.19-.08-3.02-1.4-3.02-5.63 0-4.58 3.33-8.8 9.6-8.8 5.04 0 8.96 3.6 8.96 8.4 0 5-3.16 9-7.57 9-1.48 0-2.87-.77-3.35-1.68l-.9 3.46c-.33 1.25-1.2 2.82-1.8 3.77 1 .3 2.05.47 3.15.47 5.63 0 10.24-4.6 10.24-10.24C22.5 6.6 17.88 2 12.24 2z"/>
+                      </svg>
+                      Pinterest
+                    </button>
+
+                    <button
+                      onClick={() => handleShareClick("copy")}
+                      className="flex items-center gap-2.5 p-2 rounded-md hover:bg-[#1a1a1a] text-gray-400 hover:text-[#C5A059] transition-colors text-xs font-semibold cursor-pointer justify-start"
+                    >
+                      <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                      </svg>
+                      Copy Link
+                    </button>
+                  </div>
+
+                  {copiedPlatform && (
+                    <div className="mt-3 text-center text-[11px] text-[#C5A059] font-medium bg-[#C5A059]/10 py-1.5 px-3 rounded-md animate-pulse">
+                      {copiedPlatform === "Link"
+                        ? "Link copied to clipboard!"
+                        : `Link copied! Opening ${copiedPlatform}...`}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Metadata Fields */}

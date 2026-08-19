@@ -20,6 +20,12 @@ export const userRoleEnum = pgEnum("user_role", ["owner", "admin"]);
 
 export const pageStatusEnum = pgEnum("page_status", ["draft", "published"]);
 
+export const projectCategoryEnum = pgEnum("project_category", [
+  "book-covers",
+  "illustration",
+  "fine-art",
+]);
+
 export const verificationTypeEnum = pgEnum("verification_type", [
   "email_verify",
   "password_reset",
@@ -172,6 +178,34 @@ export const siteSettings = pgTable("site_settings", {
   }),
 });
 
+export const projects = pgTable(
+  "projects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slug: varchar("slug", { length: 255 }).notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    category: projectCategoryEnum("category").notNull(),
+    description: text("description"),
+    client: varchar("client", { length: 255 }),
+    year: varchar("year", { length: 32 }),
+    coverImage: text("cover_image").notNull(),
+    images: jsonb("images").$type<string[]>().default([]),
+    details: text("details"),
+    isFeatured: integer("is_featured").default(0).notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("projects_slug_unique_idx").on(table.slug),
+    index("projects_category_idx").on(table.category),
+  ],
+);
+
 /* -------------------------------------------------------------------------- */
 /*  Media                                                                     */
 /* -------------------------------------------------------------------------- */
@@ -241,3 +275,6 @@ export type NewSiteSettings = typeof siteSettings.$inferInsert;
 
 export type MediaAsset = typeof mediaAssets.$inferSelect;
 export type NewMediaAsset = typeof mediaAssets.$inferInsert;
+
+export type Project = typeof projects.$inferSelect;
+export type NewProject = typeof projects.$inferInsert;

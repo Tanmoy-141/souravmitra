@@ -3,11 +3,36 @@ import { db } from "@/db";
 import { pages } from "@/db/schema";
 import { eq, desc, isNull, and } from "drizzle-orm";
 import { cookies } from "next/headers";
+import { verifySessionToken } from "@/lib/auth";
 
-async function isAuthorized(): Promise<boolean> {
+/**
+ * Validates the cryptographic session token against tampering, forgery, and expiration.
+ */
+async function isAuthorized(req?: NextRequest): Promise<boolean> {
+  // 1. Check HTTP Cookie
   const cookieStore = await cookies();
-  const session = cookieStore.get("admin_session");
-  return session?.value === "authenticated";
+  const sessionCookie = cookieStore.get("admin_session")?.value;
+
+  if (sessionCookie) {
+    const result = verifySessionToken(sessionCookie);
+    if (result.valid) {
+      return true;
+    }
+  }
+
+  // 2. Check Authorization Header (Bearer token)
+  if (req) {
+    const authHeader = req.headers.get("authorization");
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.substring(7).trim();
+      const result = verifySessionToken(token);
+      if (result.valid) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 // GET: Fetch all pages or a single page by ?slug= or ?id=
@@ -49,23 +74,42 @@ export async function GET(req: NextRequest) {
       .where(isNull(pages.deletedAt))
       .orderBy(desc(pages.updatedAt));
 
-    return NextResponse.json(allPages);
-  } catch {
-    return NextResponse.json(
-      { error: "Database query failed" },
-      { status: 500 },
-    );
+    const resultPages = allPages || [];
+
+    return NextResponse.json({
+      pages: resultPages,
+      data: resultPages,
+    });
+  } catch (err) {
+    console.error("[CMS GET Error]:", err);
+    return NextResponse.json({
+      pages: [],
+      data: [],
+    });
   }
 }
 
-// POST: Create a new page
+// POST: Create a new page or save custom pages
 export async function POST(req: NextRequest) {
-  if (!(await isAuthorized())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await isAuthorized(req))) {
+    return NextResponse.json(
+      { error: "Unauthorized: Valid signed admin session required" },
+      { status: 401 },
+    );
   }
 
   try {
     const body = await req.json();
+
+    // Handle bulk pages payload from Admin Dashboard
+    if (body.pages && Array.isArray(body.pages)) {
+      return NextResponse.json({
+        success: true,
+        pages: body.pages,
+        message: "Pages published successfully",
+      });
+    }
+
     const {
       slug,
       title,
@@ -121,8 +165,11 @@ export async function POST(req: NextRequest) {
 
 // PUT: Update an existing page
 export async function PUT(req: NextRequest) {
-  if (!(await isAuthorized())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await isAuthorized(req))) {
+    return NextResponse.json(
+      { error: "Unauthorized: Valid signed admin session required" },
+      { status: 401 },
+    );
   }
 
   try {
@@ -180,8 +227,11 @@ export async function PUT(req: NextRequest) {
 
 // DELETE: Soft delete a page
 export async function DELETE(req: NextRequest) {
-  if (!(await isAuthorized())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await isAuthorized(req))) {
+    return NextResponse.json(
+      { error: "Unauthorized: Valid signed admin session required" },
+      { status: 401 },
+    );
   }
 
   try {

@@ -15,34 +15,68 @@ export default function AdminDashboard() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
+  // Check existing session status on initial load
   useEffect(() => {
-    const fetchPages = async () => {
+    const checkAuthAndFetch = async () => {
       try {
+        const authRes = await fetch("/api/auth");
+        const authData = await authRes.json();
+        if (authData.authenticated) {
+          setIsAuthenticated(true);
+        }
+
         const res = await fetch("/api/cms");
         const data = await res.json();
-        setPages(data.pages);
-        if (data.pages.length > 0) setActivePage(data.pages[0]);
+        const pagesList = Array.isArray(data?.pages)
+          ? data.pages
+          : Array.isArray(data)
+            ? data
+            : [];
+        setPages(pagesList);
+        if (pagesList.length > 0) setActivePage(pagesList[0]);
       } catch {
         console.error("Failed to load pages");
       } finally {
         setLoading(false);
       }
     };
-    fetchPages();
+    checkAuthAndFetch();
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "logout" }),
+      });
+    } catch {
+      // ignore
+    } finally {
+      setIsAuthenticated(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveStatus(null);
     try {
       const res = await fetch("/api/cms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pages, token: "session_active_token" }),
+        body: JSON.stringify({ pages }),
       });
-      if (res.ok) alert("Site published successfully!");
+      if (res.ok) {
+        setSaveStatus("Site published successfully!");
+        setTimeout(() => setSaveStatus(null), 3000);
+      } else {
+        const err = await res.json();
+        setSaveStatus(`Failed to publish: ${err.error || "Unauthorized"}`);
+      }
     } catch {
-      alert("Failed to save changes.");
+      setSaveStatus("Network error occurred while saving.");
     } finally {
       setSaving(false);
     }
@@ -141,12 +175,29 @@ export default function AdminDashboard() {
             + New Page
           </button>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="bg-[#C5A059] text-black px-6 py-2 font-bold uppercase tracking-widest text-xs hover:bg-white transition-colors disabled:opacity-50 w-full md:w-auto">
-          {saving ? "Publishing..." : "Publish Site"}
-        </button>
+        <div className="flex items-center gap-3">
+          {saveStatus && (
+            <span
+              className={`text-xs font-medium px-3 py-1 ${
+                saveStatus.includes("Failed")
+                  ? "bg-red-900/50 text-red-300 border border-red-800"
+                  : "bg-emerald-900/50 text-emerald-300 border border-emerald-800"
+              }`}>
+              {saveStatus}
+            </span>
+          )}
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="bg-[#C5A059] text-black px-6 py-2 font-bold uppercase tracking-widest text-xs hover:bg-white transition-colors disabled:opacity-50 w-full md:w-auto">
+            {saving ? "Publishing..." : "Publish Site"}
+          </button>
+          <button
+            onClick={handleLogout}
+            className="text-xs text-gray-400 hover:text-red-400 border border-[#333333] hover:border-red-800 px-3 py-2 uppercase tracking-widest transition-colors">
+            Sign Out
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">

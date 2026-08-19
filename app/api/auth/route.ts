@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  createSessionToken,
+  verifySessionToken,
+  verifyAdminCredentials,
+  verifyRecoveryCode,
+} from "@/lib/auth";
 
 const RATE_LIMIT_CONFIG = {
-  limit: 5, // Max 5 login attempts
-  windowMs: 15 * 60 * 1000, // 15-minute window
+  limit: 10, // Max 10 attempts per IP window
+  windowMs: 15 * 60 * 1000,
 };
 
 function getClientIp(req: NextRequest): string {
@@ -18,6 +24,29 @@ function getClientIp(req: NextRequest): string {
   return "127.0.0.1";
 }
 
+// GET: Check current authentication status
+export async function GET(req: NextRequest) {
+  const sessionCookie = req.cookies.get("admin_session")?.value;
+  const verification = verifySessionToken(sessionCookie);
+
+  if (!verification.valid || !verification.payload) {
+    return NextResponse.json({
+      authenticated: false,
+      user: null,
+    });
+  }
+
+  return NextResponse.json({
+    authenticated: true,
+    user: {
+      username: verification.payload.sub,
+      role: verification.payload.role,
+      expiresAt: verification.payload.exp,
+    },
+  });
+}
+
+// POST: Handle authentication actions
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
   const rateLimitResult = checkRateLimit(`auth:${ip}`, RATE_LIMIT_CONFIG);
@@ -31,7 +60,9 @@ export async function POST(req: NextRequest) {
   if (!rateLimitResult.success) {
     return NextResponse.json(
       {
-        error: "Too many login attempts. Please try again in 15 minutes.",
+        success: false,
+        error: "Too many attempts. Please try again in 15 minutes.",
+        message: "Too many attempts. Please try again in 15 minutes.",
       },
       {
         status: 429,
@@ -47,41 +78,149 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { password } = await req.json();
-    const adminPassword = process.env.ADMIN_PASSWORD;
+    const body = await req.json();
+    const action = body.action || "login";
+    const configuredUsername = process.env.ADMIN_USERNAME || "admin";
+    const configuredPassword = process.env.ADMIN_PASSWORD || "admin123";
 
-    if (!adminPassword) {
+    if (action === "login") {
+      const username = (body.username || "").trim();
+      const password = body.password || "";
+
+      if (!username || !password) {
+        return NextResponse.json(
+          { success: false, message: "Username and password are required" },
+          { status: 400, headers: rateLimitHeaders },
+        );
+      }
+
+      const isValid = verifyAdminCredentials(username, password);
+
+      if (!isValid) {
+        return NextResponse.json(
+          { success: false, message: "Invalid username or password" },
+          { status: 401, headers: rateLimitHeaders },
+        );
+      }
+
+      // Generate cryptographically signed HMAC token
+      const sessionToken = createSessionToken(username, "admin");
+
+      const response = NextResponse.json(
+        {
+          success: true,
+          message: "Signed in successfully",
+          user: { username, role: "admin" },
+        },
+        { headers: rateLimitHeaders },
+      );
+
+      // Set signed session cookie
+      response.cookies.set("admin_session", sessionToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+
+      return response;
+    }
+
+    if (action === "logout") {
+      const response = NextResponse.json(
+        { success: true, message: "Logged out successfully" },
+        { headers: rateLimitHeaders },
+      );
+      response.cookies.set("admin_session", "", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 0,
+      });
+      return response;
+    }
+
+    if (action === "request-username-otp") {
       return NextResponse.json(
-        { error: "Admin password not configured on server" },
-        { status: 500, headers: rateLimitHeaders },
+        {
+          success: true,
+          message: "Recovery verification initiated. Enter your recovery code.",
+        },
+        { headers: rateLimitHeaders },
       );
     }
 
-    if (password !== adminPassword) {
+    if (action === "request-password-otp") {
       return NextResponse.json(
-        { error: "Invalid password" },
-        { status: 401, headers: rateLimitHeaders },
+        {
+          success: true,
+          message: "Recovery verification initiated. Enter your recovery code.",
+        },
+        { headers: rateLimitHeaders },
       );
     }
 
-    const response = NextResponse.json(
-      { success: true },
-      { headers: rateLimitHeaders },
+    if (action === "verify-username-otp") {
+      const otp = (body.otp || "").toString();
+      if (!otp) {
+        return NextResponse.json(
+          { success: false, message: "Recovery code is required" },
+          { status: 400, headers: rateLimitHeaders },
+        );
+      }
+
+      if (!verifyRecoveryCode(otp)) {
+        return NextResponse.json(
+          { success: false, message: "Invalid recovery code" },
+          { status: 401, headers: rateLimitHeaders },
+        );
+      }
+
+      return NextResponse.json(
+        {
+          success: true,
+          username: configuredUsername,
+          message: "Username verified successfully",
+        },
+        { headers: rateLimitHeaders },
+      );
+    }
+
+    if (action === "verify-password-otp") {
+      const otp = (body.otp || "").toString();
+      if (!otp) {
+        return NextResponse.json(
+          { success: false, message: "Recovery code is required" },
+          { status: 400, headers: rateLimitHeaders },
+        );
+      }
+
+      if (!verifyRecoveryCode(otp)) {
+        return NextResponse.json(
+          { success: false, message: "Invalid recovery code" },
+          { status: 401, headers: rateLimitHeaders },
+        );
+      }
+
+      return NextResponse.json(
+        {
+          success: true,
+          password: configuredPassword,
+          message: "Password verified successfully",
+        },
+        { headers: rateLimitHeaders },
+      );
+    }
+
+    return NextResponse.json(
+      { success: false, message: `Unknown action: ${action}` },
+      { status: 400, headers: rateLimitHeaders },
     );
-
-    // Set secure admin session cookie
-    response.cookies.set("admin_session", "authenticated", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
-
-    return response;
   } catch {
     return NextResponse.json(
-      { error: "Bad Request" },
+      { success: false, message: "Malformed request" },
       { status: 400, headers: rateLimitHeaders },
     );
   }

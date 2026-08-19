@@ -1,33 +1,28 @@
 import crypto from "crypto";
-
-// Fallback development secret if AUTH_SECRET is not configured in .env
-const DEV_SECRET =
-  "dev_souravmitra_portfolio_secret_key_change_in_production_987654";
+import { eq, or } from "drizzle-orm";
+import { db } from "@/db";
+import { users, verificationTokens, type User } from "@/db/schema";
 
 function getAuthSecret(): string {
   const secret = process.env.AUTH_SECRET;
   if (!secret) {
-    if (process.env.NODE_ENV === "production") {
-      console.warn(
-        "[AUTH SECURITY WARNING] AUTH_SECRET is not set in production. Please set AUTH_SECRET in your environment settings.",
-      );
-    }
-    return DEV_SECRET;
+    throw new Error(
+      "AUTH_SECRET environment variable is missing. Please set AUTH_SECRET in your environment.",
+    );
   }
   return secret;
 }
 
 export interface SessionPayload {
-  sub: string; // username / subject
+  userId: string;
+  sub: string; // username
   role: "owner" | "admin";
-  iat: number; // issued at (ms)
-  exp: number; // expires at (ms)
-  nonce: string; // random nonce
+  email: string;
+  iat: number;
+  exp: number;
+  nonce: string;
 }
 
-/**
- * Encodes an object to Base64URL string
- */
 function base64UrlEncode(str: string): string {
   return Buffer.from(str)
     .toString("base64")
@@ -36,9 +31,6 @@ function base64UrlEncode(str: string): string {
     .replace(/\//g, "_");
 }
 
-/**
- * Decodes a Base64URL string
- */
 function base64UrlDecode(str: string): string {
   let base64 = str.replace(/-/g, "+").replace(/_/g, "/");
   while (base64.length % 4) {
@@ -47,9 +39,6 @@ function base64UrlDecode(str: string): string {
   return Buffer.from(base64, "base64").toString("utf8");
 }
 
-/**
- * Computes an HMAC-SHA256 signature for a given string
- */
 function computeHmacSignature(data: string, secret: string): string {
   const hmac = crypto.createHmac("sha256", secret);
   hmac.update(data);
@@ -57,12 +46,15 @@ function computeHmacSignature(data: string, secret: string): string {
 }
 
 /**
- * Creates a cryptographically signed session token.
- * Valid for 7 days by default.
+ * Creates a cryptographically signed HMAC-SHA256 session token.
  */
 export function createSessionToken(
-  username: string,
-  role: "owner" | "admin" = "admin",
+  user: {
+    id: string;
+    username: string;
+    email: string;
+    role: "owner" | "admin";
+  },
   durationDays = 7,
 ): string {
   const secret = getAuthSecret();
@@ -71,8 +63,10 @@ export function createSessionToken(
   const nonce = crypto.randomBytes(16).toString("hex");
 
   const payload: SessionPayload = {
-    sub: username,
-    role,
+    userId: user.id,
+    sub: user.username,
+    email: user.email,
+    role: user.role,
     iat: now,
     exp,
     nonce,
@@ -86,7 +80,6 @@ export function createSessionToken(
 
 /**
  * Verifies the cryptographic HMAC signature and expiration of a session token.
- * Uses constant-time comparison to prevent timing attacks.
  */
 export function verifySessionToken(token: string | undefined | null): {
   valid: boolean;
@@ -103,10 +96,18 @@ export function verifySessionToken(token: string | undefined | null): {
   }
 
   const [encodedPayload, signature] = parts;
-  const secret = getAuthSecret();
+  let secret: string;
+  try {
+    secret = getAuthSecret();
+  } catch (err: unknown) {
+    return {
+      valid: false,
+      error: err instanceof Error ? err.message : "AUTH_SECRET not configured",
+    };
+  }
+
   const expectedSignature = computeHmacSignature(encodedPayload, secret);
 
-  // Constant-time signature comparison
   const signatureBuffer = Buffer.from(signature, "utf8");
   const expectedBuffer = Buffer.from(expectedSignature, "utf8");
 
@@ -121,7 +122,7 @@ export function verifySessionToken(token: string | undefined | null): {
     const rawPayload = base64UrlDecode(encodedPayload);
     const payload: SessionPayload = JSON.parse(rawPayload);
 
-    if (!payload.sub || !payload.exp) {
+    if (!payload.userId || !payload.sub || !payload.exp) {
       return { valid: false, error: "Invalid token payload" };
     }
 
@@ -136,14 +137,13 @@ export function verifySessionToken(token: string | undefined | null): {
 }
 
 /**
- * Performs a timing-safe string equality check to prevent side-channel timing attacks.
+ * Performs a timing-safe string equality check.
  */
 export function timingSafeEqualString(a: string, b: string): boolean {
   const bufA = Buffer.from(a, "utf8");
   const bufB = Buffer.from(b, "utf8");
 
   if (bufA.length !== bufB.length) {
-    // Perform dummy comparison to keep timing roughly constant
     crypto.timingSafeEqual(bufA, bufA);
     return false;
   }
@@ -152,7 +152,7 @@ export function timingSafeEqualString(a: string, b: string): boolean {
 }
 
 /**
- * Hashes a plaintext password using PBKDF2 with SHA-512 and a cryptographically secure salt.
+ * Hashes a plaintext password using PBKDF2-HMAC-SHA512 with a cryptographically secure salt.
  */
 export function hashPassword(
   password: string,
@@ -188,39 +188,128 @@ export function verifyPassword(
 }
 
 /**
- * Verifies a candidate password against configured environment credentials or hashed password.
- * Performs constant-time comparison.
+ * Queries the database for a user matching username or email.
  */
-export function verifyAdminCredentials(
-  candidateUsername: string,
-  candidatePassword: string,
-): boolean {
-  const configuredUsername = process.env.ADMIN_USERNAME || "admin";
-  const configuredPassword = process.env.ADMIN_PASSWORD || "admin123";
+export async function findUserByUsernameOrEmail(
+  identifier: string,
+): Promise<User | null> {
+  const trimmed = identifier.trim().toLowerCase();
+  const results = await db
+    .select()
+    .from(users)
+    .where(or(eq(users.username, trimmed), eq(users.email, trimmed)))
+    .limit(1);
 
-  // Check username match (allows standard configured admin or sourav)
-  const isUserValid =
-    timingSafeEqualString(candidateUsername, configuredUsername) ||
-    timingSafeEqualString(candidateUsername, "sourav") ||
-    timingSafeEqualString(candidateUsername, "admin");
-
-  if (!isUserValid) {
-    return false;
-  }
-
-  // Check password with constant-time equality
-  const isPassValid =
-    timingSafeEqualString(candidatePassword, configuredPassword) ||
-    timingSafeEqualString(candidatePassword, "admin123") ||
-    timingSafeEqualString(candidatePassword, "password123");
-
-  return isPassValid;
+  return results[0] || null;
 }
 
 /**
- * Verifies a recovery OTP or secret code with constant-time check.
+ * Ensures an initial admin exists in the database.
+ * If the users table is completely empty, it securely hashes the environment ADMIN_PASSWORD
+ * and creates the first owner record.
+ */
+export async function bootstrapAdminUserIfEmpty(): Promise<User | null> {
+  try {
+    const existing = await db.select().from(users).limit(1);
+    if (existing.length > 0) {
+      return existing[0];
+    }
+
+    const adminUsername = process.env.ADMIN_USERNAME || "admin";
+    const adminEmail = process.env.ADMIN_EMAIL || "admin@example.com";
+    const adminPassword = process.env.ADMIN_PASSWORD;
+
+    if (!adminPassword) {
+      return null;
+    }
+
+    const { hash, salt } = hashPassword(adminPassword);
+
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        username: adminUsername.toLowerCase(),
+        email: adminEmail.toLowerCase(),
+        passwordHash: hash,
+        passwordSalt: salt,
+        role: "owner",
+      })
+      .returning();
+
+    return newUser;
+  } catch (err) {
+    console.error("[Auth] Database bootstrap check warning:", err);
+    return null;
+  }
+}
+
+/**
+ * Verifies recovery OTP or secret code with constant-time check.
  */
 export function verifyRecoveryCode(candidateCode: string): boolean {
-  const configuredCode = process.env.RECOVERY_CODE || "123456";
+  const configuredCode = process.env.RECOVERY_CODE;
+  if (!configuredCode) {
+    return false;
+  }
   return timingSafeEqualString(candidateCode.trim(), configuredCode.trim());
+}
+
+/**
+ * Generates and stores a single-use verification or password reset token in the database.
+ */
+export async function createDbVerificationToken(
+  identifier: string,
+  type: "password_reset" | "username_recovery" | "email_verify",
+  durationMinutes = 15,
+): Promise<string> {
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+  const expiresAt = new Date(Date.now() + durationMinutes * 60 * 1000);
+
+  await db.insert(verificationTokens).values({
+    identifier: identifier.trim().toLowerCase(),
+    tokenHash,
+    type,
+    expiresAt,
+  });
+
+  return rawToken;
+}
+
+/**
+ * Verifies and consumes a single-use token from the verificationTokens table.
+ */
+export async function verifyAndConsumeDbToken(
+  identifier: string,
+  rawToken: string,
+  type: "password_reset" | "username_recovery" | "email_verify",
+): Promise<boolean> {
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+  const records = await db
+    .select()
+    .from(verificationTokens)
+    .where(eq(verificationTokens.identifier, identifier.trim().toLowerCase()))
+    .limit(10);
+
+  const validRecord = records.find(
+    (r) =>
+      r.type === type &&
+      !r.consumedAt &&
+      r.expiresAt > new Date() &&
+      timingSafeEqualString(r.tokenHash, tokenHash),
+  );
+
+  if (!validRecord) {
+    return false;
+  }
+
+  // Mark token as consumed
+  await db
+    .update(verificationTokens)
+    .set({ consumedAt: new Date() })
+    .where(eq(verificationTokens.id, validRecord.id));
+
+  return true;
 }

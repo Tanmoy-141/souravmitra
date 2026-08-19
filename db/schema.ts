@@ -7,6 +7,7 @@ import {
   jsonb,
   pgEnum,
   integer,
+  boolean,
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
@@ -50,6 +51,7 @@ export const users = pgTable(
     username: varchar("username", { length: 64 }).notNull(),
     // Null when the account was created via OAuth only (no password set).
     passwordHash: text("password_hash"),
+    passwordSalt: text("password_salt"),
     role: userRoleEnum("role").notNull().default("admin"),
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     image: text("image"),
@@ -101,7 +103,7 @@ export const verificationTokens = pgTable(
   "verification_tokens",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    identifier: varchar("identifier", { length: 255 }).notNull(), // usually the email
+    identifier: varchar("identifier", { length: 255 }).notNull(), // usually the email or username
     tokenHash: text("token_hash").notNull(),
     type: verificationTypeEnum("type").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
@@ -116,6 +118,20 @@ export const verificationTokens = pgTable(
       table.tokenHash,
     ),
   ],
+);
+
+// Persistent rate limit storage across serverless / multi-instance invocations
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    key: varchar("key", { length: 255 }).primaryKey(),
+    count: integer("count").notNull().default(1),
+    resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("rate_limits_reset_at_idx").on(table.resetAt)],
 );
 
 /* -------------------------------------------------------------------------- */
@@ -163,8 +179,6 @@ export const pages = pgTable(
 );
 
 // Singleton-style rows for global chrome (header/footer) and theme tokens.
-// Edited through the same GrapesJS canvas as pages, just a different
-// available-block set.
 export const siteSettings = pgTable("site_settings", {
   key: siteSettingsKeyEnum("key").primaryKey(),
   gjsData: jsonb("gjs_data"),
@@ -178,6 +192,10 @@ export const siteSettings = pgTable("site_settings", {
   }),
 });
 
+/* -------------------------------------------------------------------------- */
+/*  Projects: Artist Portfolios (Book Covers, Illustration, Fine Art)        */
+/* -------------------------------------------------------------------------- */
+
 export const projects = pgTable(
   "projects",
   {
@@ -185,14 +203,23 @@ export const projects = pgTable(
     slug: varchar("slug", { length: 255 }).notNull(),
     title: varchar("title", { length: 255 }).notNull(),
     category: projectCategoryEnum("category").notNull(),
+    status: pageStatusEnum("status").notNull().default("published"),
     description: text("description"),
-    client: varchar("client", { length: 255 }),
+    medium: text("medium"), // e.g. "Oil on Linen", "Charcoal on Paper", "Digital Painting"
+    dimensions: text("dimensions"), // e.g. "24 x 36 inches"
+    publisher: varchar("publisher", { length: 255 }), // For book covers / editorial publications
     year: varchar("year", { length: 32 }),
     coverImage: text("cover_image").notNull(),
     images: jsonb("images").$type<string[]>().default([]),
     details: text("details"),
-    isFeatured: integer("is_featured").default(0).notNull(),
+    tags: jsonb("tags").$type<string[]>().default([]),
+    isFeatured: boolean("is_featured").default(false).notNull(),
+    likes: integer("likes").default(0).notNull(),
+    views: integer("views").default(0).notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
+    createdBy: uuid("created_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -203,6 +230,8 @@ export const projects = pgTable(
   (table) => [
     uniqueIndex("projects_slug_unique_idx").on(table.slug),
     index("projects_category_idx").on(table.category),
+    index("projects_status_idx").on(table.status),
+    index("projects_is_featured_idx").on(table.isFeatured),
   ],
 );
 
@@ -236,6 +265,7 @@ export const mediaAssets = pgTable(
 export const usersRelations = relations(users, ({ many }) => ({
   accounts: many(accounts),
   pages: many(pages),
+  projects: many(projects),
   mediaAssets: many(mediaAssets),
 }));
 
@@ -247,6 +277,10 @@ export const pagesRelations = relations(pages, ({ one }) => ({
   author: one(users, { fields: [pages.createdBy], references: [users.id] }),
 }));
 
+export const projectsRelations = relations(projects, ({ one }) => ({
+  author: one(users, { fields: [projects.createdBy], references: [users.id] }),
+}));
+
 export const mediaAssetsRelations = relations(mediaAssets, ({ one }) => ({
   uploader: one(users, {
     fields: [mediaAssets.uploadedBy],
@@ -255,7 +289,7 @@ export const mediaAssetsRelations = relations(mediaAssets, ({ one }) => ({
 }));
 
 /* -------------------------------------------------------------------------- */
-/*  Inferred types — import these anywhere you need a typed row shape        */
+/*  Inferred types                                                            */
 /* -------------------------------------------------------------------------- */
 
 export type User = typeof users.$inferSelect;
@@ -266,6 +300,9 @@ export type NewAccount = typeof accounts.$inferInsert;
 
 export type VerificationToken = typeof verificationTokens.$inferSelect;
 export type NewVerificationToken = typeof verificationTokens.$inferInsert;
+
+export type RateLimit = typeof rateLimits.$inferSelect;
+export type NewRateLimit = typeof rateLimits.$inferInsert;
 
 export type Page = typeof pages.$inferSelect;
 export type NewPage = typeof pages.$inferInsert;

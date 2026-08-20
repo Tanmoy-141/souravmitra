@@ -8,6 +8,13 @@
       "when": 1786534290821,
       "tag": "0000_awesome_siren",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787218364604,
+      "tag": "0001_nasty_night_thrasher",
+      "breakpoints": true
     }
   ]
 }

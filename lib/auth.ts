@@ -1,8 +1,7 @@
 import crypto from "crypto";
-import { eq, or } from "drizzle-orm";
+import { eq, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { users, verificationTokens, type User } from "@/db/schema";
-import { sendOtpEmail } from "@/lib/email";
 
 function getAuthSecret(): string {
   const secret = process.env.AUTH_SECRET;
@@ -19,10 +18,10 @@ export interface SessionPayload {
   sub: string; // username
   role: "owner" | "admin";
   email: string;
-  v: number; // token/session version for instant revocation
   iat: number;
   exp: number;
   nonce: string;
+  sessionVersion: number;
 }
 
 function base64UrlEncode(str: string): string {
@@ -48,7 +47,7 @@ function computeHmacSignature(data: string, secret: string): string {
 }
 
 /**
- * Creates a cryptographically signed HMAC-SHA256 session token embedding the user's current tokenVersion.
+ * Creates a cryptographically signed HMAC-SHA256 session token.
  */
 export function createSessionToken(
   user: {
@@ -56,7 +55,7 @@ export function createSessionToken(
     username: string;
     email: string;
     role: "owner" | "admin";
-    tokenVersion?: number;
+    sessionVersion: number;
   },
   durationDays = 7,
 ): string {
@@ -70,10 +69,10 @@ export function createSessionToken(
     sub: user.username,
     email: user.email,
     role: user.role,
-    v: user.tokenVersion ?? 1,
     iat: now,
     exp,
     nonce,
+    sessionVersion: user.sessionVersion,
   };
 
   const encodedPayload = base64UrlEncode(JSON.stringify(payload));
@@ -141,55 +140,54 @@ export function verifySessionToken(token: string | undefined | null): {
 }
 
 /**
- * Verifies the token signature AND verifies against the database that the session
- * has not been revoked (via password change or version bump).
+ * Full session check: cryptographic validity + expiry (via
+ * verifySessionToken) PLUS a live DB check that the token's embedded
+ * sessionVersion still matches the user's current one. A signature-valid,
+ * unexpired token can still be rejected here if it's been revoked (e.g. by
+ * a password reset) — that DB check is the only way to actually revoke a
+ * stateless signed token before its natural expiry.
  */
-export async function verifySessionWithRevocationCheck(
+export async function resolveSession(
   token: string | undefined | null,
-): Promise<{
-  valid: boolean;
-  user?: User;
-  payload?: SessionPayload;
-  error?: string;
-}> {
-  const syncResult = verifySessionToken(token);
-  if (!syncResult.valid || !syncResult.payload) {
-    return { valid: false, error: syncResult.error || "Invalid session" };
+): Promise<{ valid: boolean; payload?: SessionPayload; user?: User }> {
+  const verification = verifySessionToken(token);
+  if (!verification.valid || !verification.payload) {
+    return { valid: false };
   }
 
-  try {
-    const dbUsers = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, syncResult.payload.userId))
-      .limit(1);
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, verification.payload.userId))
+    .limit(1);
 
-    if (dbUsers.length === 0) {
-      return { valid: false, error: "User no longer exists" };
-    }
-
-    const user = dbUsers[0];
-    const currentVersion = user.tokenVersion ?? 1;
-    const tokenVersion = syncResult.payload.v ?? 1;
-
-    if (tokenVersion !== currentVersion) {
-      return {
-        valid: false,
-        error:
-          "Session has been revoked (password was changed). Please log in again.",
-      };
-    }
-
-    return { valid: true, user, payload: syncResult.payload };
-  } catch {
-    // If DB check fails transiently, fall back to valid cryptographic signature
-    return { valid: true, payload: syncResult.payload };
+  if (!user) {
+    return { valid: false };
   }
+
+  if (user.sessionVersion !== verification.payload.sessionVersion) {
+    // Password was reset (or sessions were otherwise revoked) after this
+    // token was issued — treat it as invalid even though the signature
+    // and expiry both still check out.
+    return { valid: false };
+  }
+
+  return { valid: true, payload: verification.payload, user };
 }
 
 /**
- * Performs a timing-safe string equality check.
+ * Invalidates every session currently issued for a user by bumping their
+ * sessionVersion — any token signed before this call will fail
+ * resolveSession's live check from now on, regardless of its expiry.
  */
+export async function revokeAllSessionsForUser(userId: string): Promise<void> {
+  await db
+    .update(users)
+    .set({ sessionVersion: sql`${users.sessionVersion} + 1` })
+    .where(eq(users.id, userId));
+}
+
+
 export function timingSafeEqualString(a: string, b: string): boolean {
   const bufA = Buffer.from(a, "utf8");
   const bufB = Buffer.from(b, "utf8");
@@ -284,7 +282,6 @@ export async function bootstrapAdminUserIfEmpty(): Promise<User | null> {
         passwordHash: hash,
         passwordSalt: salt,
         role: "owner",
-        tokenVersion: 1,
       })
       .returning();
 
@@ -296,84 +293,7 @@ export async function bootstrapAdminUserIfEmpty(): Promise<User | null> {
 }
 
 /**
- * Generates and dispatches a single-use 6-digit expiring email OTP code.
- * The code is hashed before storage in the database.
- */
-export async function createAndSendEmailOtp(
-  email: string,
-  type: "password_reset" | "username_recovery" | "email_verify",
-  purpose: "Password Reset" | "Username Recovery" | "Email Verification",
-): Promise<{ success: boolean; error?: string }> {
-  // Generate random 6-digit numeric OTP
-  const rawOtp = crypto.randomInt(100000, 1000000).toString();
-  const tokenHash = crypto.createHash("sha256").update(rawOtp).digest("hex");
-
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
-
-  // Invalidate any previously unconsumed OTPs for this identifier and type
-  await db
-    .update(verificationTokens)
-    .set({ consumedAt: new Date() })
-    .where(eq(verificationTokens.identifier, email.trim().toLowerCase()));
-
-  // Store hashed OTP
-  await db.insert(verificationTokens).values({
-    identifier: email.trim().toLowerCase(),
-    tokenHash,
-    type,
-    expiresAt,
-  });
-
-  // Dispatch email to user's inbox
-  return await sendOtpEmail({
-    to: email.trim().toLowerCase(),
-    otpCode: rawOtp,
-    purpose,
-  });
-}
-
-/**
- * Verifies and consumes a 6-digit OTP code against the database.
- */
-export async function verifyEmailOtp(
-  email: string,
-  rawOtp: string,
-  type: "password_reset" | "username_recovery" | "email_verify",
-): Promise<{ valid: boolean; error?: string }> {
-  const tokenHash = crypto
-    .createHash("sha256")
-    .update(rawOtp.trim())
-    .digest("hex");
-
-  const records = await db
-    .select()
-    .from(verificationTokens)
-    .where(eq(verificationTokens.identifier, email.trim().toLowerCase()))
-    .limit(10);
-
-  const validRecord = records.find(
-    (r) =>
-      r.type === type &&
-      !r.consumedAt &&
-      r.expiresAt > new Date() &&
-      timingSafeEqualString(r.tokenHash, tokenHash),
-  );
-
-  if (!validRecord) {
-    return { valid: false, error: "Invalid or expired verification code" };
-  }
-
-  // Mark OTP as consumed
-  await db
-    .update(verificationTokens)
-    .set({ consumedAt: new Date() })
-    .where(eq(verificationTokens.id, validRecord.id));
-
-  return { valid: true };
-}
-
-/**
- * Generates and stores a single-use password reset token in the database.
+ * Generates and stores a single-use verification or password reset token in the database.
  */
 export async function createDbVerificationToken(
   identifier: string,
@@ -396,64 +316,7 @@ export async function createDbVerificationToken(
 }
 
 /**
- * Verifies, consumes a reset token, updates the user's password, and increments tokenVersion
- * to instantly revoke all active sessions across all devices.
- */
-export async function resetPasswordAndRevokeSessions(
-  email: string,
-  rawToken: string,
-  newPassword: string,
-): Promise<{ success: boolean; error?: string }> {
-  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
-
-  const records = await db
-    .select()
-    .from(verificationTokens)
-    .where(eq(verificationTokens.identifier, email.trim().toLowerCase()))
-    .limit(10);
-
-  const validRecord = records.find(
-    (r) =>
-      r.type === "password_reset" &&
-      !r.consumedAt &&
-      r.expiresAt > new Date() &&
-      timingSafeEqualString(r.tokenHash, tokenHash),
-  );
-
-  if (!validRecord) {
-    return { success: false, error: "Invalid or expired reset token" };
-  }
-
-  // Mark token as consumed
-  await db
-    .update(verificationTokens)
-    .set({ consumedAt: new Date() })
-    .where(eq(verificationTokens.id, validRecord.id));
-
-  const user = await findUserByUsernameOrEmail(email);
-  if (!user) {
-    return { success: false, error: "User not found" };
-  }
-
-  const { hash, salt } = hashPassword(newPassword);
-  const nextTokenVersion = (user.tokenVersion ?? 1) + 1;
-
-  // Update password and increment tokenVersion (revokes all active sessions)
-  await db
-    .update(users)
-    .set({
-      passwordHash: hash,
-      passwordSalt: salt,
-      tokenVersion: nextTokenVersion,
-      updatedAt: new Date(),
-    })
-    .where(eq(users.id, user.id));
-
-  return { success: true };
-}
-
-/**
- * Backward compatibility: verifies single-use DB token.
+ * Verifies and consumes a single-use token from the verificationTokens table.
  */
 export async function verifyAndConsumeDbToken(
   identifier: string,
@@ -480,21 +343,11 @@ export async function verifyAndConsumeDbToken(
     return false;
   }
 
+  // Mark token as consumed
   await db
     .update(verificationTokens)
     .set({ consumedAt: new Date() })
     .where(eq(verificationTokens.id, validRecord.id));
 
   return true;
-}
-
-/**
- * Backward compatibility: verifies recovery code against RECOVERY_CODE environment variable if configured.
- */
-export function verifyRecoveryCode(candidateCode: string): boolean {
-  const configuredCode = process.env.RECOVERY_CODE;
-  if (!configuredCode || !candidateCode) {
-    return false;
-  }
-  return timingSafeEqualString(candidateCode.trim(), configuredCode.trim());
 }

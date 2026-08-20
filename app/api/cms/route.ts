@@ -3,10 +3,11 @@ import { db } from "@/db";
 import { pages } from "@/db/schema";
 import { eq, desc, isNull, and } from "drizzle-orm";
 import { cookies } from "next/headers";
-import { verifySessionToken } from "@/lib/auth";
+import { resolveSession } from "@/lib/auth";
 
 /**
- * Validates the cryptographic session token against tampering, forgery, and expiration.
+ * Validates the cryptographic session token against tampering, forgery,
+ * expiration, AND revocation (a password reset since the token was issued).
  */
 async function isAuthorized(req?: NextRequest): Promise<boolean> {
   // 1. Check HTTP Cookie
@@ -14,7 +15,7 @@ async function isAuthorized(req?: NextRequest): Promise<boolean> {
   const sessionCookie = cookieStore.get("admin_session")?.value;
 
   if (sessionCookie) {
-    const result = verifySessionToken(sessionCookie);
+    const result = await resolveSession(sessionCookie);
     if (result.valid) {
       return true;
     }
@@ -25,7 +26,7 @@ async function isAuthorized(req?: NextRequest): Promise<boolean> {
     const authHeader = req.headers.get("authorization");
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.substring(7).trim();
-      const result = verifySessionToken(token);
+      const result = await resolveSession(token);
       if (result.valid) {
         return true;
       }

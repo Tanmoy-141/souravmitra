@@ -52,8 +52,14 @@ export const users = pgTable(
     // Null when the account was created via OAuth only (no password set).
     passwordHash: text("password_hash"),
     passwordSalt: text("password_salt"),
+    // Bumped on password reset (and available for a manual "log out
+    // everywhere" later). Each issued session token embeds the version
+    // that was current when it was signed; verification compares that
+    // against this live value, so incrementing it instantly invalidates
+    // every token issued before the bump — the actual revocation
+    // mechanism for an otherwise-stateless signed token.
+    sessionVersion: integer("session_version").notNull().default(0),
     role: userRoleEnum("role").notNull().default("admin"),
-    tokenVersion: integer("token_version").notNull().default(1),
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     image: text("image"),
     createdAt: timestamp("created_at", { withTimezone: true })

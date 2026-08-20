@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { users } from "@/db/schema";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   createSessionToken,
-  verifySessionWithRevocationCheck,
+  resolveSession,
   findUserByUsernameOrEmail,
   verifyPassword,
+  hashPassword,
   bootstrapAdminUserIfEmpty,
-  createAndSendEmailOtp,
-  verifyEmailOtp,
   createDbVerificationToken,
-  resetPasswordAndRevokeSessions,
+  verifyAndConsumeDbToken,
+  revokeAllSessionsForUser,
 } from "@/lib/auth";
+import { sendEmail } from "@/lib/email";
 
 const RATE_LIMIT_CONFIG = {
   limit: 10, // Max 10 attempts per IP window
@@ -29,51 +33,26 @@ function getClientIp(req: NextRequest): string {
   return "127.0.0.1";
 }
 
-function maskEmail(email: string): string {
-  const parts = email.split("@");
-  if (parts.length !== 2) return email;
-  const name = parts[0];
-  const domain = parts[1];
-  const maskedName =
-    name.length > 2
-      ? `${name[0]}${"*".repeat(name.length - 2)}${name[name.length - 1]}`
-      : `${name[0]}*`;
-  return `${maskedName}@${domain}`;
-}
-
-// GET: Check current authentication status with active session revocation check
+// GET: Check current authentication status
 export async function GET(req: NextRequest) {
   const sessionCookie = req.cookies.get("admin_session")?.value;
-  const verification = await verifySessionWithRevocationCheck(sessionCookie);
+  const result = await resolveSession(sessionCookie);
 
-  if (!verification.valid || !verification.payload) {
-    const response = NextResponse.json({
+  if (!result.valid || !result.payload) {
+    return NextResponse.json({
       authenticated: false,
       user: null,
-      error: verification.error,
     });
-
-    if (sessionCookie && verification.error?.includes("revoked")) {
-      response.cookies.set("admin_session", "", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 0,
-      });
-    }
-
-    return response;
   }
 
   return NextResponse.json({
     authenticated: true,
     user: {
-      id: verification.payload.userId,
-      username: verification.payload.sub,
-      email: verification.payload.email,
-      role: verification.payload.role,
-      expiresAt: verification.payload.exp,
+      id: result.payload.userId,
+      username: result.payload.sub,
+      email: result.payload.email,
+      role: result.payload.role,
+      expiresAt: result.payload.exp,
     },
   });
 }
@@ -130,7 +109,10 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // Check / bootstrap initial admin user if empty
       await bootstrapAdminUserIfEmpty();
+
+      // Query real DB user
       const user = await findUserByUsernameOrEmail(identifier);
 
       if (!user) {
@@ -140,6 +122,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // If user has no password set (OAuth-only account)
       if (!user.passwordHash || !user.passwordSalt) {
         return NextResponse.json(
           {
@@ -151,6 +134,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // Verify hashed password using constant-time PBKDF2 check
       const isValid = verifyPassword(
         password,
         user.passwordHash,
@@ -164,13 +148,13 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Embed tokenVersion into signed HMAC session token
+      // Generate cryptographically signed HMAC token containing DB user details
       const sessionToken = createSessionToken({
         id: user.id,
         username: user.username,
         email: user.email,
         role: user.role,
-        tokenVersion: user.tokenVersion ?? 1,
+        sessionVersion: user.sessionVersion,
       });
 
       const response = NextResponse.json(
@@ -187,6 +171,7 @@ export async function POST(req: NextRequest) {
         { headers: rateLimitHeaders },
       );
 
+      // Set secure HTTP-only cookie
       response.cookies.set("admin_session", sessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -217,13 +202,16 @@ export async function POST(req: NextRequest) {
     }
 
     // ------------------------------------------------------------------
-    // ACTION: REQUEST USERNAME RECOVERY (Real Email OTP)
+    // ACTION: REQUEST USERNAME RECOVERY
+    // Single step — the email itself is the verification. No shared
+    // "master" code, and the username is never returned in this response;
+    // it only ever goes to the account's actual inbox.
     // ------------------------------------------------------------------
-    if (action === "request-username-otp") {
+    if (action === "request-username-recovery") {
       const email = (body.email || "").trim().toLowerCase();
       if (!email) {
         return NextResponse.json(
-          { success: false, message: "Email address is required" },
+          { success: false, message: "Email is required" },
           { status: 400, headers: rateLimitHeaders },
         );
       }
@@ -231,78 +219,30 @@ export async function POST(req: NextRequest) {
       await bootstrapAdminUserIfEmpty();
       const user = await findUserByUsernameOrEmail(email);
 
-      // Prevent email enumeration while ensuring security
-      if (!user) {
-        return NextResponse.json(
-          {
-            success: true,
-            message:
-              "If an account exists with this email, a verification code has been sent.",
-          },
-          { headers: rateLimitHeaders },
-        );
+      if (user) {
+        await sendEmail({
+          to: user.email,
+          subject: "Your username",
+          text: `Your username is: ${user.username}`,
+        });
       }
 
-      // Generate & send single-use OTP via real email
-      await createAndSendEmailOtp(
-        user.email,
-        "username_recovery",
-        "Username Recovery",
-      );
-
+      // Same response whether or not a match was found — don't let this
+      // endpoint be used to enumerate registered emails.
       return NextResponse.json(
         {
           success: true,
-          message:
-            "A single-use verification code has been dispatched to your email address.",
+          message: "If an account matches, you'll receive an email with your username.",
         },
         { headers: rateLimitHeaders },
       );
     }
 
     // ------------------------------------------------------------------
-    // ACTION: VERIFY USERNAME RECOVERY OTP
+    // ACTION: REQUEST PASSWORD RESET — step 1: emails a real per-request,
+    // single-use, 15-minute code. Nothing is returned in this response.
     // ------------------------------------------------------------------
-    if (action === "verify-username-otp") {
-      const otp = (body.otp || "").toString().trim();
-      const email = (body.email || "").trim().toLowerCase();
-
-      if (!otp || !email) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Email and verification code are required",
-          },
-          { status: 400, headers: rateLimitHeaders },
-        );
-      }
-
-      const otpResult = await verifyEmailOtp(email, otp, "username_recovery");
-      if (!otpResult.valid) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: otpResult.error || "Invalid or expired code",
-          },
-          { status: 401, headers: rateLimitHeaders },
-        );
-      }
-
-      const user = await findUserByUsernameOrEmail(email);
-      return NextResponse.json(
-        {
-          success: true,
-          username: user ? user.username : "admin",
-          message: "Identity verified successfully",
-        },
-        { headers: rateLimitHeaders },
-      );
-    }
-
-    // ------------------------------------------------------------------
-    // ACTION: REQUEST PASSWORD RESET OTP (Real Email OTP)
-    // ------------------------------------------------------------------
-    if (action === "request-password-otp") {
+    if (action === "request-password-reset") {
       const identifier = (body.username || body.email || "").trim();
       if (!identifier) {
         return NextResponse.json(
@@ -314,92 +254,42 @@ export async function POST(req: NextRequest) {
       await bootstrapAdminUserIfEmpty();
       const user = await findUserByUsernameOrEmail(identifier);
 
-      if (!user) {
-        return NextResponse.json(
-          {
-            success: true,
-            message:
-              "If an account exists, a single-use verification code has been sent.",
-          },
-          { headers: rateLimitHeaders },
+      if (user) {
+        const code = await createDbVerificationToken(
+          user.email,
+          "password_reset",
+          15, // minutes
         );
+        await sendEmail({
+          to: user.email,
+          subject: "Reset your password",
+          text: `Your password reset code is: ${code}\n\nThis code expires in 15 minutes. If you didn't request this, you can ignore this email.`,
+        });
       }
-
-      // Generate & send single-use OTP via real email
-      await createAndSendEmailOtp(
-        user.email,
-        "password_reset",
-        "Password Reset",
-      );
 
       return NextResponse.json(
         {
           success: true,
-          emailMasked: maskEmail(user.email),
-          email: user.email,
-          message: `A verification code has been sent to ${maskEmail(user.email)}.`,
+          message: "If an account matches, you'll receive an email with a reset code.",
         },
         { headers: rateLimitHeaders },
       );
     }
 
     // ------------------------------------------------------------------
-    // ACTION: VERIFY PASSWORD RESET OTP -> ISSUES SINGLE-USE RESET TOKEN
+    // ACTION: CONFIRM PASSWORD RESET — step 2: submit the emailed code +
+    // new password together. On success, every existing session for this
+    // user is revoked, so a previously-compromised session can't survive
+    // the password change.
     // ------------------------------------------------------------------
-    if (action === "verify-password-otp") {
-      const otp = (body.otp || "").toString().trim();
-      const email = (body.email || "").trim().toLowerCase();
-
-      if (!otp || !email) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Email and verification code are required",
-          },
-          { status: 400, headers: rateLimitHeaders },
-        );
-      }
-
-      const otpResult = await verifyEmailOtp(email, otp, "password_reset");
-      if (!otpResult.valid) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: otpResult.error || "Invalid or expired code",
-          },
-          { status: 401, headers: rateLimitHeaders },
-        );
-      }
-
-      // Generate single-use reset token in database (15 minutes validity)
-      const resetToken = await createDbVerificationToken(
-        email,
-        "password_reset",
-        15,
-      );
-
-      return NextResponse.json(
-        {
-          success: true,
-          resetToken,
-          email,
-          message: "Code verified. Please enter your new password.",
-        },
-        { headers: rateLimitHeaders },
-      );
-    }
-
-    // ------------------------------------------------------------------
-    // ACTION: RESET PASSWORD & REVOKE SESSIONS
-    // ------------------------------------------------------------------
-    if (action === "reset-password") {
-      const email = (body.email || "").trim().toLowerCase();
-      const resetToken = body.resetToken || "";
+    if (action === "confirm-password-reset") {
+      const identifier = (body.username || body.email || "").trim();
+      const code = (body.code || "").toString().trim();
       const newPassword = body.newPassword || "";
 
-      if (!email || !resetToken || !newPassword) {
+      if (!identifier || !code || !newPassword) {
         return NextResponse.json(
-          { success: false, message: "Missing required reset parameters" },
+          { success: false, message: "All fields are required" },
           { status: 400, headers: rateLimitHeaders },
         );
       }
@@ -414,42 +304,50 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Validates resetToken, updates password hash, and bumps tokenVersion
-      const resetResult = await resetPasswordAndRevokeSessions(
-        email,
-        resetToken,
-        newPassword,
-      );
-
-      if (!resetResult.success) {
+      const user = await findUserByUsernameOrEmail(identifier);
+      if (!user) {
         return NextResponse.json(
-          {
-            success: false,
-            message: resetResult.error || "Failed to reset password",
-          },
-          { status: 401, headers: rateLimitHeaders },
+          { success: false, message: "Invalid or expired code" },
+          { status: 400, headers: rateLimitHeaders },
         );
       }
 
-      // Clear any current browser session cookie so user re-authenticates with fresh token
-      const response = NextResponse.json(
+      const isTokenValid = await verifyAndConsumeDbToken(
+        user.email,
+        code,
+        "password_reset",
+      );
+
+      if (!isTokenValid) {
+        return NextResponse.json(
+          { success: false, message: "Invalid or expired code" },
+          { status: 400, headers: rateLimitHeaders },
+        );
+      }
+
+      const { hash, salt } = hashPassword(newPassword);
+
+      await db
+        .update(users)
+        .set({
+          passwordHash: hash,
+          passwordSalt: salt,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, user.id));
+
+      // Cut off any session issued before this change — including one an
+      // attacker might already hold if the account was compromised.
+      await revokeAllSessionsForUser(user.id);
+
+      return NextResponse.json(
         {
           success: true,
           message:
-            "Password updated successfully. All active sessions have been revoked. Please log in with your new password.",
+            "Password updated successfully. Please log in with your new password.",
         },
         { headers: rateLimitHeaders },
       );
-
-      response.cookies.set("admin_session", "", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 0,
-      });
-
-      return response;
     }
 
     return NextResponse.json(

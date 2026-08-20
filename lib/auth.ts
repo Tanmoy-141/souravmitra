@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { eq, or } from "drizzle-orm";
 import { db } from "@/db";
 import { users, verificationTokens, type User } from "@/db/schema";
+import { sendOtpEmail } from "@/lib/email";
 
 function getAuthSecret(): string {
   const secret = process.env.AUTH_SECRET;
@@ -18,6 +19,7 @@ export interface SessionPayload {
   sub: string; // username
   role: "owner" | "admin";
   email: string;
+  v: number; // token/session version for instant revocation
   iat: number;
   exp: number;
   nonce: string;
@@ -46,7 +48,7 @@ function computeHmacSignature(data: string, secret: string): string {
 }
 
 /**
- * Creates a cryptographically signed HMAC-SHA256 session token.
+ * Creates a cryptographically signed HMAC-SHA256 session token embedding the user's current tokenVersion.
  */
 export function createSessionToken(
   user: {
@@ -54,6 +56,7 @@ export function createSessionToken(
     username: string;
     email: string;
     role: "owner" | "admin";
+    tokenVersion?: number;
   },
   durationDays = 7,
 ): string {
@@ -67,6 +70,7 @@ export function createSessionToken(
     sub: user.username,
     email: user.email,
     role: user.role,
+    v: user.tokenVersion ?? 1,
     iat: now,
     exp,
     nonce,
@@ -133,6 +137,53 @@ export function verifySessionToken(token: string | undefined | null): {
     return { valid: true, payload };
   } catch {
     return { valid: false, error: "Failed to parse payload" };
+  }
+}
+
+/**
+ * Verifies the token signature AND verifies against the database that the session
+ * has not been revoked (via password change or version bump).
+ */
+export async function verifySessionWithRevocationCheck(
+  token: string | undefined | null,
+): Promise<{
+  valid: boolean;
+  user?: User;
+  payload?: SessionPayload;
+  error?: string;
+}> {
+  const syncResult = verifySessionToken(token);
+  if (!syncResult.valid || !syncResult.payload) {
+    return { valid: false, error: syncResult.error || "Invalid session" };
+  }
+
+  try {
+    const dbUsers = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, syncResult.payload.userId))
+      .limit(1);
+
+    if (dbUsers.length === 0) {
+      return { valid: false, error: "User no longer exists" };
+    }
+
+    const user = dbUsers[0];
+    const currentVersion = user.tokenVersion ?? 1;
+    const tokenVersion = syncResult.payload.v ?? 1;
+
+    if (tokenVersion !== currentVersion) {
+      return {
+        valid: false,
+        error:
+          "Session has been revoked (password was changed). Please log in again.",
+      };
+    }
+
+    return { valid: true, user, payload: syncResult.payload };
+  } catch {
+    // If DB check fails transiently, fall back to valid cryptographic signature
+    return { valid: true, payload: syncResult.payload };
   }
 }
 
@@ -233,6 +284,7 @@ export async function bootstrapAdminUserIfEmpty(): Promise<User | null> {
         passwordHash: hash,
         passwordSalt: salt,
         role: "owner",
+        tokenVersion: 1,
       })
       .returning();
 
@@ -244,18 +296,84 @@ export async function bootstrapAdminUserIfEmpty(): Promise<User | null> {
 }
 
 /**
- * Verifies recovery OTP or secret code with constant-time check.
+ * Generates and dispatches a single-use 6-digit expiring email OTP code.
+ * The code is hashed before storage in the database.
  */
-export function verifyRecoveryCode(candidateCode: string): boolean {
-  const configuredCode = process.env.RECOVERY_CODE;
-  if (!configuredCode) {
-    return false;
-  }
-  return timingSafeEqualString(candidateCode.trim(), configuredCode.trim());
+export async function createAndSendEmailOtp(
+  email: string,
+  type: "password_reset" | "username_recovery" | "email_verify",
+  purpose: "Password Reset" | "Username Recovery" | "Email Verification",
+): Promise<{ success: boolean; error?: string }> {
+  // Generate random 6-digit numeric OTP
+  const rawOtp = crypto.randomInt(100000, 1000000).toString();
+  const tokenHash = crypto.createHash("sha256").update(rawOtp).digest("hex");
+
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+
+  // Invalidate any previously unconsumed OTPs for this identifier and type
+  await db
+    .update(verificationTokens)
+    .set({ consumedAt: new Date() })
+    .where(eq(verificationTokens.identifier, email.trim().toLowerCase()));
+
+  // Store hashed OTP
+  await db.insert(verificationTokens).values({
+    identifier: email.trim().toLowerCase(),
+    tokenHash,
+    type,
+    expiresAt,
+  });
+
+  // Dispatch email to user's inbox
+  return await sendOtpEmail({
+    to: email.trim().toLowerCase(),
+    otpCode: rawOtp,
+    purpose,
+  });
 }
 
 /**
- * Generates and stores a single-use verification or password reset token in the database.
+ * Verifies and consumes a 6-digit OTP code against the database.
+ */
+export async function verifyEmailOtp(
+  email: string,
+  rawOtp: string,
+  type: "password_reset" | "username_recovery" | "email_verify",
+): Promise<{ valid: boolean; error?: string }> {
+  const tokenHash = crypto
+    .createHash("sha256")
+    .update(rawOtp.trim())
+    .digest("hex");
+
+  const records = await db
+    .select()
+    .from(verificationTokens)
+    .where(eq(verificationTokens.identifier, email.trim().toLowerCase()))
+    .limit(10);
+
+  const validRecord = records.find(
+    (r) =>
+      r.type === type &&
+      !r.consumedAt &&
+      r.expiresAt > new Date() &&
+      timingSafeEqualString(r.tokenHash, tokenHash),
+  );
+
+  if (!validRecord) {
+    return { valid: false, error: "Invalid or expired verification code" };
+  }
+
+  // Mark OTP as consumed
+  await db
+    .update(verificationTokens)
+    .set({ consumedAt: new Date() })
+    .where(eq(verificationTokens.id, validRecord.id));
+
+  return { valid: true };
+}
+
+/**
+ * Generates and stores a single-use password reset token in the database.
  */
 export async function createDbVerificationToken(
   identifier: string,
@@ -278,7 +396,64 @@ export async function createDbVerificationToken(
 }
 
 /**
- * Verifies and consumes a single-use token from the verificationTokens table.
+ * Verifies, consumes a reset token, updates the user's password, and increments tokenVersion
+ * to instantly revoke all active sessions across all devices.
+ */
+export async function resetPasswordAndRevokeSessions(
+  email: string,
+  rawToken: string,
+  newPassword: string,
+): Promise<{ success: boolean; error?: string }> {
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+  const records = await db
+    .select()
+    .from(verificationTokens)
+    .where(eq(verificationTokens.identifier, email.trim().toLowerCase()))
+    .limit(10);
+
+  const validRecord = records.find(
+    (r) =>
+      r.type === "password_reset" &&
+      !r.consumedAt &&
+      r.expiresAt > new Date() &&
+      timingSafeEqualString(r.tokenHash, tokenHash),
+  );
+
+  if (!validRecord) {
+    return { success: false, error: "Invalid or expired reset token" };
+  }
+
+  // Mark token as consumed
+  await db
+    .update(verificationTokens)
+    .set({ consumedAt: new Date() })
+    .where(eq(verificationTokens.id, validRecord.id));
+
+  const user = await findUserByUsernameOrEmail(email);
+  if (!user) {
+    return { success: false, error: "User not found" };
+  }
+
+  const { hash, salt } = hashPassword(newPassword);
+  const nextTokenVersion = (user.tokenVersion ?? 1) + 1;
+
+  // Update password and increment tokenVersion (revokes all active sessions)
+  await db
+    .update(users)
+    .set({
+      passwordHash: hash,
+      passwordSalt: salt,
+      tokenVersion: nextTokenVersion,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, user.id));
+
+  return { success: true };
+}
+
+/**
+ * Backward compatibility: verifies single-use DB token.
  */
 export async function verifyAndConsumeDbToken(
   identifier: string,
@@ -305,11 +480,21 @@ export async function verifyAndConsumeDbToken(
     return false;
   }
 
-  // Mark token as consumed
   await db
     .update(verificationTokens)
     .set({ consumedAt: new Date() })
     .where(eq(verificationTokens.id, validRecord.id));
 
   return true;
+}
+
+/**
+ * Backward compatibility: verifies recovery code against RECOVERY_CODE environment variable if configured.
+ */
+export function verifyRecoveryCode(candidateCode: string): boolean {
+  const configuredCode = process.env.RECOVERY_CODE;
+  if (!configuredCode || !candidateCode) {
+    return false;
+  }
+  return timingSafeEqualString(candidateCode.trim(), configuredCode.trim());
 }

@@ -67,6 +67,7 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
       });
       const data = await res.json();
       if (data.success) {
+        if (data.email) setEmail(data.email);
         setRecoveryStep("verify");
       } else {
         setError(data.message || "Failed to initiate recovery");
@@ -86,10 +87,7 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
       recoveryMode === "username"
         ? "verify-username-otp"
         : "verify-password-otp";
-    const payload =
-      recoveryMode === "username"
-        ? { action, otp, email }
-        : { action, otp, username };
+    const payload = { action, otp, email };
 
     try {
       const res = await fetch("/api/auth", {

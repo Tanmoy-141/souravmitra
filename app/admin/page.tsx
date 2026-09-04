@@ -3,10 +3,12 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import AdminLogin from "@/components/cms/AdminLogin";
 import MediaLibrary from "@/components/cms/MediaLibrary";
+import ProjectsAdmin from "@/components/cms/ProjectsAdmin";
 import { CustomPage, Block, BlockType } from "@/data/cms";
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [activeTab, setActiveTab] = useState<"pages" | "projects">("pages");
   const [pages, setPages] = useState<CustomPage[]>([]);
   const [activePage, setActivePage] = useState<CustomPage | null>(null);
   const [showMediaLibrary, setShowMediaLibrary] = useState<{
@@ -155,25 +157,48 @@ export default function AdminDashboard() {
           <span className="text-[#C5A059] font-bold uppercase tracking-widest text-xs shrink-0">
             Admin Dashboard
           </span>
-          <select
-            value={activePage?.slug}
-            onChange={(e) =>
-              setActivePage(
-                pages.find((p) => p.slug === e.target.value) || null,
-              )
-            }
-            className="bg-[#111111] border border-[#333333] px-3 py-1 text-sm focus:outline-none min-w-0 flex-1 md:flex-none">
-            {pages.map((p) => (
-              <option key={p.slug} value={p.slug}>
-                {p.title} ({p.status})
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={createNewPage}
-            className="text-xs text-gray-500 hover:text-white uppercase tracking-widest shrink-0">
-            + New Page
-          </button>
+
+          {/* Tab switcher */}
+          <div className="flex gap-1 border border-[#333] p-0.5">
+            <button
+              onClick={() => setActiveTab("pages")}
+              className={`px-3 py-1 text-xs uppercase tracking-widest font-bold transition-colors ${
+                activeTab === "pages" ? "bg-[#C5A059] text-black" : "text-gray-500 hover:text-white"
+              }`}>
+              Pages
+            </button>
+            <button
+              onClick={() => setActiveTab("projects")}
+              className={`px-3 py-1 text-xs uppercase tracking-widest font-bold transition-colors ${
+                activeTab === "projects" ? "bg-[#C5A059] text-black" : "text-gray-500 hover:text-white"
+              }`}>
+              Projects
+            </button>
+          </div>
+
+          {activeTab === "pages" && (
+            <>
+              <select
+                value={activePage?.slug}
+                onChange={(e) =>
+                  setActivePage(
+                    pages.find((p) => p.slug === e.target.value) || null,
+                  )
+                }
+                className="bg-[#111111] border border-[#333333] px-3 py-1 text-sm focus:outline-none min-w-0 flex-1 md:flex-none">
+                {pages.map((p) => (
+                  <option key={p.slug} value={p.slug}>
+                    {p.title} ({p.status})
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={createNewPage}
+                className="text-xs text-gray-500 hover:text-white uppercase tracking-widest shrink-0">
+                + New Page
+              </button>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-3">
           {saveStatus && (
@@ -186,12 +211,14 @@ export default function AdminDashboard() {
               {saveStatus}
             </span>
           )}
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-[#C5A059] text-black px-6 py-2 font-bold uppercase tracking-widest text-xs hover:bg-white transition-colors disabled:opacity-50 w-full md:w-auto">
-            {saving ? "Publishing..." : "Publish Site"}
-          </button>
+          {activeTab === "pages" && (
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="bg-[#C5A059] text-black px-6 py-2 font-bold uppercase tracking-widest text-xs hover:bg-white transition-colors disabled:opacity-50 w-full md:w-auto">
+              {saving ? "Publishing..." : "Publish Site"}
+            </button>
+          )}
           <button
             onClick={handleLogout}
             className="text-xs text-gray-400 hover:text-red-400 border border-[#333333] hover:border-red-800 px-3 py-2 uppercase tracking-widest transition-colors">
@@ -200,6 +227,11 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {activeTab === "projects" ? (
+        <div className="flex-1 overflow-y-auto p-6 md:p-12 bg-[#000000]">
+          <ProjectsAdmin />
+        </div>
+      ) : (
       <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">
         {/* Sidebar Controls */}
         <aside className="w-full md:w-80 border-b md:border-b-0 md:border-r border-[#333333] p-6 max-h-[50vh] md:max-h-none overflow-y-auto flex flex-col gap-8 bg-[#050505]">
@@ -373,6 +405,7 @@ export default function AdminDashboard() {
           </div>
         </main>
       </div>
+      )}
 
       {showMediaLibrary && (
         <MediaLibrary

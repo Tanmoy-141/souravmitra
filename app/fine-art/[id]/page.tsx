@@ -1,29 +1,32 @@
-import { artworks } from '@/data/projects';
-import { notFound } from 'next/navigation';
-import ProjectDetailView from '@/components/ProjectDetailView';
+import { notFound } from "next/navigation";
+import ProjectDetailView from "@/components/ProjectDetailView";
+import { getProjectById } from "@/lib/projects";
 
-export default async function FineArtDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function FineArtDetail({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
-  const art = artworks.find((a) => a.id === id);
+  const project = await getProjectById(id);
 
-  if (!art) {
+  if (!project || project.category !== "fine-art" || project.status !== "published") {
     notFound();
   }
 
   return (
     <ProjectDetailView
-      id={art.id}
-      title={art.title}
+      id={project.id}
+      title={project.title}
       type="fine-art"
-      genreOrMedium={art.medium}
-      year={art.year}
-      description={art.notes}
-      likes={art.likes}
-      views={art.views}
-      tags={art.tags}
-      dimensions={art.dimensions}
-      availability={art.availability}
-      notes={art.notes}
+      genreOrMedium={project.medium ?? "Mixed Media"}
+      year={Number(project.year ?? 2024)}
+      description={project.description ?? ""}
+      likes={project.likes}
+      views={project.views}
+      tags={(project.tags as string[]) ?? []}
+      dimensions={project.dimensions ?? undefined}
+      notes={project.details ?? undefined}
       backUrl="/fine-art"
     />
   );

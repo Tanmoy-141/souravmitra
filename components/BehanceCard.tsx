@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 interface BehanceCardProps {
   id: string;
@@ -12,6 +13,7 @@ interface BehanceCardProps {
   likes: number;
   views: number;
   detailUrl: string;
+  imageUrl?: string; // real uploaded cover; falls back to ProceduralPlaceholder when absent
 }
 
 // Simple hash function to generate consistent pseudo-random numbers from an ID
@@ -357,6 +359,7 @@ export default function BehanceCard({
   likes: initialLikes,
   views,
   detailUrl,
+  imageUrl,
 }: BehanceCardProps) {
   /*
    * IMPORTANT:
@@ -416,8 +419,18 @@ export default function BehanceCard({
         href={detailUrl}
         className="relative block overflow-hidden rounded-md bg-[#0d0d0d] shadow-lg transition-shadow duration-300 hover:shadow-2xl hover:shadow-black/60">
         <div
-          className={`w-full ${getAspectStyle()} transition-transform duration-500 ease-out group-hover:scale-[1.03]`}>
-          <ProceduralPlaceholder id={id} type={type} title={title} />
+          className={`relative w-full ${getAspectStyle()} transition-transform duration-500 ease-out group-hover:scale-[1.03]`}>
+          {imageUrl ? (
+            <Image
+              src={imageUrl}
+              alt={title}
+              fill
+              sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+              className="object-cover"
+            />
+          ) : (
+            <ProceduralPlaceholder id={id} type={type} title={title} />
+          )}
         </div>
 
         {/* Hover Overlay */}

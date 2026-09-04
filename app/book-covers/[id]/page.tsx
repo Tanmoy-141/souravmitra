@@ -1,6 +1,6 @@
-import { projects } from "@/data/projects";
 import { notFound } from "next/navigation";
 import ProjectDetailView from "@/components/ProjectDetailView";
+import { getProjectById } from "@/lib/projects";
 
 export default async function BookCoverDetail({
   params,
@@ -8,24 +8,24 @@ export default async function BookCoverDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const cover = projects.find((p) => p.id === id);
+  const project = await getProjectById(id);
 
-  if (!cover) {
+  if (!project || project.category !== "book-covers" || project.status !== "published") {
     notFound();
   }
 
   return (
     <ProjectDetailView
-      id={cover.id}
-      title={cover.title}
+      id={project.id}
+      title={project.title}
       type="book-cover"
-      genreOrMedium={cover.genre}
-      year={cover.year}
-      description={cover.description}
-      likes={cover.likes}
-      views={cover.views}
-      tags={cover.tags}
-      publisher={cover.publisher}
+      genreOrMedium={project.medium ?? "Book Cover"}
+      year={Number(project.year ?? 2024)}
+      description={project.description ?? ""}
+      likes={project.likes}
+      views={project.views}
+      tags={(project.tags as string[]) ?? []}
+      publisher={project.publisher ?? undefined}
       backUrl="/book-covers"
     />
   );

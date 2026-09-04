@@ -43,44 +43,46 @@ export async function GET(req: NextRequest) {
     const slug = searchParams.get("slug");
     const id = searchParams.get("id");
 
+    let dbPages = [];
+
     if (slug) {
-      const page = await db
+      dbPages = await db
         .select()
         .from(pages)
         .where(and(eq(pages.slug, slug), isNull(pages.deletedAt)))
         .limit(1);
-
-      if (!page.length) {
-        return NextResponse.json({ error: "Page not found" }, { status: 404 });
-      }
-      return NextResponse.json(page[0]);
-    }
-
-    if (id) {
-      const page = await db
+    } else if (id) {
+      dbPages = await db
         .select()
         .from(pages)
         .where(and(eq(pages.id, id), isNull(pages.deletedAt)))
         .limit(1);
-
-      if (!page.length) {
-        return NextResponse.json({ error: "Page not found" }, { status: 404 });
-      }
-      return NextResponse.json(page[0]);
+    } else {
+      dbPages = await db
+        .select()
+        .from(pages)
+        .where(isNull(pages.deletedAt))
+        .orderBy(desc(pages.updatedAt));
     }
 
-    const allPages = await db
-      .select()
-      .from(pages)
-      .where(isNull(pages.deletedAt))
-      .orderBy(desc(pages.updatedAt));
+    // Map database records to CustomPage format (blocks inside gjsData)
+    const resultPages = (dbPages || []).map((p) => ({
+      id: p.id,
+      slug: p.slug,
+      title: p.title,
+      status: p.status,
+      blocks: (p.gjsData as { blocks?: any[] })?.blocks || [],
+      seoTitle: p.seoTitle,
+      seoDescription: p.seoDescription,
+    }));
 
-    const resultPages = allPages || [];
+    if ((slug || id) && !resultPages.length) {
+      return NextResponse.json({ error: "Page not found" }, { status: 404 });
+    }
 
-    return NextResponse.json({
-      pages: resultPages,
-      data: resultPages,
-    });
+    return NextResponse.json(
+      slug || id ? resultPages[0] : { pages: resultPages, data: resultPages },
+    );
   } catch (err) {
     console.error("[CMS GET Error]:", err);
     return NextResponse.json({
@@ -102,12 +104,46 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    // Handle bulk pages payload from Admin Dashboard
+    // Handle bulk pages payload from Admin Dashboard (Upsert)
     if (body.pages && Array.isArray(body.pages)) {
+      const results = [];
+      for (const page of body.pages) {
+        // Validate slug
+        const cleanSlug = (page.slug || "")
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9-]+/g, "-");
+
+        if (!cleanSlug || !page.title) continue;
+
+        const [upserted] = await db
+          .insert(pages)
+          .values({
+            ...(page.id && { id: page.id }),
+            slug: cleanSlug,
+            title: page.title,
+            status: page.status || "draft",
+            gjsData: { blocks: page.blocks || [] },
+            updatedAt: new Date(),
+          })
+          .onConflictDoUpdate({
+            target: [pages.id],
+            set: {
+              slug: cleanSlug,
+              title: page.title,
+              status: page.status || "draft",
+              gjsData: { blocks: page.blocks || [] },
+              updatedAt: new Date(),
+            },
+          })
+          .returning();
+        results.push(upserted);
+      }
+
       return NextResponse.json({
         success: true,
-        pages: body.pages,
         message: "Pages published successfully",
+        count: results.length,
       });
     }
 

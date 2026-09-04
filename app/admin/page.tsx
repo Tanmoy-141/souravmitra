@@ -36,8 +36,15 @@ export default function AdminDashboard() {
           : Array.isArray(data)
             ? data
             : [];
-        setPages(pagesList);
-        if (pagesList.length > 0) setActivePage(pagesList[0]);
+        
+        // Defensive check: Ensure each page has a blocks array
+        const normalizedPages = pagesList.map((p: any) => ({
+          ...p,
+          blocks: Array.isArray(p.blocks) ? p.blocks : []
+        }));
+        
+        setPages(normalizedPages);
+        if (normalizedPages.length > 0) setActivePage(normalizedPages[0]);
       } catch {
         console.error("Failed to load pages");
       } finally {
@@ -71,7 +78,23 @@ export default function AdminDashboard() {
         body: JSON.stringify({ pages }),
       });
       if (res.ok) {
+        const data = await res.json();
         setSaveStatus("Site published successfully!");
+        
+        // Refresh pages to get IDs for new ones
+        const refreshRes = await fetch("/api/cms");
+        const refreshData = await refreshRes.json();
+        const freshPages = Array.isArray(refreshData?.pages) ? refreshData.pages : [];
+        const normalizedFresh = freshPages.map((p: any) => ({
+          ...p,
+          blocks: Array.isArray(p.blocks) ? p.blocks : []
+        }));
+        setPages(normalizedFresh);
+        if (activePage) {
+          const updatedActive = normalizedFresh.find((p: any) => p.slug === activePage.slug) || normalizedFresh[0];
+          setActivePage(updatedActive);
+        }
+
         setTimeout(() => setSaveStatus(null), 3000);
       } else {
         const err = await res.json();
@@ -86,8 +109,9 @@ export default function AdminDashboard() {
 
   const addBlock = (type: BlockType) => {
     if (!activePage) return;
+    const currentBlocks = Array.isArray(activePage.blocks) ? activePage.blocks : [];
     const newBlock: Block = {
-      id: `b-${activePage.blocks.length + 1}`,
+      id: `b-${currentBlocks.length + 1}-${Math.random().toString(36).slice(2, 6)}`,
       type,
       content: {
         title: `New ${type} block`,
@@ -99,7 +123,7 @@ export default function AdminDashboard() {
     };
     const updatedPage = {
       ...activePage,
-      blocks: [...activePage.blocks, newBlock],
+      blocks: [...currentBlocks, newBlock],
     };
     setPages(pages.map((p) => (p.slug === activePage.slug ? updatedPage : p)));
     setActivePage(updatedPage);
@@ -107,9 +131,10 @@ export default function AdminDashboard() {
 
   const removeBlock = (id: string) => {
     if (!activePage) return;
+    const currentBlocks = Array.isArray(activePage.blocks) ? activePage.blocks : [];
     const updatedPage = {
       ...activePage,
-      blocks: activePage.blocks.filter((b) => b.id !== id),
+      blocks: currentBlocks.filter((b) => b.id !== id),
     };
     setPages(pages.map((p) => (p.slug === activePage.slug ? updatedPage : p)));
     setActivePage(updatedPage);
@@ -117,9 +142,10 @@ export default function AdminDashboard() {
 
   const updateBlockContent = (id: string, field: string, value: unknown) => {
     if (!activePage) return;
+    const currentBlocks = Array.isArray(activePage.blocks) ? activePage.blocks : [];
     const updatedPage = {
       ...activePage,
-      blocks: activePage.blocks.map((b) =>
+      blocks: currentBlocks.map((b) =>
         b.id === id ? { ...b, content: { ...b.content, [field]: value } } : b,
       ),
     };

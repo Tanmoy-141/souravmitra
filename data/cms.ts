@@ -21,6 +21,7 @@ export interface Block {
 }
 
 export interface CustomPage {
+  id?: string;
   slug: string;
   title: string;
   status: "draft" | "published";

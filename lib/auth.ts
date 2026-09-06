@@ -187,7 +187,6 @@ export async function revokeAllSessionsForUser(userId: string): Promise<void> {
     .where(eq(users.id, userId));
 }
 
-
 export function timingSafeEqualString(a: string, b: string): boolean {
   const bufA = Buffer.from(a, "utf8");
   const bufB = Buffer.from(b, "utf8");

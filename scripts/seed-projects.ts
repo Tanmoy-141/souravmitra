@@ -28,11 +28,23 @@ function seededRange(seed: string, min: number, max: number): number {
 }
 
 const bookGenres = [
-  "Literary Fiction", "Thriller", "Horror", "Fantasy", "Historical",
-  "Romance", "Poetry", "Children's", "Non-fiction",
+  "Literary Fiction",
+  "Thriller",
+  "Horror",
+  "Fantasy",
+  "Historical",
+  "Romance",
+  "Poetry",
+  "Children's",
+  "Non-fiction",
 ];
 const illustrationGenres = [
-  "Editorial", "Publishing", "Conceptual", "Children's", "Character Design", "Personal",
+  "Editorial",
+  "Publishing",
+  "Conceptual",
+  "Children's",
+  "Character Design",
+  "Personal",
 ];
 
 interface SeedRow {
@@ -108,13 +120,22 @@ async function main() {
     const [existing] = await db
       .select()
       .from(projects)
-      .where(and(eq(projects.title, row.title), eq(projects.category, row.category)))
+      .where(
+        and(eq(projects.title, row.title), eq(projects.category, row.category)),
+      )
       .limit(1);
 
-    if (existing) { skipped++; continue; }
+    if (existing) {
+      skipped++;
+      continue;
+    }
 
     let slug = slugify(row.title);
-    const [slugTaken] = await db.select().from(projects).where(eq(projects.slug, slug)).limit(1);
+    const [slugTaken] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.slug, slug))
+      .limit(1);
     if (slugTaken) slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
 
     await db.insert(projects).values({
@@ -126,7 +147,7 @@ async function main() {
       dimensions: row.dimensions ?? null,
       publisher: row.publisher ?? null,
       year: row.year,
-      coverImage: "",   // no real image yet — public pages fall back to procedural placeholder
+      coverImage: "", // no real image yet — public pages fall back to procedural placeholder
       images: [],
       tags: row.tags,
       likes: row.likes,
@@ -141,4 +162,7 @@ async function main() {
   process.exit(0);
 }
 
-main().catch((err) => { console.error("Seed failed:", err); process.exit(1); });
+main().catch((err) => {
+  console.error("Seed failed:", err);
+  process.exit(1);
+});

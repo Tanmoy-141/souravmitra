@@ -263,11 +263,20 @@ export async function bootstrapAdminUserIfEmpty(): Promise<User | null> {
       return existing[0];
     }
 
-    const adminUsername = process.env.ADMIN_USERNAME || "admin";
-    const adminEmail = process.env.ADMIN_EMAIL || "admin@example.com";
+    const adminUsername = process.env.ADMIN_USERNAME;
+    const adminEmail = process.env.ADMIN_EMAIL;
     const adminPassword = process.env.ADMIN_PASSWORD;
 
-    if (!adminPassword) {
+    // All three or none — silently falling back to "admin" / a fake
+    // example.com address would create a real account with a guessable
+    // username and a non-functional email, permanently breaking password
+    // reset / username recovery for it until someone manually fixes the
+    // database. Better to fail loudly here than discover that later.
+    if (!adminUsername || !adminEmail || !adminPassword) {
+      console.error(
+        "[Auth] Cannot bootstrap admin account: ADMIN_USERNAME, ADMIN_EMAIL, " +
+          "and ADMIN_PASSWORD must all be set in your environment.",
+      );
       return null;
     }
 

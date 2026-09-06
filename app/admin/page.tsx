@@ -38,10 +38,10 @@ export default function AdminDashboard() {
             : [];
         
         // Defensive check: Ensure each page has a blocks array
-        const normalizedPages = pagesList.map((p: any) => ({
+        const normalizedPages = pagesList.map((p: Partial<CustomPage>) => ({
           ...p,
           blocks: Array.isArray(p.blocks) ? p.blocks : []
-        }));
+        })) as CustomPage[];
         
         setPages(normalizedPages);
         if (normalizedPages.length > 0) setActivePage(normalizedPages[0]);
@@ -78,20 +78,19 @@ export default function AdminDashboard() {
         body: JSON.stringify({ pages }),
       });
       if (res.ok) {
-        const data = await res.json();
         setSaveStatus("Site published successfully!");
         
         // Refresh pages to get IDs for new ones
         const refreshRes = await fetch("/api/cms");
         const refreshData = await refreshRes.json();
         const freshPages = Array.isArray(refreshData?.pages) ? refreshData.pages : [];
-        const normalizedFresh = freshPages.map((p: any) => ({
+        const normalizedFresh = freshPages.map((p: Partial<CustomPage>) => ({
           ...p,
           blocks: Array.isArray(p.blocks) ? p.blocks : []
-        }));
+        })) as CustomPage[];
         setPages(normalizedFresh);
         if (activePage) {
-          const updatedActive = normalizedFresh.find((p: any) => p.slug === activePage.slug) || normalizedFresh[0];
+          const updatedActive = normalizedFresh.find((p: CustomPage) => p.slug === activePage.slug) || normalizedFresh[0];
           setActivePage(updatedActive);
         }
 
@@ -111,7 +110,7 @@ export default function AdminDashboard() {
     if (!activePage) return;
     const currentBlocks = Array.isArray(activePage.blocks) ? activePage.blocks : [];
     const newBlock: Block = {
-      id: `b-${currentBlocks.length + 1}-${Math.random().toString(36).slice(2, 6)}`,
+      id: `b-${currentBlocks.length + 1}-${crypto.randomUUID().slice(0, 4)}`,
       type,
       content: {
         title: `New ${type} block`,

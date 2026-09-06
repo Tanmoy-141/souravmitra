@@ -4,6 +4,7 @@ import { pages } from "@/db/schema";
 import { eq, desc, isNull, and } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { resolveSession } from "@/lib/auth";
+import type { Block } from "@/data/cms";
 
 /**
  * Validates the cryptographic session token against tampering, forgery,
@@ -71,7 +72,7 @@ export async function GET(req: NextRequest) {
       slug: p.slug,
       title: p.title,
       status: p.status,
-      blocks: (p.gjsData as { blocks?: any[] })?.blocks || [],
+      blocks: (p.gjsData as { blocks?: Block[] })?.blocks || [],
       seoTitle: p.seoTitle,
       seoDescription: p.seoDescription,
     }));

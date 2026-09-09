@@ -4,6 +4,17 @@ import { resolveSession } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { listMediaAssets, saveMediaAsset } from "@/lib/media";
 
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+const ALLOWED_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/svg+xml",
+  "video/mp4",
+  "video/webm",
+]);
+
 async function isAuthorized(): Promise<boolean> {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("admin_session")?.value;
@@ -32,10 +43,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, message: "No file provided" }, { status: 400 });
   }
 
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return NextResponse.json(
+      { success: false, message: "File must be under 10MB" },
+      { status: 400 },
+    );
+  }
+
+  if (!ALLOWED_TYPES.has(file.type)) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Unsupported file type. Allowed: JPEG, PNG, WebP, GIF, SVG, MP4, WebM.",
+      },
+      { status: 400 },
+    );
+  }
+
   try {
-    // Upload to Vercel Blob
+    // random suffix avoids collisions between two uploads sharing a filename
     const blob = await put(file.name, file, {
       access: "public",
+      addRandomSuffix: true,
     });
 
     // Save metadata to DB

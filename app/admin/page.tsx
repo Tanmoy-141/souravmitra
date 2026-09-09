@@ -440,7 +440,7 @@ export default function AdminDashboard() {
               updateBlockContent(
                 showMediaLibrary.blockId,
                 "background",
-                asset.url,
+                asset.blobUrl,
               );
             } else {
               const currentImages =
@@ -449,7 +449,7 @@ export default function AdminDashboard() {
                 )?.content.images || [];
               updateBlockContent(showMediaLibrary.blockId, "images", [
                 ...currentImages,
-                asset.url,
+                asset.blobUrl,
               ]);
             }
             setShowMediaLibrary(null);

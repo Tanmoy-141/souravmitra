@@ -2,10 +2,9 @@
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import MediaLibrary from "./MediaLibrary";
-import type { Project } from "@/db/schema";
+import type { Project, MediaAsset } from "@/db/schema";
 
 type Category = "book-covers" | "illustration" | "fine-art";
-type MediaAsset = { id: string; name: string; url: string; type: "image" | "video" };
 
 const CATEGORY_LABELS: Record<Category, string> = {
   "book-covers": "Book Covers",
@@ -519,7 +518,7 @@ export default function ProjectsAdmin() {
       {showMediaLibrary && (
         <MediaLibrary
           onSelect={(asset: MediaAsset) => {
-            setForm({ ...form, coverImage: asset.url });
+            setForm({ ...form, coverImage: asset.blobUrl });
             setShowMediaLibrary(false);
           }}
           onClose={() => setShowMediaLibrary(false)}

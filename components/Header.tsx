@@ -14,7 +14,7 @@ export const Header = () => {
         const data = await res.json();
         if (data.pages) {
           setCustomPages(
-            data.pages.filter((p: CustomPage) => p.status === "published"),
+            data.pages.filter((p: CustomPage) => p.status === "published" && p.slug !== "about"),
           );
         }
       } catch {

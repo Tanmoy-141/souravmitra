@@ -15,8 +15,10 @@ export async function generateMetadata({
   params,
 }: DynamicPageProps): Promise<Metadata> {
   const { slug } = await params;
+  if (slug === 'about') {
+    return { title: "Page Not Found" };
+  }
   const pageResult = await db
-    .select()
     .from(pages)
     .where(
       and(

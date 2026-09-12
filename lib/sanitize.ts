@@ -10,9 +10,9 @@ const purify = DOMPurify(window);
  */
 export function sanitizeHtml(html: string): string {
   return purify.sanitize(html, {
-    // Enable SVG but rely on DOMPurify's default attribute stripping
-    // to remove dangerous attributes like 'onload' and 'onerror'.
-    ADD_TAGS: ['svg'],
+    // Allow standard HTML and SVG, and specifically allow 'class' for Tailwind
+    USE_PROFILES: { html: true, svg: true },
+    ADD_ATTR: ['class'],
   });
 }
 

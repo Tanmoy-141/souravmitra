@@ -35,7 +35,9 @@ export default async function AboutPage() {
         className="prose dark:prose-invert max-w-none"
         dangerouslySetInnerHTML={{ __html: safeHtml }}
       />
-      <ClientsSection />
+      <div className="py-12">
+        <ClientsSection />
+      </div>
     </>
   );
 }

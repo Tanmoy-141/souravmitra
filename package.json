@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=19.0.0"
+    "node": ">=22.23.2"
   },
   "scripts": {
     "dev": "next dev",
@@ -18,8 +18,11 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
+    "@types/jsdom": "30.0.0",
     "@vercel/blob": "^2.8.0",
     "drizzle-orm": "^0.45.2",
+    "isomorphic-dompurify": "4.2.0",
+    "jsdom": "30.0.1",
     "next": "16.3.0",
     "pg": "^8.23.0",
     "react": "19.2.8",

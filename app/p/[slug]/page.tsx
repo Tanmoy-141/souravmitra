@@ -5,6 +5,7 @@ import { eq, and, isNull } from "drizzle-orm";
 import type { Metadata } from "next";
 import BlockRenderer from "@/components/cms/BlockRenderer";
 import { Block } from "@/data/cms";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 interface DynamicPageProps {
   params: Promise<{ slug: string }>;
@@ -60,12 +61,13 @@ export default async function DynamicCustomPage({ params }: DynamicPageProps) {
 
   // Extract blocks from gjsData
   const blocks = (page.gjsData as { blocks?: Block[] })?.blocks || [];
+  
+  // Sanitization on Read (Defense-in-depth)
+  const safeHtml = sanitizeHtml(page.htmlCache || "");
 
   return (
     <main className="min-h-screen pb-24">
-      {page.cssCache && (
-        <style dangerouslySetInnerHTML={{ __html: page.cssCache }} />
-      )}
+      {page.cssCache && <style>{page.cssCache}</style>}
       
       {/* If blocks exist, render them using the dynamic renderer */}
       {blocks.length > 0 ? (
@@ -82,7 +84,7 @@ export default async function DynamicCustomPage({ params }: DynamicPageProps) {
           <article
             id="cms-page-content"
             className="prose dark:prose-invert max-w-none"
-            dangerouslySetInnerHTML={{ __html: page.htmlCache || "" }}
+            dangerouslySetInnerHTML={{ __html: safeHtml }}
           />
         </div>
       )}

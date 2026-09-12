@@ -5,6 +5,7 @@ import { eq, desc, isNull, and } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { resolveSession } from "@/lib/auth";
 import type { Block } from "@/data/cms";
+import { sanitizeHtml, validateCss } from "@/lib/sanitize";
 
 /**
  * Validates the cryptographic session token against tampering, forgery,
@@ -166,6 +167,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const sanitizedHtml = htmlCache ? sanitizeHtml(htmlCache) : "";
+    let sanitizedCss = "";
+    try {
+      sanitizedCss = cssCache ? validateCss(cssCache) : "";
+    } catch (e) {
+      return NextResponse.json({ error: "Invalid CSS" }, { status: 400 });
+    }
+
     const newPage = await db
       .insert(pages)
       .values({
@@ -174,8 +183,8 @@ export async function POST(req: NextRequest) {
         seoTitle: seoTitle || null,
         seoDescription: seoDescription || null,
         gjsData: gjsData || null,
-        htmlCache: htmlCache || "",
-        cssCache: cssCache || "",
+        htmlCache: sanitizedHtml,
+        cssCache: sanitizedCss,
         status: status || "draft",
         publishedAt: status === "published" ? new Date() : null,
       })
@@ -231,6 +240,20 @@ export async function PUT(req: NextRequest) {
       );
     }
 
+    let sanitizedHtml;
+    if (htmlCache !== undefined) {
+      sanitizedHtml = sanitizeHtml(htmlCache);
+    }
+
+    let sanitizedCss;
+    if (cssCache !== undefined) {
+      try {
+        sanitizedCss = validateCss(cssCache);
+      } catch (e) {
+        return NextResponse.json({ error: "Invalid CSS" }, { status: 400 });
+      }
+    }
+
     const updated = await db
       .update(pages)
       .set({
@@ -239,8 +262,8 @@ export async function PUT(req: NextRequest) {
         ...(seoTitle !== undefined && { seoTitle }),
         ...(seoDescription !== undefined && { seoDescription }),
         ...(gjsData !== undefined && { gjsData }),
-        ...(htmlCache !== undefined && { htmlCache }),
-        ...(cssCache !== undefined && { cssCache }),
+        ...(sanitizedHtml !== undefined && { htmlCache: sanitizedHtml }),
+        ...(sanitizedCss !== undefined && { cssCache: sanitizedCss }),
         ...(status && {
           status,
           publishedAt: status === "published" ? new Date() : null,

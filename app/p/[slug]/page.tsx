@@ -40,6 +40,10 @@ export async function generateMetadata({
 
 export default async function DynamicCustomPage({ params }: DynamicPageProps) {
   const { slug } = await params;
+  
+  if (slug === 'about') {
+    notFound();
+  }
 
   const pageResult = await db
     .select()

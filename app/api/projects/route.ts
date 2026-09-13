@@ -4,6 +4,7 @@ import { projects } from "@/db/schema";
 import { cookies } from "next/headers";
 import { resolveSession } from "@/lib/auth";
 import { listProjects, slugify, type ProjectCategory } from "@/lib/projects";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 const VALID_CATEGORIES: ProjectCategory[] = [
   "book-covers",
@@ -64,7 +65,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title, category } = body;
+    const title = typeof body.title === "string" ? sanitizeHtml(body.title) : "";
+    const category = body.category;
+    const description = typeof body.description === "string" ? sanitizeHtml(body.description) : null;
 
     if (!category || !VALID_CATEGORIES.includes(category)) {
       return NextResponse.json(
@@ -91,7 +94,7 @@ export async function POST(req: NextRequest) {
             title: title.trim(),
             category,
             status: body.status === "draft" ? "draft" : "published",
-            description: body.description?.trim() || null,
+            description: description?.trim() || null,
             medium: body.medium?.trim() || null,
             dimensions: body.dimensions?.trim() || null,
             publisher: body.publisher?.trim() || null,

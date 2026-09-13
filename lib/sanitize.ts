@@ -1,43 +1,53 @@
 import DOMPurify from 'isomorphic-dompurify';
-import { JSDOM } from 'jsdom';
-
-// Initialize DOMPurify with JSDOM
-const window = new JSDOM('').window;
-const purify = DOMPurify(window);
 
 /**
  * Sanitizes HTML content using DOMPurify (allow-list based).
+ * SVG profile is intentionally disabled to reduce attack surface.
  */
 export function sanitizeHtml(html: string): string {
-  return purify.sanitize(html, {
-    // Allow standard HTML and SVG, and specifically allow 'class' for Tailwind
-    USE_PROFILES: { html: true, svg: true },
-    ADD_ATTR: ['class'],
+  return DOMPurify.sanitize(html, {
+    USE_PROFILES: { html: true },
+    ADD_ATTR: ["class"],
+    // Block dangerous tags that could slip through
+    FORBID_TAGS: ["style", "form", "input", "textarea", "select"],
+    FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover"],
   });
 }
 
 /**
  * Validates CSS content to prevent dangerous imports, javascript URLs, etc.
- * Rejects content if it contains potentially malicious patterns.
+ * Uses a deny-list approach — not bulletproof, but catches the common attacks.
  */
-export function validateCss(css: string): string {
-  const lowerCss = css.toLowerCase();
-  
-  // Basic dangerous pattern rejection
+export function sanitizeCss(css: string): string {
   const dangerousPatterns = [
-    /expression\s*\(/,
-    /javascript:/,
-    /behavior\s*:/,
-    /@import/,
-    /url\s*\(\s*['"]?javascript:/,
+    /@import\b/i,
+    /@charset\b/i,
+    /javascript\s*:/i,
+    /expression\s*\(/i,
+    /url\s*\(\s*['"]?\s*https?:/i,
+    /url\s*\(\s*['"]?\s*\/\//i,
+    /url\s*\(\s*['"]?\s*data:/i,
+    /-moz-binding/i,
+    /-webkit-binding/i,
+    /behavior\s*:/i,
+    /base64/i,
   ];
 
   for (const pattern of dangerousPatterns) {
-    if (pattern.test(lowerCss)) {
-      throw new Error("Potentially malicious CSS detected");
+    if (pattern.test(css)) {
+      return "/* Blocked: dangerous CSS pattern detected */";
     }
   }
 
   return css;
 }
-// test modification
+
+/**
+ * Validates that a URL uses a safe scheme.
+ * Allows: https://, http://, relative paths (/...), and mailto:
+ * Blocks: javascript:, data:, vbscript:, etc.
+ */
+export function isSafeUrl(url: string): boolean {
+  const trimmed = url.trim();
+  return /^(https?:\/\/|\/(?!\/)|mailto:)/i.test(trimmed);
+}

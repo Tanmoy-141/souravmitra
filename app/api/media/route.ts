@@ -10,10 +10,22 @@ const ALLOWED_TYPES = new Set([
   "image/png",
   "image/webp",
   "image/gif",
-  "image/svg+xml",
   "video/mp4",
   "video/webm",
 ]);
+
+/** Sanitize filename: strip path separators, limit length, add random prefix */
+function sanitizeFilename(name: string): string {
+  // Remove path traversal characters and non-ASCII
+  const clean = name
+    .replace(/[/\\]/g, "")
+    .replace(/\.\./g, "")
+    .replace(/[^\w.\-]/g, "_")
+    .slice(0, 100);
+  // Prefix with random string to avoid collisions and predictable names
+  const prefix = crypto.randomUUID().slice(0, 8);
+  return `${prefix}_${clean || "upload"}`;
+}
 
 async function isAuthorized(): Promise<boolean> {
   const cookieStore = await cookies();
@@ -54,15 +66,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        message: "Unsupported file type. Allowed: JPEG, PNG, WebP, GIF, SVG, MP4, WebM.",
+        message: "Unsupported file type. Allowed: JPEG, PNG, WebP, GIF, MP4, WebM.",
       },
       { status: 400 },
     );
   }
 
   try {
+    // Create a new File with a sanitized name
+    const safeName = sanitizeFilename(file.name);
+    const safeFile = new File([file], safeName, { type: file.type });
+    
     // random suffix avoids collisions between two uploads sharing a filename
-    const blob = await put(file.name, file, {
+    const blob = await put(safeFile.name, safeFile, {
       access: "public",
       addRandomSuffix: true,
     });

@@ -5,7 +5,7 @@ import { eq, desc, isNull, and } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { resolveSession } from "@/lib/auth";
 import type { Block } from "@/data/cms";
-import { sanitizeHtml, validateCss } from "@/lib/sanitize";
+import { sanitizeHtml, sanitizeCss } from "@/lib/sanitize";
 
 /**
  * Validates the cryptographic session token against tampering, forgery,
@@ -44,6 +44,11 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const slug = searchParams.get("slug");
     const id = searchParams.get("id");
+    const authorized = await isAuthorized(req);
+    const filterConditions = [isNull(pages.deletedAt)];
+    if (!authorized) {
+      filterConditions.push(eq(pages.status, "published"));
+    }
 
     let dbPages = [];
 
@@ -51,19 +56,19 @@ export async function GET(req: NextRequest) {
       dbPages = await db
         .select()
         .from(pages)
-        .where(and(eq(pages.slug, slug), isNull(pages.deletedAt)))
+        .where(and(eq(pages.slug, slug), ...filterConditions))
         .limit(1);
     } else if (id) {
       dbPages = await db
         .select()
         .from(pages)
-        .where(and(eq(pages.id, id), isNull(pages.deletedAt)))
+        .where(and(eq(pages.id, id), ...filterConditions))
         .limit(1);
     } else {
       dbPages = await db
         .select()
         .from(pages)
-        .where(isNull(pages.deletedAt))
+        .where(and(...filterConditions))
         .orderBy(desc(pages.updatedAt));
     }
 

@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
     const sanitizedHtml = htmlCache ? sanitizeHtml(htmlCache) : "";
     let sanitizedCss = "";
     try {
-      sanitizedCss = cssCache ? validateCss(cssCache) : "";
+      sanitizedCss = cssCache ? sanitizeCss(cssCache) : "";
     } catch (e) {
       return NextResponse.json({ error: "Invalid CSS" }, { status: 400 });
     }
@@ -253,7 +253,7 @@ export async function PUT(req: NextRequest) {
     let sanitizedCss;
     if (cssCache !== undefined) {
       try {
-        sanitizedCss = validateCss(cssCache);
+        sanitizedCss = sanitizeCss(cssCache);
       } catch (e) {
         return NextResponse.json({ error: "Invalid CSS" }, { status: 400 });
       }

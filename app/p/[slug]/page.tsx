@@ -19,6 +19,7 @@ export async function generateMetadata({
     return { title: "Page Not Found" };
   }
   const pageResult = await db
+    .select()
     .from(pages)
     .where(
       and(

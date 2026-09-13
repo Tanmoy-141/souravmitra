@@ -1,4 +1,4 @@
-import { sanitizeHtml, validateCss } from '../lib/sanitize';
+import { sanitizeHtml, sanitizeCss } from '../lib/sanitize';
 
 const htmlPayloads = [
   { name: 'script tag', input: '<script>alert("xss")</script>', expected: '' },
@@ -26,12 +26,10 @@ function runTests() {
 
   // Test CSS
   cssPayloads.forEach(p => {
-    try {
-      validateCss(p.input);
-      console.log(`CSS  [${p.name}]: ${p.shouldFail ? 'FAIL (did not throw)' : 'PASS'}`);
-    } catch (_e) {
-      console.log(`CSS  [${p.name}]: ${p.shouldFail ? 'PASS' : `FAIL (threw error: ${_e instanceof Error ? _e.message : _e})`}`);
-    }
+    const result = sanitizeCss(p.input);
+    const isBlocked = result.includes("Blocked");
+    const passed = p.shouldFail ? isBlocked : !isBlocked;
+    console.log(`CSS  [${p.name}]: ${passed ? 'PASS' : `FAIL (got: ${result})`}`);
   });
 }
 

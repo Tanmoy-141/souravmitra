@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { pages } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { notFound } from "next/navigation";
-import { sanitizeHtml } from "@/lib/sanitize";
+import { sanitizeHtml, safeCssForStyleTag } from "@/lib/sanitize";
 import ClientsSection from "@/components/ClientsSection";
 
 export default async function AboutPage() {
@@ -29,7 +29,7 @@ export default async function AboutPage() {
 
   return (
     <>
-      {page.cssCache && <style>{page.cssCache}</style>}
+      {page.cssCache && <style>{safeCssForStyleTag(page.cssCache)}</style>}
       <article
         id="cms-page-content"
         className="prose dark:prose-invert max-w-none"

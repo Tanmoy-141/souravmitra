@@ -2,6 +2,7 @@
 import { Block } from '@/data/cms';
 import Link from 'next/link';
 import Image from 'next/image';
+import { isSafeUrl } from '@/lib/sanitize';
 
 export default function BlockRenderer({ block }: { block: Block }) {
   const { type, content } = block;
@@ -11,7 +12,7 @@ export default function BlockRenderer({ block }: { block: Block }) {
       return (
         <section 
           className="relative h-[70vh] flex items-center justify-center text-center px-10 overflow-hidden bg-black"
-          style={content.background ? { backgroundImage: `url(${content.background})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
+          style={content.background ? { backgroundImage: `url(${content.background && isSafeUrl(content.background) ? content.background : ''})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
         >
           {content.background && <div className="absolute inset-0 bg-black/60 z-0" />}
           <div className="relative z-10 max-w-4xl">
@@ -50,7 +51,7 @@ export default function BlockRenderer({ block }: { block: Block }) {
           <h2 className="text-4xl font-sans font-bold text-white mb-4">{content.title}</h2>
           <p className="text-gray-400 mb-10 max-w-2xl mx-auto">{content.subtitle}</p>
           <Link 
-            href={content.buttonLink || '#'} 
+            href={content.buttonLink && isSafeUrl(content.buttonLink) ? content.buttonLink : '#'} 
             className="inline-block px-10 py-4 bg-[#C5A059] text-black font-bold uppercase tracking-widest text-xs hover:bg-white transition-colors"
           >
             {content.buttonText}

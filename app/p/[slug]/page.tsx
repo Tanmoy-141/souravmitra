@@ -5,7 +5,7 @@ import { eq, and, isNull } from "drizzle-orm";
 import type { Metadata } from "next";
 import BlockRenderer from "@/components/cms/BlockRenderer";
 import { Block } from "@/data/cms";
-import { sanitizeHtml } from "@/lib/sanitize";
+import { sanitizeHtml, safeCssForStyleTag } from "@/lib/sanitize";
 
 interface DynamicPageProps {
   params: Promise<{ slug: string }>;
@@ -74,7 +74,7 @@ export default async function DynamicCustomPage({ params }: DynamicPageProps) {
 
   return (
     <main className="min-h-screen pb-24">
-      {page.cssCache && <style>{page.cssCache}</style>}
+      {page.cssCache && <style>{safeCssForStyleTag(page.cssCache)}</style>}
       
       {/* If blocks exist, render them using the dynamic renderer */}
       {blocks.length > 0 ? (

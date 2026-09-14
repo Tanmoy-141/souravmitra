@@ -207,7 +207,7 @@ export function hashPassword(
   existingSalt?: string,
 ): { hash: string; salt: string } {
   const salt = existingSalt || crypto.randomBytes(16).toString("hex");
-  const iterations = 100_000;
+  const iterations = 600_000;
   const keylen = 64;
   const digest = "sha512";
 

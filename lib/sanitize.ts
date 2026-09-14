@@ -15,6 +15,17 @@ export function sanitizeHtml(html: string): string {
 }
 
 /**
+ * Sanitizes CSS for use within a <style> tag by applying
+ * both content-level sanitization and breakout prevention.
+ */
+export function safeCssForStyleTag(css: string): string {
+  // 1. CSS-level sanitization (blocks @import, javascript:, expression(), etc.)
+  const sanitized = sanitizeCss(css);
+  // 2. Prevent </style> tag breakout in SSR HTML
+  return sanitized.replace(/<\/style/gi, "<\\/style");
+}
+
+/**
  * Validates CSS content to prevent dangerous imports, javascript URLs, etc.
  * Uses a deny-list approach — not bulletproof, but catches the common attacks.
  */

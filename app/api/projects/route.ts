@@ -55,6 +55,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ projects: results });
 }
 
+import { ProjectCreateSchema } from "@/lib/schemas";
+
+// ... (previous imports and isAuthorized)
+
 export async function POST(req: NextRequest) {
   if (!(await isAuthorized(req))) {
     return NextResponse.json(
@@ -65,24 +69,19 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const title = typeof body.title === "string" ? sanitizeHtml(body.title) : "";
-    const category = body.category;
-    const description = typeof body.description === "string" ? sanitizeHtml(body.description) : null;
-
-    if (!category || !VALID_CATEGORIES.includes(category)) {
+    const result = ProjectCreateSchema.safeParse(body);
+    if (!result.success) {
       return NextResponse.json(
-        { success: false, message: "A valid category is required" },
+        { success: false, message: "Invalid project input", errors: result.error.errors },
         { status: 400 },
       );
     }
-    if (!title?.trim()) {
-      return NextResponse.json(
-        { success: false, message: "Title is required" },
-        { status: 400 },
-      );
-    }
+    const data = result.data;
 
-    const baseSlug = slugify(title);
+    const title = sanitizeHtml(data.title);
+    const description = data.description ? sanitizeHtml(data.description) : null;
+
+    const baseSlug = slugify(data.title);
     let slug = baseSlug;
 
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -92,19 +91,19 @@ export async function POST(req: NextRequest) {
           .values({
             slug,
             title: title.trim(),
-            category,
-            status: body.status === "draft" ? "draft" : "published",
+            category: data.category,
+            status: data.status === "draft" ? "draft" : "published",
             description: description?.trim() || null,
-            medium: body.medium?.trim() || null,
-            dimensions: body.dimensions?.trim() || null,
-            publisher: body.publisher?.trim() || null,
-            year: body.year?.toString() || null,
-            coverImage: body.coverImage?.trim() || "",
-            images: Array.isArray(body.images) ? body.images : [],
-            details: body.details?.trim() || null,
-            tags: Array.isArray(body.tags) ? body.tags : [],
-            isFeatured: Boolean(body.isFeatured),
-            sortOrder: body.sortOrder ?? 0,
+            medium: data.medium?.trim() || null,
+            dimensions: data.dimensions?.trim() || null,
+            publisher: data.publisher?.trim() || null,
+            year: data.year?.toString() || null,
+            coverImage: data.coverImage?.trim() || "",
+            images: data.images || [],
+            details: data.details?.trim() || null,
+            tags: data.tags || [],
+            isFeatured: Boolean(data.isFeatured),
+            sortOrder: data.sortOrder ?? 0,
           })
           .returning();
 

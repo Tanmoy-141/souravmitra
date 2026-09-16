@@ -62,3 +62,14 @@ export function isSafeUrl(url: string): boolean {
   const trimmed = url.trim();
   return /^(https?:\/\/|\/(?!\/)|mailto:)/i.test(trimmed);
 }
+
+/**
+ * Creates a URL-friendly slug from a string.
+ */
+export function sanitizeSlug(input: string): string {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}

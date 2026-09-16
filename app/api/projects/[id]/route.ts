@@ -5,6 +5,8 @@ import { projects } from "@/db/schema";
 import { cookies } from "next/headers";
 import { resolveSession } from "@/lib/auth";
 import { getProjectById } from "@/lib/projects";
+import { ProjectUpdateSchema } from "@/lib/schemas";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 async function isAuthorized(req?: NextRequest): Promise<boolean> {
   const cookieStore = await cookies();
@@ -70,25 +72,32 @@ export async function PATCH(
 
   try {
     const body = await req.json();
+    const result = ProjectUpdateSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json(
+        { success: false, message: "Invalid update input", errors: result.error.errors },
+        { status: 400 },
+      );
+    }
+    const data = result.data;
+
     const updates: Partial<typeof projects.$inferInsert> = {
       updatedAt: new Date(),
     };
 
-    if (body.title !== undefined) updates.title = body.title.trim();
-    if (body.description !== undefined) updates.description = body.description?.trim() || null;
-    if (body.medium !== undefined) updates.medium = body.medium?.trim() || null;
-    if (body.dimensions !== undefined) updates.dimensions = body.dimensions?.trim() || null;
-    if (body.publisher !== undefined) updates.publisher = body.publisher?.trim() || null;
-    if (body.year !== undefined) updates.year = body.year?.toString() || null;
-    if (body.coverImage !== undefined) updates.coverImage = body.coverImage?.trim() || "";
-    if (body.images !== undefined && Array.isArray(body.images)) updates.images = body.images;
-    if (body.details !== undefined) updates.details = body.details?.trim() || null;
-    if (body.tags !== undefined && Array.isArray(body.tags)) updates.tags = body.tags;
-    if (body.isFeatured !== undefined) updates.isFeatured = Boolean(body.isFeatured);
-    if (body.sortOrder !== undefined) updates.sortOrder = body.sortOrder;
-    if (body.status !== undefined && ["draft", "published"].includes(body.status)) {
-      updates.status = body.status;
-    }
+    if (data.title !== undefined) updates.title = sanitizeHtml(data.title);
+    if (data.description !== undefined) updates.description = data.description ? sanitizeHtml(data.description) : null;
+    if (data.medium !== undefined) updates.medium = data.medium || null;
+    if (data.dimensions !== undefined) updates.dimensions = data.dimensions || null;
+    if (data.publisher !== undefined) updates.publisher = data.publisher || null;
+    if (data.year !== undefined) updates.year = data.year?.toString() || null;
+    if (data.coverImage !== undefined) updates.coverImage = data.coverImage || "";
+    if (data.images !== undefined) updates.images = data.images;
+    if (data.details !== undefined) updates.details = data.details || null;
+    if (data.tags !== undefined) updates.tags = data.tags;
+    if (data.isFeatured !== undefined) updates.isFeatured = Boolean(data.isFeatured);
+    if (data.sortOrder !== undefined) updates.sortOrder = data.sortOrder;
+    if (data.status !== undefined) updates.status = data.status;
 
     const [updated] = await db
       .update(projects)

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
@@ -15,6 +15,8 @@ import {
   revokeAllSessionsForUser,
 } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
+import { LoginSchema, RequestPasswordResetSchema, ConfirmPasswordResetSchema } from "@/lib/schemas";
+import { ZodError } from "zod";
 
 const RATE_LIMIT_CONFIG = {
   limit: 10, // Max 10 attempts per IP window
@@ -84,91 +86,88 @@ export async function POST(req: NextRequest) {
     // ACTION: LOGIN
     // ------------------------------------------------------------------
     if (action === "login") {
-      const identifier = (body.username || body.email || "").trim();
-      const password = body.password || "";
+        const result = LoginSchema.safeParse(body);
+        if (!result.success) {
+          return NextResponse.json(
+            { success: false, message: "Invalid input", errors: result.error.errors },
+            { status: 400, headers: rateLimitHeaders },
+          );
+        }
+        const { username, email, password } = result.data;
+        const identifier = (username || email || "").trim();
 
-      if (!identifier || !password) {
-        return NextResponse.json(
+        // Check / bootstrap initial admin user if empty
+        await bootstrapAdminUserIfEmpty();
+
+        // Query real DB user
+        const user = await findUserByUsernameOrEmail(identifier);
+
+        if (!user) {
+          return NextResponse.json(
+            { success: false, message: "Invalid username or password" },
+            { status: 401, headers: rateLimitHeaders },
+          );
+        }
+
+        // If user has no password set (OAuth-only account)
+        if (!user.passwordHash || !user.passwordSalt) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: "Invalid username or password",
+            },
+            { status: 401, headers: rateLimitHeaders },
+          );
+        }
+
+        // Verify hashed password using constant-time PBKDF2 check
+        const isValid = verifyPassword(
+          password,
+          user.passwordHash,
+          user.passwordSalt,
+        );
+
+        if (!isValid) {
+          return NextResponse.json(
+            { success: false, message: "Invalid username or password" },
+            { status: 401, headers: rateLimitHeaders },
+          );
+        }
+
+        // Generate cryptographically signed HMAC token containing DB user details
+        const sessionToken = createSessionToken({
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          sessionVersion: user.sessionVersion,
+        });
+
+        const response = NextResponse.json(
           {
-            success: false,
-            message: "Username/Email and password are required",
+            success: true,
+            message: "Signed in successfully",
+            user: {
+              id: user.id,
+              username: user.username,
+              email: user.email,
+              role: user.role,
+            },
           },
-          { status: 400, headers: rateLimitHeaders },
+          { headers: rateLimitHeaders },
         );
+
+        // Set secure HTTP-only cookie
+        response.cookies.set("admin_session", sessionToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+          maxAge: 60 * 60 * 24 * 7, // 7 days
+        });
+
+        return response;
       }
-
-      // Check / bootstrap initial admin user if empty
-      await bootstrapAdminUserIfEmpty();
-
-      // Query real DB user
-      const user = await findUserByUsernameOrEmail(identifier);
-
-      if (!user) {
-        return NextResponse.json(
-          { success: false, message: "Invalid username or password" },
-          { status: 401, headers: rateLimitHeaders },
-        );
-      }
-
-      // If user has no password set (OAuth-only account)
-      if (!user.passwordHash || !user.passwordSalt) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Invalid username or password",
-          },
-          { status: 401, headers: rateLimitHeaders },
-        );
-      }
-
-      // Verify hashed password using constant-time PBKDF2 check
-      const isValid = verifyPassword(
-        password,
-        user.passwordHash,
-        user.passwordSalt,
-      );
-
-      if (!isValid) {
-        return NextResponse.json(
-          { success: false, message: "Invalid username or password" },
-          { status: 401, headers: rateLimitHeaders },
-        );
-      }
-
-      // Generate cryptographically signed HMAC token containing DB user details
-      const sessionToken = createSessionToken({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        sessionVersion: user.sessionVersion,
-      });
-
-      const response = NextResponse.json(
-        {
-          success: true,
-          message: "Signed in successfully",
-          user: {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            role: user.role,
-          },
-        },
-        { headers: rateLimitHeaders },
-      );
-
-      // Set secure HTTP-only cookie
-      response.cookies.set("admin_session", sessionToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-      });
-
-      return response;
-    }
 
     // ------------------------------------------------------------------
     // ACTION: LOGOUT

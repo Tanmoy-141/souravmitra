@@ -5,7 +5,8 @@ import { eq, desc, isNull, and } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { resolveSession } from "@/lib/auth";
 import type { Block } from "@/data/cms";
-import { sanitizeHtml, sanitizeCss } from "@/lib/sanitize";
+import { sanitizeHtml, sanitizeCss, sanitizeSlug } from "@/lib/sanitize";
+import { CmsPageSchema, CmsBulkPageSchema } from "@/lib/schemas";
 
 /**
  * Validates the cryptographic session token against tampering, forgery,
@@ -113,15 +114,17 @@ export async function POST(req: NextRequest) {
 
     // Handle bulk pages payload from Admin Dashboard (Upsert)
     if (body.pages && Array.isArray(body.pages)) {
-      const results = [];
-      for (const page of body.pages) {
-        // Validate slug
-        const cleanSlug = (page.slug || "")
-          .trim()
-          .toLowerCase()
-          .replace(/[^a-z0-9-]+/g, "-");
+      const result = CmsBulkPageSchema.safeParse(body);
+      if (!result.success) {
+        return NextResponse.json(
+          { error: "Invalid bulk pages input", details: result.error.errors },
+          { status: 400 },
+        );
+      }
 
-        if (!cleanSlug || !page.title) continue;
+      const results = [];
+      for (const page of result.data.pages) {
+        const cleanSlug = sanitizeSlug(page.slug);
 
         const [upserted] = await db
           .insert(pages)
@@ -154,6 +157,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Single page create
+    const result = CmsPageSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json(
+        { error: "Invalid page input", details: result.error.errors },
+        { status: 400 },
+      );
+    }
+
     const {
       slug,
       title,
@@ -163,14 +175,7 @@ export async function POST(req: NextRequest) {
       htmlCache,
       cssCache,
       status,
-    } = body;
-
-    if (!slug || !title) {
-      return NextResponse.json(
-        { error: "Slug and title are required" },
-        { status: 400 },
-      );
-    }
+    } = result.data;
 
     const sanitizedHtml = htmlCache ? sanitizeHtml(htmlCache) : "";
     let sanitizedCss = "";
@@ -183,7 +188,7 @@ export async function POST(req: NextRequest) {
     const newPage = await db
       .insert(pages)
       .values({
-        slug: slug.trim().toLowerCase(),
+        slug: sanitizeSlug(slug),
         title,
         seoTitle: seoTitle || null,
         seoDescription: seoDescription || null,
@@ -226,8 +231,24 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
+    const id = body.id;
+    if (!id) {
+        return NextResponse.json(
+          { error: "Page ID is required" },
+          { status: 400 },
+        );
+    }
+    
+    // Validate the update body (omitting ID for schema check)
+    const result = CmsPageSchema.partial().safeParse(body);
+    if (!result.success) {
+        return NextResponse.json(
+            { error: "Invalid update input", details: result.error.errors },
+            { status: 400 },
+        );
+    }
+
     const {
-      id,
       slug,
       title,
       seoTitle,
@@ -236,24 +257,17 @@ export async function PUT(req: NextRequest) {
       htmlCache,
       cssCache,
       status,
-    } = body;
-
-    if (!id) {
-      return NextResponse.json(
-        { error: "Page ID is required" },
-        { status: 400 },
-      );
-    }
+    } = result.data;
 
     let sanitizedHtml;
     if (htmlCache !== undefined) {
-      sanitizedHtml = sanitizeHtml(htmlCache);
+      sanitizedHtml = htmlCache ? sanitizeHtml(htmlCache) : "";
     }
 
     let sanitizedCss;
     if (cssCache !== undefined) {
       try {
-        sanitizedCss = sanitizeCss(cssCache);
+        sanitizedCss = cssCache ? sanitizeCss(cssCache) : "";
       } catch (e) {
         return NextResponse.json({ error: "Invalid CSS" }, { status: 400 });
       }
@@ -262,7 +276,7 @@ export async function PUT(req: NextRequest) {
     const updated = await db
       .update(pages)
       .set({
-        ...(slug && { slug: slug.trim().toLowerCase() }),
+        ...(slug && { slug: sanitizeSlug(slug) }),
         ...(title && { title }),
         ...(seoTitle !== undefined && { seoTitle }),
         ...(seoDescription !== undefined && { seoDescription }),

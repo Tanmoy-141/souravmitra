@@ -1,20 +1,7 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-
-interface ContactPayload {
-  name: string;
-  email: string;
-  company?: string;
-  projectType?: string;
-  message: string;
-}
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const CONTACT_RATE_LIMIT = {
-  limit: 5,
-  windowMs: 15 * 60 * 1000, // 15 minutes
-};
+import { ContactSchema } from "@/lib/schemas";
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
@@ -26,7 +13,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: Partial<ContactPayload>;
+  let body;
   try {
     body = await req.json();
   } catch {
@@ -36,28 +23,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { name, email, company, projectType, message } = body;
-
-  if (!name?.trim() || !email?.trim() || !message?.trim()) {
+  const result = ContactSchema.safeParse(body);
+  if (!result.success) {
     return NextResponse.json(
-      { success: false, message: "Name, email, and message are required" },
+      { success: false, message: "Invalid input", errors: result.error.errors },
       { status: 400 },
     );
   }
 
-  if (name.length > 100 || email.length > 255 || message.length > 5000) {
-    return NextResponse.json(
-      { success: false, message: "Fields exceed maximum allowed length" },
-      { status: 400 },
-    );
-  }
-
-  if (!EMAIL_RE.test(email)) {
-    return NextResponse.json(
-      { success: false, message: "Please enter a valid email address" },
-      { status: 400 },
-    );
-  }
+  const { name, email, company, projectType, message } = result.data;
 
   // TODO(Phase: Auth/Email — Resend): once RESEND_API_KEY is configured,
   // send this as a real email to the site owner here, e.g.:

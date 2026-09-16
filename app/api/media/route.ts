@@ -27,16 +27,17 @@ function sanitizeFilename(name: string): string {
   return `${prefix}_${clean || "upload"}`;
 }
 
-async function isAuthorized(): Promise<boolean> {
+async function getAuthenticatedUserId(): Promise<string | null> {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("admin_session")?.value;
-  if (!sessionCookie) return false;
+  if (!sessionCookie) return null;
   const result = await resolveSession(sessionCookie);
-  return result.valid;
+  return result.valid && result.payload ? result.payload.userId : null;
 }
 
 export async function GET() {
-  if (!(await isAuthorized())) {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) {
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
   }
   const assets = await listMediaAssets();
@@ -44,7 +45,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  if (!(await isAuthorized())) {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) {
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
   }
 
@@ -90,6 +92,7 @@ export async function POST(req: NextRequest) {
       name: file.name,
       type: file.type,
       size: file.size,
+      uploadedBy: userId,
     });
 
     return NextResponse.json({ success: true, asset });

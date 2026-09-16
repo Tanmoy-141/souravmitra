@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { eq, or, sql } from "drizzle-orm";
+import { eq, or, sql, and, isNull, gt } from "drizzle-orm";
 import { db } from "@/db";
 import { users, verificationTokens, type User } from "@/db/schema";
 
@@ -325,6 +325,7 @@ export async function createDbVerificationToken(
 
 /**
  * Verifies and consumes a single-use token from the verificationTokens table.
+ * Uses an atomic UPDATE to prevent race conditions.
  */
 export async function verifyAndConsumeDbToken(
   identifier: string,
@@ -333,29 +334,19 @@ export async function verifyAndConsumeDbToken(
 ): Promise<boolean> {
   const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
 
-  const records = await db
-    .select()
-    .from(verificationTokens)
-    .where(eq(verificationTokens.identifier, identifier.trim().toLowerCase()))
-    .limit(10);
-
-  const validRecord = records.find(
-    (r) =>
-      r.type === type &&
-      !r.consumedAt &&
-      r.expiresAt > new Date() &&
-      timingSafeEqualString(r.tokenHash, tokenHash),
-  );
-
-  if (!validRecord) {
-    return false;
-  }
-
-  // Mark token as consumed
-  await db
+  const consumed = await db
     .update(verificationTokens)
     .set({ consumedAt: new Date() })
-    .where(eq(verificationTokens.id, validRecord.id));
+    .where(
+      and(
+        eq(verificationTokens.identifier, identifier.trim().toLowerCase()),
+        eq(verificationTokens.tokenHash, tokenHash),
+        eq(verificationTokens.type, type),
+        isNull(verificationTokens.consumedAt),
+        gt(verificationTokens.expiresAt, new Date()),
+      ),
+    )
+    .returning({ id: verificationTokens.id });
 
-  return true;
+  return consumed.length === 1;
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
   createSessionToken,
   resolveSession,
@@ -20,18 +20,6 @@ const RATE_LIMIT_CONFIG = {
   limit: 10, // Max 10 attempts per IP window
   windowMs: 15 * 60 * 1000, // 15 minutes
 };
-
-function getClientIp(req: NextRequest): string {
-  const forwardedFor = req.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    return forwardedFor.split(",")[0].trim();
-  }
-  const realIp = req.headers.get("x-real-ip");
-  if (realIp) {
-    return realIp.trim();
-  }
-  return "127.0.0.1";
-}
 
 // GET: Check current authentication status
 export async function GET(req: NextRequest) {
@@ -127,8 +115,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            message:
-              "This account was created via OAuth. Please sign in with your provider.",
+            message: "Invalid username or password",
           },
           { status: 401, headers: rateLimitHeaders },
         );
@@ -332,13 +319,10 @@ export async function POST(req: NextRequest) {
         .set({
           passwordHash: hash,
           passwordSalt: salt,
+          sessionVersion: sql`${users.sessionVersion} + 1`,
           updatedAt: new Date(),
         })
         .where(eq(users.id, user.id));
-
-      // Cut off any session issued before this change — including one an
-      // attacker might already hold if the account was compromised.
-      await revokeAllSessionsForUser(user.id);
 
       return NextResponse.json(
         {

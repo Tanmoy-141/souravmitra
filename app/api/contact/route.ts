@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 interface ContactPayload {
   name: string;
@@ -9,8 +11,21 @@ interface ContactPayload {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const CONTACT_RATE_LIMIT = {
+  limit: 5,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+};
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+  const rateCheck = await checkRateLimit(`contact:${ip}`, CONTACT_RATE_LIMIT);
+  if (!rateCheck.success) {
+    return NextResponse.json(
+      { success: false, message: "Too many submissions. Please try again later." },
+      { status: 429 },
+    );
+  }
+
   let body: Partial<ContactPayload>;
   try {
     body = await req.json();
@@ -26,6 +41,13 @@ export async function POST(req: Request) {
   if (!name?.trim() || !email?.trim() || !message?.trim()) {
     return NextResponse.json(
       { success: false, message: "Name, email, and message are required" },
+      { status: 400 },
+    );
+  }
+
+  if (name.length > 100 || email.length > 255 || message.length > 5000) {
+    return NextResponse.json(
+      { success: false, message: "Fields exceed maximum allowed length" },
       { status: 400 },
     );
   }

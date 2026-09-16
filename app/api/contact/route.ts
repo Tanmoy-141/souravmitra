@@ -3,6 +3,11 @@ import { NextRequest } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { ContactSchema } from "@/lib/schemas";
 
+const CONTACT_RATE_LIMIT = {
+  limit: 5,
+  windowMs: 60 * 60 * 1000, // 1 hour
+};
+
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
   const rateCheck = await checkRateLimit(`contact:${ip}`, CONTACT_RATE_LIMIT);

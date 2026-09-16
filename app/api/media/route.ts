@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
     const [asset] = await saveMediaAsset({
       blobUrl: blob.url,
       pathname: blob.pathname,
-      name: file.name,
+      name: safeName,
       type: file.type,
       size: file.size,
       uploadedBy: userId,

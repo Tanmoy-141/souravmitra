@@ -29,11 +29,9 @@ export async function POST(req: NextRequest) {
   }
 
   const result = ContactSchema.safeParse(body);
-  if (!result.success) {
-    return NextResponse.json(
-      { success: false, message: "Invalid input", errors: result.error.errors },
-      { status: 400 },
-    );
+  if (!result.success || (result.data.hp_company && result.data.hp_company !== "")) {
+    // Silently drop if honeypot is filled or validation fails
+    return NextResponse.json({ success: true });
   }
 
   const { name, email, company, projectType, message } = result.data;

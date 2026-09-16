@@ -70,7 +70,8 @@ export async function GET(req: NextRequest) {
         .select()
         .from(pages)
         .where(and(...filterConditions))
-        .orderBy(desc(pages.updatedAt));
+        .orderBy(desc(pages.updatedAt))
+        .limit(100);
     }
 
     // Map database records to CustomPage format (blocks inside gjsData)

@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     const result = ProjectCreateSchema.safeParse(body);
     if (!result.success) {
       return NextResponse.json(
-        { success: false, message: "Invalid project input", errors: result.error.errors },
+        { success: false, message: "Invalid project input", errors: result.error.issues },
         { status: 400 },
       );
     }

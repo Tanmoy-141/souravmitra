@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { ContactSchema } from "@/lib/schemas";
+import { db } from "@/db";
+import { inquiries } from "@/db/schema";
+import { sendEmail } from "@/lib/email";
 
 const CONTACT_RATE_LIMIT = {
   limit: 5,
@@ -36,27 +39,34 @@ export async function POST(req: NextRequest) {
 
   const { name, email, company, projectType, message } = result.data;
 
-  // TODO(Phase: Auth/Email — Resend): once RESEND_API_KEY is configured,
-  // send this as a real email to the site owner here, e.g.:
-  //
-  //   import { Resend } from "resend";
-  //   const resend = new Resend(process.env.RESEND_API_KEY);
-  //   await resend.emails.send({
-  //     from: "Portfolio Contact <contact@yourdomain.com>",
-  //     to: "sourav@example.com",
-  //     replyTo: email,
-  //     subject: `New inquiry from ${name}`,
-  //     text: `${name} (${email})\n${company ?? ""}\n${projectType ?? ""}\n\n${message}`,
-  //   });
-  //
-  // Until then, log server-side so submissions aren't silently dropped.
-  console.log("[contact] new submission:", {
-    name,
-    email,
-    company,
-    projectType,
-    message,
-  });
+  try {
+    await db.insert(inquiries).values({
+      name,
+      email,
+      company: company || null,
+      projectType: projectType || null,
+      message,
+      ipAddress: ip,
+    });
+  } catch (err) {
+    console.error("[contact] failed to insert inquiry into database:", err);
+    return NextResponse.json(
+      { success: false, message: "Failed to save submission. Please try again later." },
+      { status: 500 },
+    );
+  }
+
+  const ownerEmail = process.env.ADMIN_EMAIL || process.env.OWNER_EMAIL || "sourav@example.com";
+  try {
+    await sendEmail({
+      to: ownerEmail,
+      subject: `New inquiry from ${name}${projectType ? ` (${projectType})` : ""}`,
+      text: `New portfolio inquiry received:\n\nName: ${name}\nEmail: ${email}\nCompany: ${company || "N/A"}\nProject Type: ${projectType || "N/A"}\n\nMessage:\n${message}`,
+    });
+  } catch (err) {
+    console.error("[contact] failed to send email notification:", err);
+    // Don't fail the user request if email notification fails, since the inquiry is saved in DB.
+  }
 
   return NextResponse.json({ success: true });
 }

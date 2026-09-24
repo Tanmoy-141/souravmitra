@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
       const result = CmsBulkPageSchema.safeParse(body);
       if (!result.success) {
         return NextResponse.json(
-          { error: "Invalid bulk pages input", details: result.error.errors },
+          { error: "Invalid bulk pages input", details: result.error.issues },
           { status: 400 },
         );
       }
@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
     const result = CmsPageSchema.safeParse(body);
     if (!result.success) {
       return NextResponse.json(
-        { error: "Invalid page input", details: result.error.errors },
+        { error: "Invalid page input", details: result.error.issues },
         { status: 400 },
       );
     }
@@ -244,7 +244,7 @@ export async function PUT(req: NextRequest) {
     const result = CmsPageSchema.partial().safeParse(body);
     if (!result.success) {
         return NextResponse.json(
-            { error: "Invalid update input", details: result.error.errors },
+            { error: "Invalid update input", details: result.error.issues },
             { status: 400 },
         );
     }

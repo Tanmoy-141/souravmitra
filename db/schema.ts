@@ -266,6 +266,32 @@ export const mediaAssets = pgTable(
 );
 
 /* -------------------------------------------------------------------------- */
+/*  Inquiries                                                                 */
+/* -------------------------------------------------------------------------- */
+
+export const inquiries = pgTable(
+  "inquiries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: varchar("name", { length: 100 }).notNull(),
+    email: varchar("email", { length: 255 }).notNull(),
+    company: varchar("company", { length: 100 }),
+    projectType: varchar("project_type", { length: 100 }),
+    message: text("message").notNull(),
+    isRead: boolean("is_read").default(false).notNull(),
+    isArchived: boolean("is_archived").default(false).notNull(),
+    ipAddress: varchar("ip_address", { length: 64 }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("inquiries_created_at_idx").on(table.createdAt),
+    index("inquiries_is_read_idx").on(table.isRead),
+  ],
+);
+
+/* -------------------------------------------------------------------------- */
 /*  Relations (for Drizzle's relational query API)                           */
 /* -------------------------------------------------------------------------- */
 
@@ -322,3 +348,6 @@ export type NewMediaAsset = typeof mediaAssets.$inferInsert;
 
 export type Project = typeof projects.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;
+
+export type Inquiry = typeof inquiries.$inferSelect;
+export type NewInquiry = typeof inquiries.$inferInsert;

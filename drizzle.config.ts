@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { defineConfig } from "drizzle-kit";
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -7,13 +8,13 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export default {
+export default defineConfig({
+  dialect: "postgresql",
   schema: "./db/schema.ts",
   out: "./db/migrations",
-  driver: "pg", // Note: 'driver' was used in older versions, 'dialect' is newer
   dbCredentials: {
-    connectionString: process.env.DATABASE_URL,
+    url: process.env.DATABASE_URL!,
   },
   strict: true,
   verbose: true,
-};
+});

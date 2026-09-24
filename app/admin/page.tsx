@@ -4,11 +4,12 @@ import Image from "next/image";
 import AdminLogin from "@/components/cms/AdminLogin";
 import MediaLibrary from "@/components/cms/MediaLibrary";
 import ProjectsAdmin from "@/components/cms/ProjectsAdmin";
+import MessagesAdmin from "@/components/cms/MessagesAdmin";
 import { CustomPage, Block, BlockType } from "@/data/cms";
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState<"pages" | "projects">("pages");
+  const [activeTab, setActiveTab] = useState<"pages" | "projects" | "messages">("pages");
   const [pages, setPages] = useState<CustomPage[]>([]);
   const [activePage, setActivePage] = useState<CustomPage | null>(null);
   const [showMediaLibrary, setShowMediaLibrary] = useState<{
@@ -199,6 +200,13 @@ export default function AdminDashboard() {
               }`}>
               Projects
             </button>
+            <button
+              onClick={() => setActiveTab("messages")}
+              className={`px-3 py-1 text-xs uppercase tracking-widest font-bold transition-colors ${
+                activeTab === "messages" ? "bg-[#C5A059] text-black" : "text-gray-500 hover:text-white"
+              }`}>
+              Messages
+            </button>
           </div>
 
           {activeTab === "pages" && (
@@ -255,6 +263,10 @@ export default function AdminDashboard() {
       {activeTab === "projects" ? (
         <div className="flex-1 overflow-y-auto p-6 md:p-12 bg-[#000000]">
           <ProjectsAdmin />
+        </div>
+      ) : activeTab === "messages" ? (
+        <div className="flex-1 overflow-y-auto bg-[#000000]">
+          <MessagesAdmin />
         </div>
       ) : (
       <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">

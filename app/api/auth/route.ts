@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
         const result = LoginSchema.safeParse(body);
         if (!result.success) {
           return NextResponse.json(
-            { success: false, message: "Invalid input", errors: result.error.errors },
+            { success: false, message: "Invalid input", errors: result.error.issues },
             { status: 400, headers: rateLimitHeaders },
           );
         }

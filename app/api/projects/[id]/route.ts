@@ -75,7 +75,7 @@ export async function PATCH(
     const result = ProjectUpdateSchema.safeParse(body);
     if (!result.success) {
       return NextResponse.json(
-        { success: false, message: "Invalid update input", errors: result.error.errors },
+        { success: false, message: "Invalid update input", errors: result.error.issues },
         { status: 400 },
       );
     }

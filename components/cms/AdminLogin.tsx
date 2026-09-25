@@ -11,6 +11,7 @@ type RecoveryStep = "request" | "confirm" | "done";
 export default function AdminLogin({ onSuccess }: AdminLoginProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -154,14 +155,22 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
                 className="w-full p-3 bg-black border border-[#333333] text-white focus:border-[#C5A059] focus:outline-none"
                 required
               />
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full p-3 bg-black border border-[#333333] text-white focus:border-[#C5A059] focus:outline-none"
-                required
-              />
+              <div className="relative w-full">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full p-3 pr-16 bg-black border border-[#333333] text-white focus:border-[#C5A059] focus:outline-none"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-[#C5A059] transition-colors">
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </div>
               {error && (
                 <p className="text-red-500 text-xs font-medium">{error}</p>
               )}

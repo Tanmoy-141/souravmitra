@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { pages } from "@/db/schema";
-import { eq, desc, isNull, and } from "drizzle-orm";
+import { eq, desc, isNull, isNotNull, and } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { resolveSession } from "@/lib/auth";
 import type { Block } from "@/data/cms";
@@ -39,16 +39,23 @@ async function isAuthorized(req?: NextRequest): Promise<boolean> {
   return false;
 }
 
-// GET: Fetch all pages or a single page by ?slug= or ?id=
+// GET: Fetch all pages or a single page by ?slug= or ?id= or ?trash=true
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const slug = searchParams.get("slug");
     const id = searchParams.get("id");
+    const trash = searchParams.get("trash") === "true";
     const authorized = await isAuthorized(req);
-    const filterConditions = [isNull(pages.deletedAt)];
+    const filterConditions = [];
     if (!authorized) {
-      filterConditions.push(eq(pages.status, "published"));
+      filterConditions.push(eq(pages.status, "published"), isNull(pages.deletedAt));
+    } else {
+      if (trash) {
+        filterConditions.push(isNotNull(pages.deletedAt));
+      } else {
+        filterConditions.push(isNull(pages.deletedAt));
+      }
     }
 
     let dbPages = [];
@@ -69,7 +76,7 @@ export async function GET(req: NextRequest) {
       dbPages = await db
         .select()
         .from(pages)
-        .where(and(...filterConditions))
+        .where(filterConditions.length > 0 ? and(...filterConditions) : undefined)
         .orderBy(desc(pages.updatedAt))
         .limit(100);
     }
@@ -83,6 +90,8 @@ export async function GET(req: NextRequest) {
       blocks: (p.gjsData as { blocks?: Block[] })?.blocks || [],
       seoTitle: p.seoTitle,
       seoDescription: p.seoDescription,
+      publishedAt: p.publishedAt,
+      deletedAt: p.deletedAt,
     }));
 
     if ((slug || id) && !resultPages.length) {
@@ -249,6 +258,16 @@ export async function PUT(req: NextRequest) {
         );
     }
 
+    const [existing] = await db
+      .select()
+      .from(pages)
+      .where(eq(pages.id, id))
+      .limit(1);
+
+    if (!existing) {
+      return NextResponse.json({ error: "Page not found" }, { status: 404 });
+    }
+
     const {
       slug,
       title,
@@ -274,6 +293,16 @@ export async function PUT(req: NextRequest) {
       }
     }
 
+    let newPublishedAt = existing.publishedAt;
+    let newStatus = status !== undefined ? status : existing.status;
+    if (status !== undefined) {
+      if (status === "published" && existing.status !== "published") {
+        newPublishedAt = new Date();
+      } else if (status === "draft") {
+        // Unpublish: keep publishedAt or clear? Per spec, content is retained, publishedAt is preserved or kept.
+      }
+    }
+
     const updated = await db
       .update(pages)
       .set({
@@ -284,10 +313,8 @@ export async function PUT(req: NextRequest) {
         ...(gjsData !== undefined && { gjsData }),
         ...(sanitizedHtml !== undefined && { htmlCache: sanitizedHtml }),
         ...(sanitizedCss !== undefined && { cssCache: sanitizedCss }),
-        ...(status && {
-          status,
-          publishedAt: status === "published" ? new Date() : null,
-        }),
+        ...(status !== undefined && { status }),
+        publishedAt: newPublishedAt,
         updatedAt: new Date(),
       })
       .where(eq(pages.id, id))
@@ -301,6 +328,67 @@ export async function PUT(req: NextRequest) {
   } catch {
     return NextResponse.json(
       { error: "Failed to update page" },
+      { status: 500 },
+    );
+  }
+}
+
+// PATCH: Explicit lifecycle actions (publish, unpublish, recover)
+export async function PATCH(req: NextRequest) {
+  if (!(await isAuthorized(req))) {
+    return NextResponse.json(
+      { error: "Unauthorized: Valid signed admin session required" },
+      { status: 401 },
+    );
+  }
+
+  try {
+    const body = await req.json();
+    const { id, action } = body;
+
+    if (!id || !action) {
+      return NextResponse.json(
+        { error: "Page ID and action are required" },
+        { status: 400 },
+      );
+    }
+
+    const [existing] = await db
+      .select()
+      .from(pages)
+      .where(eq(pages.id, id))
+      .limit(1);
+
+    if (!existing) {
+      return NextResponse.json({ error: "Page not found" }, { status: 404 });
+    }
+
+    let updateValues: Record<string, any> = { updatedAt: new Date() };
+
+    if (action === "publish") {
+      updateValues.status = "published";
+      if (!existing.publishedAt || existing.status !== "published") {
+        updateValues.publishedAt = new Date();
+      }
+    } else if (action === "unpublish") {
+      updateValues.status = "draft";
+    } else if (action === "recover") {
+      updateValues.deletedAt = null;
+    } else {
+      return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+    }
+
+    const [updated] = await db
+      .update(pages)
+      .set(updateValues)
+      .where(eq(pages.id, id))
+      .returning();
+
+    return NextResponse.json({ success: true, page: updated });
+  } catch (err) {
+    console.error("[CMS PATCH Error]:", err);
+    return NextResponse.json(
+      { error: "Failed to execute lifecycle action" },
       { status: 500 },
     );
   }

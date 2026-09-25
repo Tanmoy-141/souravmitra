@@ -164,6 +164,74 @@ export default function AdminDashboard() {
     setActivePage(newPage);
   };
 
+  const deletePage = async () => {
+    if (!activePage) return;
+    if (!confirm(`Are you sure you want to delete page "${activePage.title}"?`)) return;
+
+    if (activePage.id) {
+      try {
+        const res = await fetch(`/api/cms?id=${activePage.id}`, {
+          method: "DELETE",
+        });
+        const data = await res.json();
+        if (!data.success) {
+          alert(data.error || "Failed to delete page");
+          return;
+        }
+      } catch {
+        alert("Network error while deleting page");
+        return;
+      }
+    }
+
+    const remainingPages = pages.filter((p) => p.slug !== activePage.slug);
+    setPages(remainingPages);
+    setActivePage(remainingPages[0] || null);
+  };
+
+  const [viewTrash, setViewTrash] = useState(false);
+  const [trashPages, setTrashPages] = useState<CustomPage[]>([]);
+
+  const fetchTrash = async () => {
+    try {
+      const res = await fetch("/api/cms?trash=true");
+      const data = await res.json();
+      const list = Array.isArray(data?.pages) ? data.pages : Array.isArray(data) ? data : [];
+      setTrashPages(list.map((p: any) => ({ ...p, blocks: p.blocks || [] })));
+    } catch {
+      console.error("Failed to fetch trash");
+    }
+  };
+
+  const executeAction = async (id: string, action: "publish" | "unpublish" | "recover") => {
+    try {
+      const res = await fetch("/api/cms", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const refreshRes = await fetch("/api/cms");
+        const refreshData = await refreshRes.json();
+        const freshPages = Array.isArray(refreshData?.pages) ? refreshData.pages : [];
+        setPages(freshPages.map((p: any) => ({ ...p, blocks: p.blocks || [] })));
+        if (viewTrash) {
+          fetchTrash();
+        } else if (activePage?.id === id) {
+          const updated = freshPages.find((p: any) => p.id === id);
+          if (updated) setActivePage({ ...updated, blocks: updated.blocks || [] });
+        }
+        setSaveStatus(`Action '${action}' successful!`);
+        setTimeout(() => setSaveStatus(null), 3000);
+      } else {
+        alert(data.error || "Action failed");
+      }
+    } catch {
+      alert("Network error during action");
+    }
+  };
+
   if (!isAuthenticated) {
     return <AdminLogin onSuccess={() => setIsAuthenticated(true)} />;
   }
@@ -213,12 +281,14 @@ export default function AdminDashboard() {
             <>
               <select
                 value={activePage?.slug}
-                onChange={(e) =>
+                onChange={(e) => {
+                  setViewTrash(false);
                   setActivePage(
                     pages.find((p) => p.slug === e.target.value) || null,
-                  )
-                }
-                className="bg-[#111111] border border-[#333333] px-3 py-1 text-sm focus:outline-none min-w-0 flex-1 md:flex-none">
+                  );
+                }}
+                className="bg-[#111111] border border-[#333333] px-3 py-1 text-sm focus:outline-none min-w-0 flex-1 md:flex-none"
+                disabled={viewTrash}>
                 {pages.map((p) => (
                   <option key={p.slug} value={p.slug}>
                     {p.title} ({p.status})
@@ -226,9 +296,24 @@ export default function AdminDashboard() {
                 ))}
               </select>
               <button
-                onClick={createNewPage}
-                className="text-xs text-gray-500 hover:text-white uppercase tracking-widest shrink-0">
+                onClick={() => {
+                  setViewTrash(false);
+                  createNewPage();
+                }}
+                className="text-xs text-gray-500 hover:text-white uppercase tracking-widest shrink-0"
+                disabled={viewTrash}>
                 + New Page
+              </button>
+              <button
+                onClick={() => {
+                  const nextTrash = !viewTrash;
+                  setViewTrash(nextTrash);
+                  if (nextTrash) fetchTrash();
+                }}
+                className={`text-xs px-2.5 py-1 uppercase tracking-widest font-bold border transition-colors shrink-0 ${
+                  viewTrash ? "bg-[#C5A059] text-black border-[#C5A059]" : "border-[#333] text-gray-400 hover:text-white"
+                }`}>
+                {viewTrash ? "Active Pages" : `Trash (${trashPages.length})`}
               </button>
             </>
           )}
@@ -268,6 +353,40 @@ export default function AdminDashboard() {
         <div className="flex-1 overflow-y-auto bg-[#000000]">
           <MessagesAdmin />
         </div>
+      ) : viewTrash ? (
+        <div className="flex-1 overflow-y-auto p-8 bg-[#000000] max-w-4xl mx-auto w-full">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-[#C5A059] uppercase tracking-wider">Deleted Pages (Trash)</h2>
+            <button
+              onClick={() => setViewTrash(false)}
+              className="px-4 py-2 bg-[#111] border border-[#333] text-xs font-bold uppercase tracking-widest text-gray-300 hover:text-white">
+              Back to Active Pages
+            </button>
+          </div>
+          {trashPages.length === 0 ? (
+            <div className="py-16 text-center border border-[#222] text-gray-500 text-sm uppercase tracking-widest">
+              Trash is empty.
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {trashPages.map((p) => (
+                <div key={p.id} className="flex items-center justify-between p-4 bg-[#0a0a0a] border border-[#222]">
+                  <div>
+                    <h4 className="text-white font-bold">{p.title}</h4>
+                    <p className="text-xs text-gray-500 font-mono">/{p.slug}</p>
+                  </div>
+                  {p.id && (
+                    <button
+                      onClick={() => executeAction(p.id!, "recover")}
+                      className="px-4 py-2 bg-[#C5A059] hover:bg-white text-black text-xs font-bold uppercase tracking-widest transition-colors">
+                      Recover
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       ) : (
       <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">
         {/* Sidebar Controls */}
@@ -298,6 +417,25 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <label className="text-[10px] uppercase text-gray-600 font-bold mb-1 block">
+                  Slug (URL)
+                </label>
+                <input
+                  type="text"
+                  value={activePage?.slug || ""}
+                  onChange={(e) => {
+                    const updated = { ...activePage!, slug: e.target.value };
+                    setPages(
+                      pages.map((p) =>
+                        p.slug === activePage?.slug || p.id === activePage?.id ? updated : p,
+                      ),
+                    );
+                    setActivePage(updated);
+                  }}
+                  className="w-full bg-black border border-[#333333] p-2 text-sm focus:border-[#C5A059] font-mono outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase text-gray-600 font-bold mb-1 block">
                   Status
                 </label>
                 <select
@@ -315,10 +453,36 @@ export default function AdminDashboard() {
                     setActivePage(updated);
                   }}
                   className="w-full bg-black border border-[#333333] p-2 text-sm focus:border-[#C5A059] outline-none">
-                  <option value="draft">Draft</option>
+                  <option value="draft">Draft (Unpublished)</option>
                   <option value="published">Published</option>
                 </select>
               </div>
+
+              {activePage?.id && (
+                <div className="flex gap-2 pt-1">
+                  {activePage.status === "draft" ? (
+                    <button
+                      onClick={() => executeAction(activePage.id!, "publish")}
+                      className="flex-1 py-2 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 text-[10px] uppercase font-bold tracking-widest transition-colors">
+                      Publish Now
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => executeAction(activePage.id!, "unpublish")}
+                      className="flex-1 py-2 bg-amber-950/60 hover:bg-amber-900 border border-amber-800 text-amber-300 text-[10px] uppercase font-bold tracking-widest transition-colors">
+                      Unpublish
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {activePage && pages.length > 1 && (
+                <button
+                  onClick={deletePage}
+                  className="mt-2 w-full py-2 bg-red-950/40 hover:bg-red-900/60 border border-red-900 text-red-400 text-[10px] uppercase font-bold tracking-widest transition-colors">
+                  Delete Page
+                </button>
+              )}
             </div>
           </div>
 

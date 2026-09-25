@@ -263,9 +263,9 @@ export async function bootstrapAdminUserIfEmpty(): Promise<User | null> {
       return existing[0];
     }
 
-    const adminUsername = process.env.ADMIN_USERNAME;
-    const adminEmail = process.env.ADMIN_EMAIL;
-    const adminPassword = process.env.ADMIN_PASSWORD;
+    const adminUsername = process.env.ADMIN_USERNAME?.trim();
+    const adminEmail = process.env.ADMIN_EMAIL?.trim();
+    const adminPassword = process.env.ADMIN_PASSWORD?.trim();
 
     // All three or none — silently falling back to "admin" / a fake
     // example.com address would create a real account with a guessable

@@ -6,13 +6,7 @@ import { Button } from "@/components/Button";
 import Image from "next/image";
 import Link from "next/link";
 import TestimonialsSection from "@/components/TestimonialsSection";
-import ProjectCarousel from "@/components/ProjectCarousel";
-import ContactFormClient from "@/components/cms/ContactFormClient";
-import ProjectGridSection from "@/components/cms/ProjectGridSection";
-import {
-  renderDynamicSegments,
-  parseTestimonialBlock,
-} from "@/lib/dynamic-blocks";
+import CmsDynamicBlockPortal from "@/components/cms/CmsDynamicBlockPortal";
 
 // Always read the latest published content from the DB — this route has no
 // dynamic API usage, so without this it's a candidate for static caching
@@ -39,38 +33,8 @@ export default async function Home() {
     return (
       <main className="min-h-screen pb-24">
         {page.cssCache && <style>{safeCssForStyleTag(page.cssCache)}</style>}
-        <div id="cms-page-content" className="w-full">
-          {renderDynamicSegments(
-            safeHtml,
-            (block, key, rawHtml) => {
-              if (block === "project-grid") {
-                return <ProjectGridSection key={key} />;
-              }
-              if (block === "project-carousel") {
-                return <ProjectCarousel key={key} />;
-              }
-              if (block === "testimonials-carousel") {
-                const parsed = parseTestimonialBlock(rawHtml);
-                return (
-                  <TestimonialsSection
-                    key={key}
-                    items={parsed.items}
-                    heading={parsed.heading}
-                  />
-                );
-              }
-              if (block === "contact-form") {
-                return <ContactFormClient key={key} />;
-              }
-              return null;
-            },
-            (segmentHtml, key) => (
-              <div
-                key={key}
-                dangerouslySetInnerHTML={{ __html: segmentHtml }}
-              />
-            ),
-          )}
+        <div id="cms-page-content" className="w-full" suppressHydrationWarning>
+          <CmsDynamicBlockPortal html={safeHtml} />
         </div>
       </main>
     );

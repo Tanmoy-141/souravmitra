@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { pages } from "@/db/schema";
 import { eq, desc, isNull, isNotNull, and } from "drizzle-orm";
@@ -188,6 +189,17 @@ export async function POST(req: NextRequest) {
         results.push(upserted);
       }
 
+      try {
+        revalidatePath("/", "page");
+        revalidatePath("/[slug]", "page");
+        revalidatePath("/book-covers", "page");
+        revalidatePath("/illustration", "page");
+        revalidatePath("/fine-art", "page");
+        revalidatePath("/contact", "page");
+      } catch (err) {
+        console.error("Failed to revalidate paths:", err);
+      }
+
       return NextResponse.json({
         success: true,
         message: "Pages published successfully",
@@ -345,6 +357,17 @@ export async function PUT(req: NextRequest) {
 
     if (!updated.length) {
       return NextResponse.json({ error: "Page not found" }, { status: 404 });
+    }
+
+    try {
+      revalidatePath("/", "page");
+      revalidatePath("/[slug]", "page");
+      revalidatePath("/book-covers", "page");
+      revalidatePath("/illustration", "page");
+      revalidatePath("/fine-art", "page");
+      revalidatePath("/contact", "page");
+    } catch (err) {
+      console.error("Failed to revalidate paths:", err);
     }
 
     return NextResponse.json(updated[0]);

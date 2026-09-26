@@ -21,6 +21,7 @@ type CmsApiResponse = {
   success?: boolean;
   error?: string;
   faviconUrl?: string;
+  logoUrl?: string;
   siteName?: string;
   footerHeading?: string;
   footerText?: string;
@@ -103,10 +104,14 @@ export default function AdminDashboard() {
   const [activePage, setActivePage] = useState<CustomPage | null>(null);
 
   const editorRef = useRef<GrapesEditorHandle>(null);
+  const faviconInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingFavicon, setUploadingFavicon] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   const [showMediaLibrary, setShowMediaLibrary] = useState<{
     blockId: string;
-    field: "images" | "background";
+    field: "images" | "background" | "favicon" | "logo";
   } | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -116,6 +121,8 @@ export default function AdminDashboard() {
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
   const [faviconUrl, setFaviconUrl] = useState("/favicon.svg");
+
+  const [logoUrl, setLogoUrl] = useState("");
 
   const [siteName, setSiteName] = useState("Sourav Mitra");
 
@@ -136,6 +143,9 @@ export default function AdminDashboard() {
         if (data.faviconUrl) {
           setFaviconUrl(data.faviconUrl);
         }
+        if (typeof data.logoUrl === "string") {
+          setLogoUrl(data.logoUrl);
+        }
         if (data.siteName) setSiteName(data.siteName);
         if (data.footerHeading) setFooterHeading(data.footerHeading);
         if (data.footerText) setFooterText(data.footerText);
@@ -153,6 +163,7 @@ export default function AdminDashboard() {
         },
         body: JSON.stringify({
           faviconUrl,
+          logoUrl,
           siteName,
           footerHeading,
           footerText,
@@ -172,6 +183,149 @@ export default function AdminDashboard() {
     } catch {
       setSaveStatus("Failed to save site settings.");
     }
+  };
+
+  const handleFaviconUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = [
+      "image/png",
+      "image/jpeg",
+      "image/jpg",
+      "image/webp",
+      "image/x-icon",
+      "image/vnd.microsoft.icon",
+      "image/svg+xml",
+    ];
+
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    const isExtensionValid =
+      ext && ["png", "jpg", "jpeg", "webp", "ico", "svg"].includes(ext);
+
+    if (!validTypes.includes(file.type) && !isExtensionValid) {
+      alert("Please upload a valid image file (PNG, JPG, WebP, SVG, or ICO).");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Favicon file size must be under 5MB.");
+      return;
+    }
+
+    setUploadingFavicon(true);
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      setFaviconUrl(dataUrl);
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch("/api/media", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json();
+        const uploadedUrl = data.asset?.blobUrl || data.data?.[0]?.src;
+        if (data.success && uploadedUrl) {
+          setFaviconUrl(uploadedUrl);
+        }
+      } catch (err) {
+        console.warn("Media API upload fallback, using data URL:", err);
+      } finally {
+        setUploadingFavicon(false);
+        setSaveStatus("Favicon uploaded! Click 'Save Site Settings' to apply.");
+        setTimeout(() => setSaveStatus(null), 4000);
+        if (faviconInputRef.current) {
+          faviconInputRef.current.value = "";
+        }
+      }
+    };
+
+    reader.onerror = () => {
+      setUploadingFavicon(false);
+      alert("Failed to read the selected file.");
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = [
+      "image/png",
+      "image/jpeg",
+      "image/jpg",
+      "image/webp",
+      "image/x-icon",
+      "image/vnd.microsoft.icon",
+      "image/svg+xml",
+    ];
+
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    const isExtensionValid =
+      ext && ["png", "jpg", "jpeg", "webp", "ico", "svg"].includes(ext);
+
+    if (!validTypes.includes(file.type) && !isExtensionValid) {
+      alert("Please upload a valid image file (PNG, JPG, WebP, or SVG).");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Logo file size must be under 5MB.");
+      return;
+    }
+
+    setUploadingLogo(true);
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      setLogoUrl(dataUrl);
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch("/api/media", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json();
+        const uploadedUrl = data.asset?.blobUrl || data.data?.[0]?.src;
+        if (data.success && uploadedUrl) {
+          setLogoUrl(uploadedUrl);
+        }
+      } catch (err) {
+        console.warn(
+          "Media API upload fallback for logo, using data URL:",
+          err,
+        );
+      } finally {
+        setUploadingLogo(false);
+        setSaveStatus("Logo uploaded! Click 'Save Site Settings' to apply.");
+        setTimeout(() => setSaveStatus(null), 4000);
+        if (logoInputRef.current) {
+          logoInputRef.current.value = "";
+        }
+      }
+    };
+
+    reader.onerror = () => {
+      setUploadingLogo(false);
+      alert("Failed to read the selected file.");
+    };
+
+    reader.readAsDataURL(file);
   };
 
   useEffect(() => {
@@ -339,6 +493,7 @@ export default function AdminDashboard() {
         ? {
             ...pageWithEditorContent,
             slug,
+            status: "published" as const,
           }
         : pageWithEditorContent;
     });
@@ -518,7 +673,11 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleSaveDraft = async (projectData: unknown) => {
+  const handleSaveDraft = async (
+    projectData: unknown,
+    html?: string,
+    css?: string,
+  ) => {
     if (!activePage) {
       alert("Please select a page first.");
       return;
@@ -557,6 +716,8 @@ export default function AdminDashboard() {
           slug,
           title: pageWithId.title,
           gjsData: projectData,
+          ...(html !== undefined && { htmlCache: html }),
+          ...(css !== undefined && { cssCache: css }),
           status: currentPage.status,
         }),
       });
@@ -1045,18 +1206,210 @@ export default function AdminDashboard() {
                   </label>
                 ))}
 
-                <label className="text-[10px] uppercase text-gray-600 font-bold block mt-2">
-                  Favicon URL or Path
-                </label>
-                <label className="text-[10px] uppercase text-gray-600 font-bold block">
+                {/* Site Logo Section */}
+                <div className="mt-4 pt-4 border-t border-[#222]">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] uppercase text-[#C5A059] font-bold tracking-wider">
+                      Site Logo (PNG / JPG / SVG)
+                    </span>
+                    {logoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLogoUrl("");
+                          setSaveStatus(
+                            "Logo removed! Click 'Save Site Settings' to apply.",
+                          );
+                          setTimeout(() => setSaveStatus(null), 4000);
+                        }}
+                        className="text-[10px] text-gray-500 hover:text-red-400 transition-colors uppercase tracking-wider">
+                        Remove Logo
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Hidden file input */}
                   <input
-                    type="text"
-                    placeholder="/favicon.svg or image URL"
-                    value={faviconUrl}
-                    onChange={(e) => setFaviconUrl(e.target.value)}
-                    className="mt-1 w-full bg-black border border-[#333333] p-2 text-xs focus:border-[#C5A059] outline-none font-mono"
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                    className="hidden"
+                    onChange={handleLogoUpload}
                   />
-                </label>
+
+                  {/* Preview Card */}
+                  <div className="flex items-center gap-3 p-2.5 bg-black border border-[#2b2b2b] rounded-sm mb-2">
+                    <div className="w-12 h-10 shrink-0 bg-[#141414] border border-[#3a3a3a] rounded-sm flex items-center justify-center overflow-hidden p-1 shadow-inner">
+                      {logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={logoUrl}
+                          alt="Logo preview"
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <span className="text-[9px] text-gray-600 uppercase font-bold">
+                          None
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-medium text-gray-200 truncate">
+                        {logoUrl.startsWith("http") ||
+                        logoUrl.startsWith("data:")
+                          ? logoUrl.startsWith("data:")
+                            ? "Custom Logo (Data URL)"
+                            : logoUrl.split("/").pop()?.slice(0, 24) ||
+                              "Custom Logo"
+                          : logoUrl
+                            ? logoUrl
+                            : "Text only (No image logo)"}
+                      </p>
+                      <p className="text-[10px] text-gray-500">
+                        {uploadingLogo
+                          ? "Uploading..."
+                          : logoUrl
+                            ? "Image logo active"
+                            : "Click below to add a logo image"}
+                      </p>
+                    </div>
+                    {logoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLogoUrl("");
+                          setSaveStatus(
+                            "Logo removed! Click 'Save Site Settings' to apply.",
+                          );
+                          setTimeout(() => setSaveStatus(null), 4000);
+                        }}
+                        className="px-2 py-1 bg-[#1f1212] hover:bg-[#321616] border border-[#522] hover:border-red-500 text-red-400 hover:text-red-300 text-[10px] font-bold uppercase tracking-wider rounded transition-colors"
+                        title="Remove custom logo">
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex gap-2 mb-3">
+                    <button
+                      type="button"
+                      disabled={uploadingLogo}
+                      onClick={() => logoInputRef.current?.click()}
+                      className="flex-1 py-1.5 px-2 bg-[#1a1a1a] hover:bg-[#252525] border border-[#333] hover:border-[#C5A059] text-[10px] uppercase font-bold tracking-wider text-white transition-colors disabled:opacity-50">
+                      {uploadingLogo ? "Uploading..." : "📁 Upload Logo"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowMediaLibrary({
+                          blockId: "logo",
+                          field: "logo",
+                        })
+                      }
+                      className="py-1.5 px-2.5 bg-[#141414] hover:bg-[#202020] border border-[#333] text-[10px] uppercase font-bold tracking-wider text-[#C5A059] transition-colors">
+                      Library
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-[#222]">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] uppercase text-[#C5A059] font-bold tracking-wider">
+                      Favicon (PNG / JPG)
+                    </span>
+                    {faviconUrl !== "/favicon.svg" && (
+                      <button
+                        type="button"
+                        onClick={() => setFaviconUrl("/favicon.svg")}
+                        className="text-[10px] text-gray-500 hover:text-red-400 transition-colors uppercase tracking-wider">
+                        Reset Default
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Hidden file input */}
+                  <input
+                    ref={faviconInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp,image/x-icon,image/svg+xml"
+                    className="hidden"
+                    onChange={handleFaviconUpload}
+                  />
+
+                  {/* Preview Card */}
+                  <div className="flex items-center gap-3 p-2.5 bg-black border border-[#2b2b2b] rounded-sm mb-2">
+                    <div className="w-10 h-10 shrink-0 bg-[#141414] border border-[#3a3a3a] rounded-sm flex items-center justify-center overflow-hidden p-1 shadow-inner">
+                      {faviconUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={faviconUrl}
+                          alt="Favicon preview"
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <span className="text-[9px] text-gray-600">None</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-medium text-gray-200 truncate">
+                        {faviconUrl.startsWith("http") ||
+                        faviconUrl.startsWith("data:")
+                          ? faviconUrl.startsWith("data:")
+                            ? "Custom Upload (Data URL)"
+                            : faviconUrl.split("/").pop()?.slice(0, 24) ||
+                              "Custom Favicon"
+                          : faviconUrl === "/favicon.svg"
+                            ? "Default (/favicon.svg)"
+                            : faviconUrl}
+                      </p>
+                      <p className="text-[10px] text-gray-500">
+                        {uploadingFavicon
+                          ? "Uploading..."
+                          : faviconUrl !== "/favicon.svg"
+                            ? "Custom icon active"
+                            : "Default icon active"}
+                      </p>
+                    </div>
+                    {faviconUrl !== "/favicon.svg" && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFaviconUrl("/favicon.svg");
+                          setSaveStatus(
+                            "Favicon reset to default! Click 'Save Site Settings' to apply.",
+                          );
+                          setTimeout(() => setSaveStatus(null), 4000);
+                        }}
+                        className="px-2 py-1 bg-[#1f1212] hover:bg-[#321616] border border-[#522] hover:border-red-500 text-red-400 hover:text-red-300 text-[10px] font-bold uppercase tracking-wider rounded transition-colors"
+                        title="Remove custom favicon and reset to default">
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex gap-2 mb-3">
+                    <button
+                      type="button"
+                      disabled={uploadingFavicon}
+                      onClick={() => faviconInputRef.current?.click()}
+                      className="flex-1 py-1.5 px-2 bg-[#1a1a1a] hover:bg-[#252525] border border-[#333] hover:border-[#C5A059] text-[10px] uppercase font-bold tracking-wider text-white transition-colors disabled:opacity-50">
+                      {uploadingFavicon ? "Uploading..." : "📁 Upload File"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowMediaLibrary({
+                          blockId: "favicon",
+                          field: "favicon",
+                        })
+                      }
+                      className="py-1.5 px-2.5 bg-[#141414] hover:bg-[#202020] border border-[#333] text-[10px] uppercase font-bold tracking-wider text-[#C5A059] transition-colors">
+                      Library
+                    </button>
+                  </div>
+                </div>
 
                 <button
                   onClick={handleSaveSiteSettings}
@@ -1085,6 +1438,26 @@ export default function AdminDashboard() {
         <MediaLibrary
           onClose={() => setShowMediaLibrary(null)}
           onSelect={(asset) => {
+            if (showMediaLibrary.field === "favicon") {
+              setFaviconUrl(asset.blobUrl);
+              setShowMediaLibrary(null);
+              setSaveStatus(
+                "Favicon selected! Click 'Save Site Settings' to apply.",
+              );
+              setTimeout(() => setSaveStatus(null), 4000);
+              return;
+            }
+
+            if (showMediaLibrary.field === "logo") {
+              setLogoUrl(asset.blobUrl);
+              setShowMediaLibrary(null);
+              setSaveStatus(
+                "Logo selected! Click 'Save Site Settings' to apply.",
+              );
+              setTimeout(() => setSaveStatus(null), 4000);
+              return;
+            }
+
             if (!activePage) {
               return;
             }

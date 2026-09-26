@@ -49,7 +49,10 @@ export async function GET() {
     const themeData =
       (themeSetting[0]?.gjsData as { faviconUrl?: string }) || {};
     const headerData =
-      (headerSetting[0]?.gjsData as { siteName?: string }) || {};
+      (headerSetting[0]?.gjsData as {
+        siteName?: string;
+        logoUrl?: string;
+      }) || {};
     const footerData =
       (footerSetting[0]?.gjsData as {
         heading?: string;
@@ -69,6 +72,7 @@ export async function GET() {
 
     return NextResponse.json({
       faviconUrl: themeData.faviconUrl || "/favicon.svg",
+      logoUrl: headerData.logoUrl || "",
       siteName: headerData.siteName || "Sourav Mitra",
       footerHeading: footerData.heading || "FOLLOW ME ON",
       footerText: footerData.text || "All rights reserved.",
@@ -115,7 +119,10 @@ export async function PUT(req: NextRequest) {
     const currentThemeData =
       (currentTheme[0]?.gjsData as { faviconUrl?: string }) || {};
     const currentHeaderData =
-      (currentHeader[0]?.gjsData as { siteName?: string }) || {};
+      (currentHeader[0]?.gjsData as {
+        siteName?: string;
+        logoUrl?: string;
+      }) || {};
     const currentFooterData =
       (currentFooter[0]?.gjsData as {
         heading?: string;
@@ -134,6 +141,10 @@ export async function PUT(req: NextRequest) {
         typeof body.siteName === "string"
           ? body.siteName.trim().slice(0, 100) || "Sourav Mitra"
           : currentHeaderData.siteName || "Sourav Mitra",
+      logoUrl:
+        typeof body.logoUrl === "string"
+          ? body.logoUrl.trim()
+          : currentHeaderData.logoUrl || "",
     };
     const inputSocialLinks =
       typeof body.socialLinks === "object" && body.socialLinks !== null

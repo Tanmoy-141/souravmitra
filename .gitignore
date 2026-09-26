@@ -27,3 +27,8 @@ Thumbs.db
 # IDE and tool artifacts
 .vscode/
 .playwright-mcp/
+
+# Local uploaded files
+public/uploads/*
+!public/uploads/.gitkeep
+

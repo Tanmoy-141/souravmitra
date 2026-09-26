@@ -1,13 +1,9 @@
 import { and, eq, isNull } from "drizzle-orm";
-import ContactFormClient from "@/components/cms/ContactFormClient";
 import PortfolioCollection from "@/components/PortfolioCollection";
-import TestimonialsPortal from "@/components/cms/TestimonialsPortal";
+import CmsDynamicBlockPortal from "@/components/cms/CmsDynamicBlockPortal";
 import { db } from "@/db";
 import { pages } from "@/db/schema";
-import {
-  renderDynamicSegments,
-  splitDynamicBlocks,
-} from "@/lib/dynamic-blocks";
+import { splitDynamicBlocks } from "@/lib/dynamic-blocks";
 import { safeCssForStyleTag, sanitizeHtml } from "@/lib/sanitize";
 
 type PortfolioCategory = "book-covers" | "illustration" | "fine-art";
@@ -42,20 +38,8 @@ export default async function CmsPortfolioPage({
         <style>{safeCssForStyleTag(page.cssCache)}</style>
       ) : null}
       {html ? (
-        <div id="cms-page-content" className="w-full">
-          {renderDynamicSegments(
-            html,
-            (block, key) =>
-              block === "project-grid" ? (
-                <PortfolioCollection key={key} category={slug} />
-              ) : (
-                <ContactFormClient key={key} />
-              ),
-            (segmentHtml, key) => (
-              <TestimonialsPortal key={key} html={segmentHtml} />
-            ),
-            { ignoreBlocks: ["testimonials-carousel"] },
-          )}
+        <div id="cms-page-content" className="w-full" suppressHydrationWarning>
+          <CmsDynamicBlockPortal html={html} category={slug} />
         </div>
       ) : null}
       {!hasProjectDisplay ? (

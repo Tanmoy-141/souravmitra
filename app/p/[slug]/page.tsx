@@ -4,12 +4,9 @@ import { pages } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import type { Metadata } from "next";
 import BlockRenderer from "@/components/cms/BlockRenderer";
-import ProjectGridSection from "@/components/cms/ProjectGridSection";
-import ContactFormClient from "@/components/cms/ContactFormClient";
-import TestimonialsPortal from "@/components/cms/TestimonialsPortal";
+import CmsDynamicBlockPortal from "@/components/cms/CmsDynamicBlockPortal";
 import { Block } from "@/data/cms";
 import { sanitizeHtml, safeCssForStyleTag } from "@/lib/sanitize";
-import { renderDynamicSegments } from "@/lib/dynamic-blocks";
 
 interface DynamicPageProps {
   params: Promise<{ slug: string }>;
@@ -94,20 +91,9 @@ export default async function DynamicCustomPage({ params }: DynamicPageProps) {
           </header>
           <div
             id="cms-page-content"
+            suppressHydrationWarning
             className="prose dark:prose-invert max-w-none">
-            {renderDynamicSegments(
-              safeHtml,
-              (block, key) =>
-                block === "project-grid" ? (
-                  <ProjectGridSection key={key} />
-                ) : (
-                  <ContactFormClient key={key} />
-                ),
-              (segmentHtml, key) => (
-                <TestimonialsPortal key={key} html={segmentHtml} />
-              ),
-              { ignoreBlocks: ["testimonials-carousel"] },
-            )}
+            <CmsDynamicBlockPortal html={safeHtml} />
           </div>
         </div>
       )}

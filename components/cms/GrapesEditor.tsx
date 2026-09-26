@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import grapesjs from "grapesjs";
-import type { Editor } from "grapesjs";
+import type { Editor, ToolbarButtonProps } from "grapesjs";
 import "grapesjs/dist/css/grapes.min.css";
 type GrapesProjectData = ReturnType<Editor["getProjectData"]>;
 
@@ -70,12 +70,17 @@ function registerCmsDynamicBlockTypes(editorInstance: Editor) {
         : undefined,
     model: {
       defaults: {
-        droppable: true,
-        editable: true,
-        draggable: true,
-        removable: true,
-        copyable: true,
+        ...lockedDynamicBlockDefaults,
         attributes: { "data-cms-block": "testimonials-carousel" },
+        traits: [
+          {
+            type: "button",
+            name: "edit_testimonials_btn",
+            label: "Testimonials Carousel",
+            text: "💬 Edit Slides & Quotes",
+            command: "open-testimonials-editor",
+          },
+        ],
       },
     },
   });
@@ -89,6 +94,15 @@ function registerCmsDynamicBlockTypes(editorInstance: Editor) {
       defaults: {
         ...lockedDynamicBlockDefaults,
         attributes: { "data-cms-block": "project-carousel" },
+        traits: [
+          {
+            type: "button",
+            name: "edit_project_carousel_btn",
+            label: "Projects Carousel",
+            text: "🖼️ Edit Carousel Heading",
+            command: "open-project-carousel-editor",
+          },
+        ],
       },
     },
   });
@@ -402,13 +416,14 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       editorRef.current = editor;
 
       /*
-       * When an image component is selected, switch right sidebar to Settings/Traits
-       * and ensure a quick "Change Image" button is available in the toolbar
+       * When an image or dynamic carousel component is selected, switch right sidebar to Settings/Traits
+       * and ensure quick edit buttons are available in the toolbar
        */
       editor.on("component:selected", (component) => {
         if (component.is("image")) {
           setActiveRightTab("traits");
-          const defaultToolbar = component.get("toolbar") || [];
+          const defaultToolbar = (component.get("toolbar") ||
+            []) as ToolbarButtonProps[];
           if (!defaultToolbar.some((item) => item.command === "open-assets")) {
             component.set("toolbar", [
               {
@@ -419,6 +434,70 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               ...defaultToolbar,
             ]);
           }
+        } else if (
+          component.is("testimonials-carousel") ||
+          component.closest?.('[data-cms-block="testimonials-carousel"]')
+        ) {
+          const target = component.is("testimonials-carousel")
+            ? component
+            : component.closest('[data-cms-block="testimonials-carousel"]');
+          if (!target) return;
+          setActiveRightTab("traits");
+          const defaultToolbar = (target.get("toolbar") ||
+            []) as ToolbarButtonProps[];
+          if (
+            !defaultToolbar.some(
+              (item) => item.command === "open-testimonials-editor",
+            )
+          ) {
+            target.set("toolbar", [
+              {
+                attributes: { title: "Edit Carousel Slides & Quotes" },
+                command: "open-testimonials-editor",
+                label: "💬 Edit Carousel",
+              },
+              ...defaultToolbar,
+            ]);
+          }
+        } else if (
+          component.is("project-carousel") ||
+          component.closest?.('[data-cms-block="project-carousel"]')
+        ) {
+          const target = component.is("project-carousel")
+            ? component
+            : component.closest('[data-cms-block="project-carousel"]');
+          if (!target) return;
+          setActiveRightTab("traits");
+          const defaultToolbar = (target.get("toolbar") ||
+            []) as ToolbarButtonProps[];
+          if (
+            !defaultToolbar.some(
+              (item) => item.command === "open-project-carousel-editor",
+            )
+          ) {
+            target.set("toolbar", [
+              {
+                attributes: { title: "Edit Projects Carousel Heading" },
+                command: "open-project-carousel-editor",
+                label: "🖼️ Edit Heading",
+              },
+              ...defaultToolbar,
+            ]);
+          }
+        }
+      });
+
+      editor.on("component:dblclick", (component) => {
+        if (
+          component.is("testimonials-carousel") ||
+          component.closest?.('[data-cms-block="testimonials-carousel"]')
+        ) {
+          editor.runCommand("open-testimonials-editor");
+        } else if (
+          component.is("project-carousel") ||
+          component.closest?.('[data-cms-block="project-carousel"]')
+        ) {
+          editor.runCommand("open-project-carousel-editor");
         }
       });
 
@@ -458,6 +537,466 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       editor.Commands.add("set-device-mobile", {
         run: () => {
           editor.setDevice("Mobile");
+        },
+      });
+
+      /*
+       * Testimonials Carousel visual slide manager command
+       */
+      editor.Commands.add("open-testimonials-editor", {
+        run: () => {
+          const selected = editor.getSelected();
+          const target =
+            selected && selected.is("testimonials-carousel")
+              ? selected
+              : selected?.closest?.(
+                  '[data-cms-block="testimonials-carousel"]',
+                ) ||
+                editor
+                  .getWrapper()
+                  ?.find?.('[data-cms-block="testimonials-carousel"]')?.[0];
+
+          if (!target) {
+            alert("Please select the Testimonials Carousel block first.");
+            return;
+          }
+
+          // Extract existing heading
+          const headingComp = target.find("h1, h2, h3, h4")[0];
+          let currentHeading = "What Publishers & Clients Say";
+          if (headingComp) {
+            const text = (
+              headingComp.get("content") ||
+              headingComp.toHTML?.() ||
+              ""
+            )
+              .replace(/<[^>]+>/g, "")
+              .replace(/&nbsp;/g, " ")
+              .replace(/&amp;/g, "&")
+              .trim();
+            if (text) currentHeading = text;
+          }
+
+          // Extract existing slides
+          let slides: Array<{ quote: string; author: string }> = [];
+          const quoteComps = target.find("[data-testimonial-quote]");
+          if (quoteComps && quoteComps.length > 0) {
+            for (const qc of quoteComps) {
+              const attrs = qc.getAttributes?.() || {};
+              const q = (
+                attrs["data-testimonial-quote"] ||
+                qc.get("content") ||
+                ""
+              )
+                .replace(/^[“"']+|[”"']+$/g, "")
+                .trim();
+              const a = (attrs["data-testimonial-author"] || "")
+                .replace(/^[-—~:\s]+/, "")
+                .trim();
+              if (q) slides.push({ quote: q, author: a });
+            }
+          }
+
+          if (slides.length === 0) {
+            // Fallback: parse from child <p>/<blockquote> tags (the current
+            // default format, and anything hand-edited directly in canvas)
+            const pComps = target.find("p, blockquote");
+            for (const p of pComps) {
+              const raw = (p.get("content") || p.toHTML?.() || "")
+                .replace(/&nbsp;/g, " ")
+                .replace(/<br\s*\/?>/gi, "\n")
+                .replace(/<[^>]+>/g, "")
+                .trim();
+              if (!raw || /rotating testimonials appear/i.test(raw)) continue;
+              const lines = raw
+                .split(/\r?\n/)
+                .map((l: string) => l.trim())
+                .filter(Boolean);
+              const attrIdx = lines.findIndex((l: string) => /^[-—~:]/.test(l));
+              if (attrIdx >= 1) {
+                const q = lines
+                  .slice(0, attrIdx)
+                  .join(" ")
+                  .replace(/^[“"']+|[”"']+$/g, "")
+                  .trim();
+                const a = lines
+                  .slice(attrIdx)
+                  .join(" ")
+                  .replace(/^[-—~:\s]+/, "")
+                  .trim();
+                if (q) slides.push({ quote: q, author: a });
+              } else if (lines.length >= 2) {
+                const q = lines[0].replace(/^[“"']+|[”"']+$/g, "").trim();
+                const a = lines
+                  .slice(1)
+                  .join(" ")
+                  .replace(/^[-—~:\s]+/, "")
+                  .trim();
+                if (q) slides.push({ quote: q, author: a });
+              } else if (lines.length === 1 && lines[0]) {
+                const q = lines[0].replace(/^[“"']+|[”"']+$/g, "").trim();
+                if (q) slides.push({ quote: q, author: "Editorial Client" });
+              }
+            }
+          }
+
+          if (slides.length === 0) {
+            slides = [
+              {
+                quote:
+                  "Sourav's artwork captured the exact haunting atmosphere of our novel. An absolute master of his craft.",
+                author: "Editorial Director, Tor Books",
+              },
+              {
+                quote:
+                  "Working with Sourav was effortless. The cover delivered exceeded all expectations and drove pre-orders through the roof.",
+                author: "Senior Editor, Orbit Books",
+              },
+              {
+                quote:
+                  "A rare visionary talent whose evocative style immediately commands attention on any bookshelf.",
+                author: "Creative Director, Penguin Random House",
+              },
+            ];
+          }
+
+          const modal = editor.Modal;
+          modal.setTitle("💬 Edit Testimonials Carousel");
+
+          const container = document.createElement("div");
+          container.style.cssText =
+            "display: flex; flex-direction: column; gap: 16px; color: #fff; max-height: 75vh; overflow-y: auto; padding: 4px 8px;";
+
+          // Section Heading field
+          const headingGroup = document.createElement("div");
+          headingGroup.innerHTML = `
+            <label style="display: block; font-size: 11px; font-weight: 700; color: #C5A059; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px;">
+              Section Heading
+            </label>
+            <input
+              id="cms-testimonials-modal-heading"
+              type="text"
+              value="${currentHeading.replace(/"/g, "&quot;")}"
+              style="width: 100%; padding: 8px 12px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 14px; box-sizing: border-box;"
+            />
+          `;
+          container.appendChild(headingGroup);
+
+          // Slides container
+          const slidesLabel = document.createElement("div");
+          slidesLabel.style.cssText =
+            "display: flex; justify-content: space-between; align-items: center; margin-top: 4px;";
+          slidesLabel.innerHTML = `
+            <span style="font-size: 11px; font-weight: 700; color: #C5A059; text-transform: uppercase; letter-spacing: 0.1em;">
+              Testimonial Slides (<span id="cms-slide-count">${slides.length}</span>)
+            </span>
+          `;
+          container.appendChild(slidesLabel);
+
+          const slidesList = document.createElement("div");
+          slidesList.id = "cms-slides-list";
+          slidesList.style.cssText =
+            "display: flex; flex-direction: column; gap: 12px;";
+          container.appendChild(slidesList);
+
+          const renderSlideCard = (
+            slide: { quote: string; author: string },
+            index: number,
+          ) => {
+            const card = document.createElement("div");
+            card.className = "cms-slide-card";
+            card.style.cssText =
+              "background: #161616; border: 1px solid #2e2e2e; border-radius: 4px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;";
+
+            card.innerHTML = `
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span class="cms-slide-num" style="font-size: 11px; font-weight: bold; color: #aaa; text-transform: uppercase; letter-spacing: 0.05em;">
+                  Slide ${index + 1}
+                </span>
+                <button
+                  type="button"
+                  class="cms-btn-remove-slide"
+                  style="background: none; border: none; color: #e57373; font-size: 11px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 6px;"
+                >
+                  ✕ Remove
+                </button>
+              </div>
+              <div>
+                <label style="display: block; font-size: 10px; color: #888; text-transform: uppercase; margin-bottom: 3px;">
+                  Quote Text
+                </label>
+                <textarea
+                  class="cms-input-quote"
+                  rows="3"
+                  placeholder="Enter testimonial quote..."
+                  style="width: 100%; padding: 8px; background: #0e0e0e; border: 1px solid #333; color: #fff; border-radius: 2px; font-size: 13px; resize: vertical; box-sizing: border-box;"
+                >${slide.quote.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</textarea>
+              </div>
+              <div>
+                <label style="display: block; font-size: 10px; color: #888; text-transform: uppercase; margin-bottom: 3px;">
+                  Author / Client Name & Title
+                </label>
+                <input
+                  type="text"
+                  class="cms-input-author"
+                  placeholder="e.g. UTSA TARAFDAR or Senior Editor, Orbit Books"
+                  value="${slide.author.replace(/"/g, "&quot;")}"
+                  style="width: 100%; padding: 6px 8px; background: #0e0e0e; border: 1px solid #333; color: #fff; border-radius: 2px; font-size: 12px; box-sizing: border-box;"
+                />
+              </div>
+            `;
+
+            const removeBtn = card.querySelector(
+              ".cms-btn-remove-slide",
+            ) as HTMLButtonElement;
+            removeBtn.onclick = () => {
+              const allCards = slidesList.querySelectorAll(".cms-slide-card");
+              if (allCards.length <= 1) {
+                alert("You must keep at least 1 testimonial slide.");
+                return;
+              }
+              card.remove();
+              slidesList
+                .querySelectorAll(".cms-slide-card")
+                .forEach((c, idx) => {
+                  const num = c.querySelector(".cms-slide-num");
+                  if (num) num.textContent = `Slide ${idx + 1}`;
+                });
+              const countEl = container.querySelector("#cms-slide-count");
+              if (countEl) {
+                countEl.textContent = String(
+                  slidesList.querySelectorAll(".cms-slide-card").length,
+                );
+              }
+            };
+
+            return card;
+          };
+
+          slides.forEach((slide, idx) => {
+            slidesList.appendChild(renderSlideCard(slide, idx));
+          });
+
+          // Add Slide Button
+          const addBtn = document.createElement("button");
+          addBtn.type = "button";
+          addBtn.style.cssText =
+            "padding: 10px; border: 1px dashed #444; background: #111; color: #C5A059; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; border-radius: 4px; cursor: pointer; transition: all 0.2s;";
+          addBtn.textContent = "+ Add Another Testimonial Slide";
+          addBtn.onmouseenter = () => {
+            addBtn.style.borderColor = "#C5A059";
+            addBtn.style.background = "#181818";
+          };
+          addBtn.onmouseleave = () => {
+            addBtn.style.borderColor = "#444";
+            addBtn.style.background = "#111";
+          };
+          addBtn.onclick = () => {
+            const currentCount =
+              slidesList.querySelectorAll(".cms-slide-card").length;
+            slidesList.appendChild(
+              renderSlideCard({ quote: "", author: "" }, currentCount),
+            );
+            const countEl = container.querySelector("#cms-slide-count");
+            if (countEl) countEl.textContent = String(currentCount + 1);
+            addBtn.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          };
+          container.appendChild(addBtn);
+
+          // Action buttons
+          const actionsRow = document.createElement("div");
+          actionsRow.style.cssText =
+            "display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; padding-top: 12px; border-top: 1px solid #222;";
+
+          const cancelBtn = document.createElement("button");
+          cancelBtn.type = "button";
+          cancelBtn.style.cssText =
+            "padding: 8px 16px; border: 1px solid #333; background: #1a1a1a; color: #ccc; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; border-radius: 2px; cursor: pointer;";
+          cancelBtn.textContent = "Cancel";
+          cancelBtn.onclick = () => modal.close();
+
+          const saveBtn = document.createElement("button");
+          saveBtn.type = "button";
+          saveBtn.style.cssText =
+            "padding: 8px 20px; border: none; background: #C5A059; color: #000; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 2px; cursor: pointer;";
+          saveBtn.textContent = "Save Changes";
+          saveBtn.onclick = () => {
+            const headingInput = container.querySelector(
+              "#cms-testimonials-modal-heading",
+            ) as HTMLInputElement;
+            const updatedHeading =
+              headingInput?.value.trim() || "What Publishers & Clients Say";
+
+            const cards = slidesList.querySelectorAll(".cms-slide-card");
+            const updatedSlides: Array<{ quote: string; author: string }> = [];
+
+            cards.forEach((card) => {
+              const qInput = card.querySelector(
+                ".cms-input-quote",
+              ) as HTMLTextAreaElement;
+              const aInput = card.querySelector(
+                ".cms-input-author",
+              ) as HTMLInputElement;
+              const quote = qInput?.value.trim() || "";
+              const author = aInput?.value.trim() || "Editorial Client";
+              if (quote) {
+                updatedSlides.push({ quote, author });
+              }
+            });
+
+            if (updatedSlides.length === 0) {
+              alert("Please provide at least one testimonial quote.");
+              return;
+            }
+
+            const escapeStr = (s: string) =>
+              s
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
+
+            const safeHeading = escapeStr(updatedHeading);
+
+            // One visible <blockquote> per slide — this is the ONLY copy of
+            // the content. An earlier version kept a small "preview card"
+            // showing just the first slide plus a separate hidden div
+            // carrying the real data-testimonial-* attributes; a friend
+            // editing the visible card directly (very natural to try) would
+            // silently leave the hidden — and actually rendered — copy
+            // untouched, so their edits appeared to do nothing after
+            // publishing. A single visible source of truth can't desync
+            // like that, and it's also just simpler to read/duplicate by
+            // hand in the canvas.
+            const slidesHtml = updatedSlides
+              .map(
+                (s) =>
+                  `<blockquote class="text-sm text-gray-300 italic mb-3" data-testimonial-quote="${escapeStr(s.quote)}" data-testimonial-author="${escapeStr(s.author)}">"${escapeStr(s.quote)}"<br>- ${escapeStr(s.author)}</blockquote>`,
+              )
+              .join("");
+
+            const html = `<h3 class="mb-4 text-2xl font-serif text-[#C5A059]">${safeHeading}</h3>${slidesHtml}`;
+
+            target.components(html);
+            editor.trigger("change:canvas");
+            modal.close();
+          };
+
+          actionsRow.appendChild(cancelBtn);
+          actionsRow.appendChild(saveBtn);
+          container.appendChild(actionsRow);
+
+          modal.setContent(container);
+          modal.open();
+        },
+      });
+
+      /*
+       * Projects Carousel heading editor command
+       */
+      editor.Commands.add("open-project-carousel-editor", {
+        run: () => {
+          const selected = editor.getSelected();
+          const target =
+            selected && selected.is("project-carousel")
+              ? selected
+              : selected?.closest?.('[data-cms-block="project-carousel"]') ||
+                editor
+                  .getWrapper()
+                  ?.find?.('[data-cms-block="project-carousel"]')?.[0];
+
+          if (!target) {
+            alert("Please select the Projects Carousel block first.");
+            return;
+          }
+
+          const headingComp = target.find("h1, h2, h3, h4")[0];
+          let currentHeading = "Featured Projects Carousel";
+          if (headingComp) {
+            const text = (
+              headingComp.get("content") ||
+              headingComp.toHTML?.() ||
+              ""
+            )
+              .replace(/<[^>]+>/g, "")
+              .replace(/&nbsp;/g, " ")
+              .replace(/&amp;/g, "&")
+              .trim();
+            if (text) currentHeading = text;
+          }
+
+          const modal = editor.Modal;
+          modal.setTitle("🖼️ Edit Projects Carousel Heading");
+
+          const container = document.createElement("div");
+          container.style.cssText =
+            "display: flex; flex-direction: column; gap: 16px; color: #fff; padding: 4px 8px;";
+
+          container.innerHTML = `
+            <div>
+              <label style="display: block; font-size: 11px; font-weight: 700; color: #C5A059; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px;">
+                Carousel Section Heading
+              </label>
+              <input
+                id="cms-project-carousel-modal-heading"
+                type="text"
+                value="${currentHeading.replace(/"/g, "&quot;")}"
+                style="width: 100%; padding: 8px 12px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 14px; box-sizing: border-box;"
+              />
+            </div>
+            <div style="background: #161616; border: 1px solid #2a2a2a; border-radius: 4px; padding: 12px; font-size: 12px; color: #aaa; line-height: 1.5;">
+              <span style="color: #C5A059; font-weight: bold;">Note:</span> This carousel automatically displays all portfolio projects that have <strong style="color: #fff;">Featured</strong> checked in the Projects admin tab.
+            </div>
+          `;
+
+          const actionsRow = document.createElement("div");
+          actionsRow.style.cssText =
+            "display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; padding-top: 12px; border-top: 1px solid #222;";
+
+          const cancelBtn = document.createElement("button");
+          cancelBtn.type = "button";
+          cancelBtn.style.cssText =
+            "padding: 8px 16px; border: 1px solid #333; background: #1a1a1a; color: #ccc; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; border-radius: 2px; cursor: pointer;";
+          cancelBtn.textContent = "Cancel";
+          cancelBtn.onclick = () => modal.close();
+
+          const saveBtn = document.createElement("button");
+          saveBtn.type = "button";
+          saveBtn.style.cssText =
+            "padding: 8px 20px; border: none; background: #C5A059; color: #000; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 2px; cursor: pointer;";
+          saveBtn.textContent = "Save Heading";
+          saveBtn.onclick = () => {
+            const headingInput = container.querySelector(
+              "#cms-project-carousel-modal-heading",
+            ) as HTMLInputElement;
+            const updatedHeading =
+              headingInput?.value.trim() || "Featured Projects Carousel";
+            const escapeStr = (s: string) =>
+              s
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
+
+            const safeHeading = escapeStr(updatedHeading);
+            const html = `
+              <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #C5A059; margin-bottom: 0.5rem; font-weight: bold;">
+                🖼️ Projects Carousel &bull; Double-click to Edit Heading
+              </div>
+              <h3 class="mb-2 text-2xl font-serif text-[#C5A059]">${safeHeading}</h3>
+              <p class="text-xs uppercase tracking-widest text-gray-400">Featured artwork projects rotate here dynamically on the live site</p>
+            `;
+            target.components(html);
+            editor.trigger("change:canvas");
+            modal.close();
+          };
+
+          actionsRow.appendChild(cancelBtn);
+          actionsRow.appendChild(saveBtn);
+          container.appendChild(actionsRow);
+
+          modal.setContent(container);
+          modal.open();
         },
       });
 
@@ -540,8 +1079,11 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           data-cms-block="project-carousel"
           class="min-h-72 border border-dashed border-[#C5A059] bg-[#0a0a0a] p-12 text-center text-white"
         >
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #C5A059; margin-bottom: 0.5rem; font-weight: bold;">
+            🖼️ Projects Carousel &bull; Double-click to Edit Heading
+          </div>
           <h3 class="mb-2 text-2xl font-serif text-[#C5A059]">Featured Projects Carousel</h3>
-          <p class="text-xs uppercase tracking-widest text-gray-400">Featured artwork carousel rotates here on the live site</p>
+          <p class="text-xs uppercase tracking-widest text-gray-400">Featured artwork projects rotate here dynamically on the live site</p>
         </div>
       `,
       });
@@ -575,10 +1117,12 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         content: `
         <div
           data-cms-block="testimonials-carousel"
-          class="min-h-72 border border-dashed border-[#444] bg-[#0a0a0a] p-12 text-center text-white"
+          class="min-h-72 border border-dashed border-[#C5A059] bg-[#0a0a0a] p-8 text-center text-white"
         >
-          <h3 class="mb-2 text-2xl font-serif text-[#C5A059]">What Publishers &amp; Clients Say</h3>
-          <p class="text-xs uppercase tracking-widest text-gray-400">Rotating testimonials appear here on the live site</p>
+          <h3 class="mb-4 text-2xl font-serif text-[#C5A059]">What Publishers &amp; Clients Say</h3>
+          <blockquote class="text-sm text-gray-300 italic mb-3" data-testimonial-quote="Sourav's artwork captured the exact haunting atmosphere of our novel. An absolute master of his craft." data-testimonial-author="Editorial Director, Tor Books">"Sourav's artwork captured the exact haunting atmosphere of our novel. An absolute master of his craft."<br>- Editorial Director, Tor Books</blockquote>
+          <blockquote class="text-sm text-gray-300 italic mb-3" data-testimonial-quote="Working with Sourav was effortless. The cover delivered exceeded all expectations and drove pre-orders through the roof." data-testimonial-author="Senior Editor, Orbit Books">"Working with Sourav was effortless. The cover delivered exceeded all expectations and drove pre-orders through the roof."<br>- Senior Editor, Orbit Books</blockquote>
+          <blockquote class="text-sm text-gray-300 italic mb-3" data-testimonial-quote="A rare visionary talent whose evocative style immediately commands attention on any bookshelf." data-testimonial-author="Creative Director, Penguin Random House">"A rare visionary talent whose evocative style immediately commands attention on any bookshelf."<br>- Creative Director, Penguin Random House</blockquote>
         </div>
       `,
       });

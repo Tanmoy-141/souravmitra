@@ -5,7 +5,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Project } from "@/db/schema";
 
-export default function ProjectCarousel() {
+interface ProjectCarouselProps {
+  heading?: string;
+}
+
+export default function ProjectCarousel({
+  heading,
+}: ProjectCarouselProps = {}) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -72,6 +78,16 @@ export default function ProjectCarousel() {
           setIsPaused(false);
         }
       }}>
+      {heading ? (
+        <div className="absolute top-6 left-6 z-20">
+          <p className="text-xs uppercase tracking-[0.2em] font-bold text-[#c5a059] mb-1 drop-shadow">
+            Featured
+          </p>
+          <h2 className="text-2xl font-serif text-white drop-shadow-md">
+            {heading}
+          </h2>
+        </div>
+      ) : null}
       <div
         key={project.id}
         role="group"

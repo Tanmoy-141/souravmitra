@@ -3,6 +3,8 @@ import { put } from "@vercel/blob";
 import { resolveSession } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { listMediaAssets, saveMediaAsset } from "@/lib/media";
+import fs from "fs/promises";
+import path from "path";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = new Set([
@@ -10,6 +12,9 @@ const ALLOWED_TYPES = new Set([
   "image/png",
   "image/webp",
   "image/gif",
+  "image/x-icon",
+  "image/vnd.microsoft.icon",
+  "image/svg+xml",
   "video/mp4",
   "video/webm",
 ]);
@@ -89,16 +94,58 @@ export async function POST(req: NextRequest) {
     const safeName = sanitizeFilename(file.name);
     const safeFile = new File([file], safeName, { type: file.type });
 
-    // random suffix avoids collisions between two uploads sharing a filename
-    const blob = await put(safeFile.name, safeFile, {
-      access: "public",
-      addRandomSuffix: true,
-    });
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    const ext = path.extname(safeName);
+    const base = path.basename(safeName, ext);
+    const uniqueLocalName = `${base}-${Date.now()}${ext}`;
+
+    let blobUrl: string;
+    let pathname: string;
+
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      try {
+        const blob = await put(safeFile.name, safeFile, {
+          access: "public",
+          addRandomSuffix: true,
+        });
+        blobUrl = blob.url;
+        pathname = blob.pathname;
+      } catch (blobErr) {
+        console.warn(
+          "[media] Vercel blob put failed, falling back to local storage:",
+          blobErr,
+        );
+        const uploadsDir = path.join(process.cwd(), "public", "uploads");
+        await fs.mkdir(uploadsDir, { recursive: true });
+        const filePath = path.join(uploadsDir, uniqueLocalName);
+        await fs.writeFile(filePath, fileBuffer);
+        blobUrl = `/uploads/${uniqueLocalName}`;
+        pathname = `/uploads/${uniqueLocalName}`;
+      }
+    } else {
+      // Local storage fallback when BLOB_READ_WRITE_TOKEN is not configured
+      try {
+        const uploadsDir = path.join(process.cwd(), "public", "uploads");
+        await fs.mkdir(uploadsDir, { recursive: true });
+        const filePath = path.join(uploadsDir, uniqueLocalName);
+        await fs.writeFile(filePath, fileBuffer);
+        blobUrl = `/uploads/${uniqueLocalName}`;
+        pathname = `/uploads/${uniqueLocalName}`;
+      } catch (fsErr) {
+        console.warn(
+          "[media] filesystem write failed, using data URL fallback:",
+          fsErr,
+        );
+        const base64 = fileBuffer.toString("base64");
+        blobUrl = `data:${file.type};base64,${base64}`;
+        pathname = safeName;
+      }
+    }
 
     // Save metadata to DB
     const [asset] = await saveMediaAsset({
-      blobUrl: blob.url,
-      pathname: blob.pathname,
+      blobUrl,
+      pathname,
       name: safeName,
       type: file.type,
       size: file.size,
@@ -110,7 +157,7 @@ export async function POST(req: NextRequest) {
       asset,
       data: [
         {
-          src: blob.url,
+          src: blobUrl,
           name: safeName,
           type: file.type,
         },

@@ -16,6 +16,7 @@ export const Header = () => {
   const [customPages, setCustomPages] = useState<CustomPage[]>([]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [siteName, setSiteName] = useState("Sourav Mitra");
+  const [logoUrl, setLogoUrl] = useState<string>("");
 
   useEffect(() => {
     const fetchPages = async () => {
@@ -40,6 +41,9 @@ export const Header = () => {
       .then((data) => {
         if (typeof data.siteName === "string" && data.siteName.trim()) {
           setSiteName(data.siteName);
+        }
+        if (typeof data.logoUrl === "string") {
+          setLogoUrl(data.logoUrl.trim());
         }
       })
       .catch(() => {});
@@ -110,10 +114,16 @@ export const Header = () => {
           href="/"
           onClick={() => setIsMenuOpen(false)}
           className="flex items-center gap-3 text-xl md:text-2xl font-serif text-[#FFFFFF]">
-          <div className="w-8 h-8 shrink-0 border border-gray-600 flex items-center justify-center text-[10px] text-gray-500">
-            LOGO
-          </div>
-          {siteName}
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoUrl}
+              alt={siteName}
+              className="h-8 max-w-30 object-contain shrink-0"
+              onError={() => setLogoUrl("")}
+            />
+          ) : null}
+          <span>{siteName}</span>
         </Link>
 
         {/* Desktop nav */}

@@ -38,7 +38,10 @@ async function getAuthenticatedUserId(): Promise<string | null> {
 export async function GET() {
   const userId = await getAuthenticatedUserId();
   if (!userId) {
-    return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { success: false, message: "Unauthorized" },
+      { status: 401 },
+    );
   }
   const assets = await listMediaAssets();
   return NextResponse.json({ assets });
@@ -47,14 +50,20 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const userId = await getAuthenticatedUserId();
   if (!userId) {
-    return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { success: false, message: "Unauthorized" },
+      { status: 401 },
+    );
   }
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
 
   if (!file) {
-    return NextResponse.json({ success: false, message: "No file provided" }, { status: 400 });
+    return NextResponse.json(
+      { success: false, message: "No file provided" },
+      { status: 400 },
+    );
   }
 
   if (file.size > MAX_FILE_SIZE_BYTES) {
@@ -68,7 +77,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        message: "Unsupported file type. Allowed: JPEG, PNG, WebP, GIF, MP4, WebM.",
+        message:
+          "Unsupported file type. Allowed: JPEG, PNG, WebP, GIF, MP4, WebM.",
       },
       { status: 400 },
     );
@@ -78,7 +88,7 @@ export async function POST(req: NextRequest) {
     // Create a new File with a sanitized name
     const safeName = sanitizeFilename(file.name);
     const safeFile = new File([file], safeName, { type: file.type });
-    
+
     // random suffix avoids collisions between two uploads sharing a filename
     const blob = await put(safeFile.name, safeFile, {
       access: "public",
@@ -95,9 +105,22 @@ export async function POST(req: NextRequest) {
       uploadedBy: userId,
     });
 
-    return NextResponse.json({ success: true, asset });
+    return NextResponse.json({
+      success: true,
+      asset,
+      data: [
+        {
+          src: blob.url,
+          name: safeName,
+          type: file.type,
+        },
+      ],
+    });
   } catch (err) {
     console.error("[media] upload failed:", err);
-    return NextResponse.json({ success: false, message: "Upload failed" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: "Upload failed" },
+      { status: 500 },
+    );
   }
 }

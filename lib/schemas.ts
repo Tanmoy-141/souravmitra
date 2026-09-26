@@ -68,6 +68,9 @@ export const CmsBulkPageSchema = z.object({
       title: z.string().trim().min(1),
       status: z.enum(["draft", "published"]).optional(),
       blocks: z.array(z.any()).optional(),
-    })
+      gjsData: z.any().optional().nullable(),
+      htmlCache: z.string().optional().nullable(),
+      cssCache: z.string().optional().nullable(),
+    }),
   ),
 });

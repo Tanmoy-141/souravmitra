@@ -1,4 +1,4 @@
-import DOMPurify from 'isomorphic-dompurify';
+import DOMPurify from "isomorphic-dompurify";
 
 /**
  * Sanitizes HTML content using DOMPurify (allow-list based).
@@ -7,9 +7,21 @@ import DOMPurify from 'isomorphic-dompurify';
 export function sanitizeHtml(html: string): string {
   return DOMPurify.sanitize(html, {
     USE_PROFILES: { html: true },
-    ADD_ATTR: ["class"],
+    ALLOW_DATA_ATTR: true,
+    ADD_ATTR: [
+      "class",
+      "id",
+      "style",
+      "target",
+      "rel",
+      "width",
+      "height",
+      "data-cms-block",
+      "data-testimonial-quote",
+      "data-testimonial-author",
+    ],
     // Block dangerous tags that could slip through
-    FORBID_TAGS: ["style", "form", "input", "textarea", "select"],
+    FORBID_TAGS: ["form", "input", "textarea", "select"],
     FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover"],
   });
 }
@@ -19,29 +31,27 @@ export function sanitizeHtml(html: string): string {
  * both content-level sanitization and breakout prevention.
  */
 export function safeCssForStyleTag(css: string): string {
-  // 1. CSS-level sanitization (blocks @import, javascript:, expression(), etc.)
+  // 1. CSS-level sanitization (blocks dangerous protocols, javascript:, expression(), etc.)
   const sanitized = sanitizeCss(css);
   // 2. Prevent </style> tag breakout in SSR HTML
   return sanitized.replace(/<\/style/gi, "<\\/style");
 }
 
 /**
- * Validates CSS content to prevent dangerous imports, javascript URLs, etc.
- * Uses a deny-list approach — not bulletproof, but catches the common attacks.
+ * Validates CSS content to prevent dangerous script execution while
+ * allowing legitimate styling, fonts, and background images.
  */
 export function sanitizeCss(css: string): string {
   const dangerousPatterns = [
     /@import\b/i,
     /@charset\b/i,
     /javascript\s*:/i,
+    /vbscript\s*:/i,
     /expression\s*\(/i,
-    /url\s*\(\s*['"]?\s*https?:/i,
-    /url\s*\(\s*['"]?\s*\/\//i,
-    /url\s*\(\s*['"]?\s*data:/i,
+    /url\s*\(\s*['"]?\s*(?:javascript|vbscript):/i,
     /-moz-binding/i,
     /-webkit-binding/i,
     /behavior\s*:/i,
-    /base64/i,
   ];
 
   for (const pattern of dangerousPatterns) {

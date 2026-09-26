@@ -1,57 +1,214 @@
 "use client";
-import { useState, useEffect } from "react";
-import Image from "next/image";
+
+import { useEffect, useRef, useState } from "react";
 import AdminLogin from "@/components/cms/AdminLogin";
 import MediaLibrary from "@/components/cms/MediaLibrary";
 import ProjectsAdmin from "@/components/cms/ProjectsAdmin";
 import MessagesAdmin from "@/components/cms/MessagesAdmin";
-import { CustomPage, Block, BlockType } from "@/data/cms";
+import GrapesEditor, {
+  type GrapesEditorHandle,
+} from "@/components/cms/GrapesEditor";
+import { CustomPage, Block } from "@/data/cms";
+
+type CmsPage = CustomPage & {
+  htmlCache?: string;
+  cssCache?: string;
+};
+
+type CmsApiResponse = {
+  authenticated?: boolean;
+  pages?: unknown;
+  success?: boolean;
+  error?: string;
+  faviconUrl?: string;
+  siteName?: string;
+  footerHeading?: string;
+  footerText?: string;
+  socialLinks?: Record<string, string>;
+};
+
+const SOCIAL_LINK_FIELDS = [
+  ["facebook", "Facebook"],
+  ["instagram", "Instagram"],
+  ["behance", "Behance"],
+  ["pinterest", "Pinterest"],
+  ["linkedin", "LinkedIn"],
+  ["x", "X"],
+] as const;
+
+function normalizePages(value: unknown): CustomPage[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((item) => {
+    const page = item as Partial<CmsPage>;
+
+    return {
+      ...page,
+      blocks: Array.isArray(page.blocks) ? page.blocks : [],
+    } as CustomPage;
+  });
+}
+
+function isSamePage(page: CustomPage, target: CustomPage): boolean {
+  return target.id
+    ? page.id === target.id
+    : !page.id && page.slug === target.slug;
+}
+
+function getPublishSlug(page: CustomPage): string {
+  const slug = typeof page.slug === "string" ? page.slug.trim() : "";
+
+  if (slug) {
+    return slug;
+  }
+
+  const title =
+    typeof page.title === "string" ? page.title.trim().toLowerCase() : "";
+
+  if (title === "home") {
+    return "/";
+  }
+
+  return "";
+}
+
+async function getApiError(
+  response: Response,
+  fallback: string,
+): Promise<string> {
+  try {
+    const data = (await response.json()) as CmsApiResponse;
+
+    if (typeof data.error === "string" && data.error.trim()) {
+      return data.error;
+    }
+  } catch {
+    // Ignore invalid error responses.
+  }
+
+  return fallback;
+}
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState<"pages" | "projects" | "messages">("pages");
+
+  const [activeTab, setActiveTab] = useState<"pages" | "projects" | "messages">(
+    "pages",
+  );
+
   const [pages, setPages] = useState<CustomPage[]>([]);
+
   const [activePage, setActivePage] = useState<CustomPage | null>(null);
+
+  const editorRef = useRef<GrapesEditorHandle>(null);
+
   const [showMediaLibrary, setShowMediaLibrary] = useState<{
     blockId: string;
     field: "images" | "background";
   } | null>(null);
+
   const [loading, setLoading] = useState(true);
+
   const [saving, setSaving] = useState(false);
+
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
-  // Check existing session status on initial load
+  const [faviconUrl, setFaviconUrl] = useState("/favicon.svg");
+
+  const [siteName, setSiteName] = useState("Sourav Mitra");
+
+  const [footerHeading, setFooterHeading] = useState("FOLLOW ME ON");
+
+  const [footerText, setFooterText] = useState("All rights reserved.");
+
+  const [socialLinks, setSocialLinks] = useState<Record<string, string>>({});
+
+  const [viewTrash, setViewTrash] = useState(false);
+
+  const [trashPages, setTrashPages] = useState<CustomPage[]>([]);
+
+  useEffect(() => {
+    fetch("/api/cms/settings", { cache: "no-store" })
+      .then((res) => res.json() as Promise<CmsApiResponse>)
+      .then((data) => {
+        if (data.faviconUrl) {
+          setFaviconUrl(data.faviconUrl);
+        }
+        if (data.siteName) setSiteName(data.siteName);
+        if (data.footerHeading) setFooterHeading(data.footerHeading);
+        if (data.footerText) setFooterText(data.footerText);
+        if (data.socialLinks) setSocialLinks(data.socialLinks);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSaveSiteSettings = async () => {
+    try {
+      const res = await fetch("/api/cms/settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          faviconUrl,
+          siteName,
+          footerHeading,
+          footerText,
+          socialLinks,
+        }),
+      });
+
+      if (res.ok) {
+        setSaveStatus("Site settings saved successfully!");
+
+        setTimeout(() => setSaveStatus(null), 3000);
+      } else {
+        const error = await getApiError(res, "Failed to save site settings.");
+
+        setSaveStatus(error);
+      }
+    } catch {
+      setSaveStatus("Failed to save site settings.");
+    }
+  };
+
   useEffect(() => {
     const checkAuthAndFetch = async () => {
       try {
-        const authRes = await fetch("/api/auth");
-        const authData = await authRes.json();
+        const authRes = await fetch("/api/auth", { cache: "no-store" });
+
+        const authData = (await authRes.json()) as CmsApiResponse;
+
         if (authData.authenticated) {
           setIsAuthenticated(true);
         }
 
-        const res = await fetch("/api/cms");
-        const data = await res.json();
-        const pagesList = Array.isArray(data?.pages)
+        const res = await fetch("/api/cms", { cache: "no-store" });
+
+        const data = (await res.json()) as CmsApiResponse;
+
+        const pagesList = Array.isArray(data.pages)
           ? data.pages
           : Array.isArray(data)
             ? data
             : [];
-        
-        // Defensive check: Ensure each page has a blocks array
-        const normalizedPages = pagesList.map((p: Partial<CustomPage>) => ({
-          ...p,
-          blocks: Array.isArray(p.blocks) ? p.blocks : []
-        })) as CustomPage[];
-        
+
+        const normalizedPages = normalizePages(pagesList);
+
         setPages(normalizedPages);
-        if (normalizedPages.length > 0) setActivePage(normalizedPages[0]);
+
+        if (normalizedPages.length > 0) {
+          setActivePage(normalizedPages[0]);
+        }
       } catch {
         console.error("Failed to load pages");
       } finally {
         setLoading(false);
       }
     };
+
     checkAuthAndFetch();
   }, []);
 
@@ -59,98 +216,190 @@ export default function AdminDashboard() {
     try {
       await fetch("/api/auth", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "logout" }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "logout",
+        }),
       });
     } catch {
-      // ignore
+      // Ignore logout errors.
     } finally {
       setIsAuthenticated(false);
     }
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    setSaveStatus(null);
+  const refreshPages = async (): Promise<CustomPage[]> => {
+    const refreshRes = await fetch("/api/cms", { cache: "no-store" });
+    if (!refreshRes.ok) {
+      throw new Error(
+        await getApiError(refreshRes, "Failed to refresh pages."),
+      );
+    }
+
+    const refreshData = (await refreshRes.json()) as CmsApiResponse;
+    if (refreshData.error) {
+      throw new Error(refreshData.error);
+    }
+
+    const freshPages = Array.isArray(refreshData.pages)
+      ? refreshData.pages
+      : Array.isArray(refreshData)
+        ? refreshData
+        : [];
+
+    const normalizedPages = normalizePages(freshPages);
+
+    setPages(normalizedPages);
+
+    return normalizedPages;
+  };
+
+  /**
+   * A page created via "+ New Page" only exists in browser state (no `id`)
+   * until it's actually saved once. Saving/publishing from inside the
+   * GrapesJS editor used to just alert and stop for such a page — this
+   * creates the DB record first so that first save/publish goes through.
+   */
+  const ensurePageId = async (
+    page: CustomPage,
+    slug: string,
+  ): Promise<CustomPage | null> => {
+    if (page.id) {
+      return page;
+    }
+
     try {
       const res = await fetch("/api/cms", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pages }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          slug,
+          title: page.title || "Untitled Page",
+          status: "draft",
+        }),
       });
-      if (res.ok) {
-        setSaveStatus("Site published successfully!");
-        
-        // Refresh pages to get IDs for new ones
-        const refreshRes = await fetch("/api/cms");
-        const refreshData = await refreshRes.json();
-        const freshPages = Array.isArray(refreshData?.pages) ? refreshData.pages : [];
-        const normalizedFresh = freshPages.map((p: Partial<CustomPage>) => ({
-          ...p,
-          blocks: Array.isArray(p.blocks) ? p.blocks : []
-        })) as CustomPage[];
-        setPages(normalizedFresh);
-        if (activePage) {
-          const updatedActive = normalizedFresh.find((p: CustomPage) => p.slug === activePage.slug) || normalizedFresh[0];
-          setActivePage(updatedActive);
+
+      if (!res.ok) {
+        return null;
+      }
+
+      const created = (await res.json()) as CmsPage;
+      const createdPage: CustomPage = {
+        ...page,
+        ...created,
+        blocks: Array.isArray(created.blocks) ? created.blocks : page.blocks,
+      };
+
+      setPages((currentPages) =>
+        currentPages.map((p) =>
+          p === page || (!p.id && p.slug === page.slug) ? createdPage : p,
+        ),
+      );
+
+      return createdPage;
+    } catch {
+      return null;
+    }
+  };
+
+  const handleSave = async () => {
+    if (!activePage) {
+      setSaveStatus("Select a page before publishing.");
+      return;
+    }
+
+    const editorContent = editorRef.current?.getCurrentContent();
+    if (!editorContent) {
+      setSaveStatus(
+        "The visual editor is still loading. Try publishing again shortly.",
+      );
+      return;
+    }
+
+    const publishablePages = pages.map((page) => {
+      const isActivePage = isSamePage(page, activePage);
+      const pageWithEditorContent =
+        isActivePage && editorContent
+          ? {
+              ...page,
+              ...activePage,
+              id: page.id ?? activePage.id,
+              gjsData: editorContent.projectData,
+              htmlCache: editorContent.html,
+              cssCache: editorContent.css,
+            }
+          : page;
+      const slug = getPublishSlug(pageWithEditorContent);
+
+      return slug
+        ? {
+            ...pageWithEditorContent,
+            slug,
+          }
+        : pageWithEditorContent;
+    });
+
+    const invalidPage = publishablePages.find((page) => !getPublishSlug(page));
+
+    if (invalidPage) {
+      setSaveStatus(
+        `Cannot publish: "${invalidPage.title}" has no valid slug.`,
+      );
+      return;
+    }
+
+    setSaving(true);
+    setSaveStatus(null);
+
+    try {
+      const res = await fetch("/api/cms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          pages: publishablePages,
+        }),
+      });
+
+      const result = (await res.json()) as CmsApiResponse;
+      if (res.ok && result.success) {
+        const normalizedFresh = await refreshPages();
+        const activeSlug = getPublishSlug(activePage);
+        const updatedActive = normalizedFresh.find(
+          (page) =>
+            (activePage.id && page.id === activePage.id) ||
+            page.slug === activeSlug,
+        );
+
+        if (!updatedActive) {
+          setSaveStatus(
+            `Publish request succeeded, but "${activePage.title}" was not returned by the CMS refresh.`,
+          );
+          return;
         }
 
+        setActivePage(updatedActive);
+        setSaveStatus(
+          updatedActive.status === "published"
+            ? "Site published successfully!"
+            : `Site saved, but "${updatedActive.title}" is still a draft and is not publicly visible.`,
+        );
         setTimeout(() => setSaveStatus(null), 3000);
       } else {
-        const err = await res.json();
-        setSaveStatus(`Failed to publish: ${err.error || "Unauthorized"}`);
+        setSaveStatus(
+          `Failed to publish: ${result.error || "The server rejected the update."}`,
+        );
       }
     } catch {
       setSaveStatus("Network error occurred while saving.");
     } finally {
       setSaving(false);
     }
-  };
-
-  const addBlock = (type: BlockType) => {
-    if (!activePage) return;
-    const currentBlocks = Array.isArray(activePage.blocks) ? activePage.blocks : [];
-    const newBlock: Block = {
-      id: `b-${currentBlocks.length + 1}-${crypto.randomUUID().slice(0, 4)}`,
-      type,
-      content: {
-        title: `New ${type} block`,
-        subtitle: "Subtitle goes here",
-        body: "Body content goes here",
-        buttonText: "Click Me",
-        images: [],
-      },
-    };
-    const updatedPage = {
-      ...activePage,
-      blocks: [...currentBlocks, newBlock],
-    };
-    setPages(pages.map((p) => (p.slug === activePage.slug ? updatedPage : p)));
-    setActivePage(updatedPage);
-  };
-
-  const removeBlock = (id: string) => {
-    if (!activePage) return;
-    const currentBlocks = Array.isArray(activePage.blocks) ? activePage.blocks : [];
-    const updatedPage = {
-      ...activePage,
-      blocks: currentBlocks.filter((b) => b.id !== id),
-    };
-    setPages(pages.map((p) => (p.slug === activePage.slug ? updatedPage : p)));
-    setActivePage(updatedPage);
-  };
-
-  const updateBlockContent = (id: string, field: string, value: unknown) => {
-    if (!activePage) return;
-    const currentBlocks = Array.isArray(activePage.blocks) ? activePage.blocks : [];
-    const updatedPage = {
-      ...activePage,
-      blocks: currentBlocks.map((b) =>
-        b.id === id ? { ...b, content: { ...b.content, [field]: value } } : b,
-      ),
-    };
-    setPages(pages.map((p) => (p.slug === activePage.slug ? updatedPage : p)));
-    setActivePage(updatedPage);
   };
 
   const createNewPage = () => {
@@ -160,20 +409,33 @@ export default function AdminDashboard() {
       status: "draft",
       blocks: [],
     };
-    setPages([...pages, newPage]);
+
+    setPages((currentPages) => [...currentPages, newPage]);
+
     setActivePage(newPage);
   };
 
   const deletePage = async () => {
-    if (!activePage) return;
-    if (!confirm(`Are you sure you want to delete page "${activePage.title}"?`)) return;
+    if (!activePage) {
+      return;
+    }
 
-    if (activePage.id) {
+    if (
+      !confirm(`Are you sure you want to delete page "${activePage.title}"?`)
+    ) {
+      return;
+    }
+
+    const activePageId = activePage.id;
+
+    if (activePageId) {
       try {
-        const res = await fetch(`/api/cms?id=${activePage.id}`, {
+        const res = await fetch(`/api/cms?id=${activePageId}`, {
           method: "DELETE",
         });
-        const data = await res.json();
+
+        const data = (await res.json()) as CmsApiResponse;
+
         if (!data.success) {
           alert(data.error || "Failed to delete page");
           return;
@@ -184,45 +446,69 @@ export default function AdminDashboard() {
       }
     }
 
-    const remainingPages = pages.filter((p) => p.slug !== activePage.slug);
+    const remainingPages = pages.filter((page) => {
+      if (activePageId) {
+        return page.id !== activePageId;
+      }
+
+      return page.slug !== activePage.slug;
+    });
+
     setPages(remainingPages);
     setActivePage(remainingPages[0] || null);
   };
 
-  const [viewTrash, setViewTrash] = useState(false);
-  const [trashPages, setTrashPages] = useState<CustomPage[]>([]);
-
   const fetchTrash = async () => {
     try {
-      const res = await fetch("/api/cms?trash=true");
-      const data = await res.json();
-      const list = Array.isArray(data?.pages) ? data.pages : Array.isArray(data) ? data : [];
-      setTrashPages(list.map((p: any) => ({ ...p, blocks: p.blocks || [] })));
+      const res = await fetch("/api/cms?trash=true", { cache: "no-store" });
+
+      const data = (await res.json()) as CmsApiResponse;
+
+      const list = Array.isArray(data.pages)
+        ? data.pages
+        : Array.isArray(data)
+          ? data
+          : [];
+
+      setTrashPages(normalizePages(list));
     } catch {
       console.error("Failed to fetch trash");
     }
   };
 
-  const executeAction = async (id: string, action: "publish" | "unpublish" | "recover") => {
+  const executeAction = async (
+    id: string,
+    action: "publish" | "unpublish" | "recover",
+  ) => {
     try {
       const res = await fetch("/api/cms", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, action }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id,
+          action,
+        }),
       });
-      const data = await res.json();
+
+      const data = (await res.json()) as CmsApiResponse;
+
       if (data.success) {
-        const refreshRes = await fetch("/api/cms");
-        const refreshData = await refreshRes.json();
-        const freshPages = Array.isArray(refreshData?.pages) ? refreshData.pages : [];
-        setPages(freshPages.map((p: any) => ({ ...p, blocks: p.blocks || [] })));
+        const freshPages = await refreshPages();
+
         if (viewTrash) {
-          fetchTrash();
+          await fetchTrash();
         } else if (activePage?.id === id) {
-          const updated = freshPages.find((p: any) => p.id === id);
-          if (updated) setActivePage({ ...updated, blocks: updated.blocks || [] });
+          const updated = freshPages.find((page) => page.id === id);
+
+          if (updated) {
+            setActivePage(updated);
+          }
         }
+
         setSaveStatus(`Action '${action}' successful!`);
+
         setTimeout(() => setSaveStatus(null), 3000);
       } else {
         alert(data.error || "Action failed");
@@ -232,16 +518,166 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSaveDraft = async (projectData: unknown) => {
+    if (!activePage) {
+      alert("Please select a page first.");
+      return;
+    }
+
+    const currentPage =
+      pages.find((page) => isSamePage(page, activePage)) || activePage;
+
+    const slug = getPublishSlug(currentPage);
+
+    if (!slug) {
+      setSaveStatus(
+        `Cannot save draft: "${currentPage.title}" has no valid slug.`,
+      );
+      return;
+    }
+
+    setSaving(true);
+    setSaveStatus(null);
+
+    try {
+      const pageWithId = await ensurePageId(currentPage, slug);
+
+      if (!pageWithId?.id) {
+        setSaveStatus("Failed to create the page record before saving.");
+        return;
+      }
+
+      const res = await fetch("/api/cms", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: pageWithId.id,
+          slug,
+          title: pageWithId.title,
+          gjsData: projectData,
+          status: currentPage.status,
+        }),
+      });
+
+      if (res.ok) {
+        const freshPages = await refreshPages();
+        const updatedActive = freshPages.find(
+          (page) => page.id === pageWithId.id,
+        );
+        if (updatedActive) setActivePage(updatedActive);
+
+        setSaveStatus(
+          currentPage.status === "published"
+            ? "Draft saved. Publish Page to make these changes live."
+            : "Draft saved successfully!",
+        );
+
+        setTimeout(() => setSaveStatus(null), 3000);
+      } else {
+        const error = await getApiError(res, "Error");
+
+        setSaveStatus(`Failed to save draft: ${error}`);
+      }
+    } catch {
+      setSaveStatus("Network error occurred while saving draft.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePublishPage = async (
+    projectData: unknown,
+    html: string,
+    css: string,
+  ) => {
+    if (!activePage) {
+      alert("Please select a page first.");
+      return;
+    }
+
+    const currentPage =
+      pages.find((page) => isSamePage(page, activePage)) || activePage;
+
+    const slug = getPublishSlug(currentPage);
+
+    if (!slug) {
+      setSaveStatus(
+        `Cannot publish: "${currentPage.title}" has no valid slug.`,
+      );
+      return;
+    }
+
+    setSaving(true);
+    setSaveStatus(null);
+
+    try {
+      const pageWithId = await ensurePageId(currentPage, slug);
+
+      if (!pageWithId?.id) {
+        setSaveStatus("Failed to create the page record before publishing.");
+        return;
+      }
+
+      const res = await fetch("/api/cms", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: pageWithId.id,
+          slug,
+          title: pageWithId.title,
+          gjsData: projectData,
+          htmlCache: html,
+          cssCache: css,
+          status: "published",
+        }),
+      });
+
+      if (res.ok) {
+        const freshPages = await refreshPages();
+
+        const updatedActive =
+          freshPages.find((page) => page.id === pageWithId.id) ||
+          freshPages.find((page) => getPublishSlug(page) === slug);
+
+        if (!updatedActive || updatedActive.status !== "published") {
+          setSaveStatus(
+            `Publish request returned success, but "${pageWithId.title}" is not available as a published page.`,
+          );
+          return;
+        }
+
+        setActivePage(updatedActive);
+        setSaveStatus("Page published successfully!");
+        setTimeout(() => setSaveStatus(null), 3000);
+      } else {
+        const error = await getApiError(res, "Error");
+
+        setSaveStatus(`Failed to publish: ${error}`);
+      }
+    } catch {
+      setSaveStatus("Network error occurred while publishing.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!isAuthenticated) {
     return <AdminLogin onSuccess={() => setIsAuthenticated(true)} />;
   }
 
-  if (loading)
+  if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center text-white font-bold uppercase tracking-widest">
         Loading Dashboard...
       </div>
     );
+  }
+
+  const activePageWithCache = activePage as CmsPage | null;
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col font-sans">
@@ -252,26 +688,33 @@ export default function AdminDashboard() {
             Admin Dashboard
           </span>
 
-          {/* Tab switcher */}
           <div className="flex gap-1 border border-[#333] p-0.5">
             <button
               onClick={() => setActiveTab("pages")}
               className={`px-3 py-1 text-xs uppercase tracking-widest font-bold transition-colors ${
-                activeTab === "pages" ? "bg-[#C5A059] text-black" : "text-gray-500 hover:text-white"
+                activeTab === "pages"
+                  ? "bg-[#C5A059] text-black"
+                  : "text-gray-500 hover:text-white"
               }`}>
               Pages
             </button>
+
             <button
               onClick={() => setActiveTab("projects")}
               className={`px-3 py-1 text-xs uppercase tracking-widest font-bold transition-colors ${
-                activeTab === "projects" ? "bg-[#C5A059] text-black" : "text-gray-500 hover:text-white"
+                activeTab === "projects"
+                  ? "bg-[#C5A059] text-black"
+                  : "text-gray-500 hover:text-white"
               }`}>
               Projects
             </button>
+
             <button
               onClick={() => setActiveTab("messages")}
               className={`px-3 py-1 text-xs uppercase tracking-widest font-bold transition-colors ${
-                activeTab === "messages" ? "bg-[#C5A059] text-black" : "text-gray-500 hover:text-white"
+                activeTab === "messages"
+                  ? "bg-[#C5A059] text-black"
+                  : "text-gray-500 hover:text-white"
               }`}>
               Messages
             </button>
@@ -280,21 +723,23 @@ export default function AdminDashboard() {
           {activeTab === "pages" && (
             <>
               <select
-                value={activePage?.slug}
+                value={activePage?.slug ?? ""}
                 onChange={(e) => {
                   setViewTrash(false);
+
                   setActivePage(
-                    pages.find((p) => p.slug === e.target.value) || null,
+                    pages.find((page) => page.slug === e.target.value) || null,
                   );
                 }}
                 className="bg-[#111111] border border-[#333333] px-3 py-1 text-sm focus:outline-none min-w-0 flex-1 md:flex-none"
                 disabled={viewTrash}>
-                {pages.map((p) => (
-                  <option key={p.slug} value={p.slug}>
-                    {p.title} ({p.status})
+                {pages.map((page) => (
+                  <option key={page.id ?? page.slug} value={page.slug}>
+                    {page.title} ({page.status})
                   </option>
                 ))}
               </select>
+
               <button
                 onClick={() => {
                   setViewTrash(false);
@@ -304,31 +749,40 @@ export default function AdminDashboard() {
                 disabled={viewTrash}>
                 + New Page
               </button>
+
               <button
                 onClick={() => {
                   const nextTrash = !viewTrash;
+
                   setViewTrash(nextTrash);
-                  if (nextTrash) fetchTrash();
+
+                  if (nextTrash) {
+                    void fetchTrash();
+                  }
                 }}
                 className={`text-xs px-2.5 py-1 uppercase tracking-widest font-bold border transition-colors shrink-0 ${
-                  viewTrash ? "bg-[#C5A059] text-black border-[#C5A059]" : "border-[#333] text-gray-400 hover:text-white"
+                  viewTrash
+                    ? "bg-[#C5A059] text-black border-[#C5A059]"
+                    : "border-[#333] text-gray-400 hover:text-white"
                 }`}>
                 {viewTrash ? "Active Pages" : `Trash (${trashPages.length})`}
               </button>
             </>
           )}
         </div>
+
         <div className="flex items-center gap-3">
           {saveStatus && (
             <span
               className={`text-xs font-medium px-3 py-1 ${
-                saveStatus.includes("Failed")
+                saveStatus.includes("Failed") || saveStatus.includes("Cannot")
                   ? "bg-red-900/50 text-red-300 border border-red-800"
                   : "bg-emerald-900/50 text-emerald-300 border border-emerald-800"
               }`}>
               {saveStatus}
             </span>
           )}
+
           {activeTab === "pages" && (
             <button
               onClick={handleSave}
@@ -337,6 +791,7 @@ export default function AdminDashboard() {
               {saving ? "Publishing..." : "Publish Site"}
             </button>
           )}
+
           <button
             onClick={handleLogout}
             className="text-xs text-gray-400 hover:text-red-400 border border-[#333333] hover:border-red-800 px-3 py-2 uppercase tracking-widest transition-colors">
@@ -356,282 +811,345 @@ export default function AdminDashboard() {
       ) : viewTrash ? (
         <div className="flex-1 overflow-y-auto p-8 bg-[#000000] max-w-4xl mx-auto w-full">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-[#C5A059] uppercase tracking-wider">Deleted Pages (Trash)</h2>
+            <h2 className="text-xl font-bold text-[#C5A059] uppercase tracking-wider">
+              Deleted Pages (Trash)
+            </h2>
+
             <button
               onClick={() => setViewTrash(false)}
               className="px-4 py-2 bg-[#111] border border-[#333] text-xs font-bold uppercase tracking-widest text-gray-300 hover:text-white">
               Back to Active Pages
             </button>
           </div>
+
           {trashPages.length === 0 ? (
             <div className="py-16 text-center border border-[#222] text-gray-500 text-sm uppercase tracking-widest">
               Trash is empty.
             </div>
           ) : (
             <div className="flex flex-col gap-4">
-              {trashPages.map((p) => (
-                <div key={p.id} className="flex items-center justify-between p-4 bg-[#0a0a0a] border border-[#222]">
-                  <div>
-                    <h4 className="text-white font-bold">{p.title}</h4>
-                    <p className="text-xs text-gray-500 font-mono">/{p.slug}</p>
+              {trashPages.map((page) => {
+                const pageId = page.id;
+
+                return (
+                  <div
+                    key={pageId ?? page.slug}
+                    className="flex items-center justify-between p-4 bg-[#0a0a0a] border border-[#222]">
+                    <div>
+                      <h4 className="text-white font-bold">{page.title}</h4>
+
+                      <p className="text-xs text-gray-500 font-mono">
+                        /{page.slug}
+                      </p>
+                    </div>
+
+                    {pageId ? (
+                      <button
+                        onClick={() => executeAction(pageId, "recover")}
+                        className="px-4 py-2 bg-[#C5A059] hover:bg-white text-black text-xs font-bold uppercase tracking-widest transition-colors">
+                        Recover
+                      </button>
+                    ) : null}
                   </div>
-                  {p.id && (
-                    <button
-                      onClick={() => executeAction(p.id!, "recover")}
-                      className="px-4 py-2 bg-[#C5A059] hover:bg-white text-black text-xs font-bold uppercase tracking-widest transition-colors">
-                      Recover
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       ) : (
-      <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">
-        {/* Sidebar Controls */}
-        <aside className="w-full md:w-80 border-b md:border-b-0 md:border-r border-[#333333] p-6 max-h-[50vh] md:max-h-none overflow-y-auto flex flex-col gap-8 bg-[#050505]">
-          <div>
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
-              Page Settings
-            </h3>
-            <div className="flex flex-col gap-4">
-              <div>
-                <label className="text-[10px] uppercase text-gray-600 font-bold mb-1 block">
-                  Page Title
-                </label>
-                <input
-                  type="text"
-                  value={activePage?.title || ""}
-                  onChange={(e) => {
-                    const updated = { ...activePage!, title: e.target.value };
-                    setPages(
-                      pages.map((p) =>
-                        p.slug === activePage?.slug ? updated : p,
-                      ),
-                    );
-                    setActivePage(updated);
-                  }}
-                  className="w-full bg-black border border-[#333333] p-2 text-sm focus:border-[#C5A059] outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] uppercase text-gray-600 font-bold mb-1 block">
-                  Slug (URL)
-                </label>
-                <input
-                  type="text"
-                  value={activePage?.slug || ""}
-                  onChange={(e) => {
-                    const updated = { ...activePage!, slug: e.target.value };
-                    setPages(
-                      pages.map((p) =>
-                        p.slug === activePage?.slug || p.id === activePage?.id ? updated : p,
-                      ),
-                    );
-                    setActivePage(updated);
-                  }}
-                  className="w-full bg-black border border-[#333333] p-2 text-sm focus:border-[#C5A059] font-mono outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] uppercase text-gray-600 font-bold mb-1 block">
-                  Status
-                </label>
-                <select
-                  value={activePage?.status}
-                  onChange={(e) => {
-                    const updated = {
-                      ...activePage!,
-                      status: e.target.value as "draft" | "published",
-                    };
-                    setPages(
-                      pages.map((p) =>
-                        p.slug === activePage?.slug ? updated : p,
-                      ),
-                    );
-                    setActivePage(updated);
-                  }}
-                  className="w-full bg-black border border-[#333333] p-2 text-sm focus:border-[#C5A059] outline-none">
-                  <option value="draft">Draft (Unpublished)</option>
-                  <option value="published">Published</option>
-                </select>
-              </div>
+        <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">
+          {/* Sidebar Controls */}
+          <aside className="w-full md:w-80 border-b md:border-b-0 md:border-r border-[#333333] p-6 max-h-[50vh] md:max-h-none overflow-y-auto flex flex-col gap-8 bg-[#050505]">
+            <div>
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
+                Page Settings
+              </h3>
 
-              {activePage?.id && (
-                <div className="flex gap-2 pt-1">
-                  {activePage.status === "draft" ? (
-                    <button
-                      onClick={() => executeAction(activePage.id!, "publish")}
-                      className="flex-1 py-2 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 text-[10px] uppercase font-bold tracking-widest transition-colors">
-                      Publish Now
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => executeAction(activePage.id!, "unpublish")}
-                      className="flex-1 py-2 bg-amber-950/60 hover:bg-amber-900 border border-amber-800 text-amber-300 text-[10px] uppercase font-bold tracking-widest transition-colors">
-                      Unpublish
-                    </button>
-                  )}
+              <div className="flex flex-col gap-4">
+                <div>
+                  <label className="text-[10px] uppercase text-gray-600 font-bold mb-1 block">
+                    Page Title
+                  </label>
+
+                  <input
+                    type="text"
+                    value={activePage?.title || ""}
+                    onChange={(e) => {
+                      if (!activePage) {
+                        return;
+                      }
+
+                      const updated = {
+                        ...activePage,
+                        title: e.target.value,
+                      };
+
+                      setPages((currentPages) =>
+                        currentPages.map((page) =>
+                          isSamePage(page, activePage) ? updated : page,
+                        ),
+                      );
+
+                      setActivePage(updated);
+                    }}
+                    className="w-full bg-black border border-[#333333] p-2 text-sm focus:border-[#C5A059] outline-none"
+                  />
                 </div>
-              )}
 
-              {activePage && pages.length > 1 && (
-                <button
-                  onClick={deletePage}
-                  className="mt-2 w-full py-2 bg-red-950/40 hover:bg-red-900/60 border border-red-900 text-red-400 text-[10px] uppercase font-bold tracking-widest transition-colors">
-                  Delete Page
-                </button>
-              )}
-            </div>
-          </div>
+                <div>
+                  <label className="text-[10px] uppercase text-gray-600 font-bold mb-1 block">
+                    Slug (URL)
+                  </label>
 
-          <div>
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
-              Add Block
-            </h3>
-            <div className="grid grid-cols-2 gap-2">
-              {["hero", "text-content", "gallery", "cta"].map((type) => (
-                <button
-                  key={type}
-                  onClick={() => addBlock(type as BlockType)}
-                  className="p-3 bg-[#111111] border border-[#333333] text-[10px] uppercase font-bold tracking-widest hover:border-[#C5A059] transition-colors">
-                  {type}
-                </button>
-              ))}
-            </div>
-          </div>
-        </aside>
+                  <input
+                    type="text"
+                    value={activePage?.slug || ""}
+                    onChange={(e) => {
+                      if (!activePage) {
+                        return;
+                      }
 
-        {/* Builder Canvas */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-12 bg-[#000000]">
-          <div className="max-w-4xl mx-auto flex flex-col gap-12">
-            {activePage?.blocks.map((block) => (
-              <div
-                key={block.id}
-                className="group relative border border-[#222222] hover:border-[#C5A059] transition-colors p-8 bg-[#080808]">
-                <div className="absolute -top-3 left-4 bg-black px-2 text-[10px] font-bold text-[#C5A059] uppercase tracking-widest border border-[#333333]">
-                  {block.type}
+                      const updated = {
+                        ...activePage,
+                        slug: e.target.value.trimStart(),
+                      };
+
+                      setPages((currentPages) =>
+                        currentPages.map((page) =>
+                          isSamePage(page, activePage) ? updated : page,
+                        ),
+                      );
+
+                      setActivePage(updated);
+                    }}
+                    className="w-full bg-black border border-[#333333] p-2 text-sm focus:border-[#C5A059] font-mono outline-none"
+                  />
                 </div>
-                <button
-                  onClick={() => removeBlock(block.id)}
-                  className="absolute top-4 right-4 text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                  Remove
-                </button>
 
-                <div className="flex flex-col gap-6">
-                  {/* Common Title/Subtitle Fields */}
-                  {"title" in block.content && (
-                    <input
-                      type="text"
-                      placeholder="Title"
-                      value={block.content.title}
-                      onChange={(e) =>
-                        updateBlockContent(block.id, "title", e.target.value)
+                <div>
+                  <label className="text-[10px] uppercase text-gray-600 font-bold mb-1 block">
+                    Status
+                  </label>
+
+                  <select
+                    value={activePage?.status}
+                    onChange={(e) => {
+                      if (!activePage) {
+                        return;
                       }
-                      className="text-2xl font-sans font-bold bg-transparent border-b border-[#222222] focus:border-[#C5A059] outline-none w-full pb-2"
-                    />
-                  )}
-                  {"subtitle" in block.content && (
-                    <input
-                      type="text"
-                      placeholder="Subtitle"
-                      value={block.content.subtitle}
-                      onChange={(e) =>
-                        updateBlockContent(block.id, "subtitle", e.target.value)
-                      }
-                      className="text-sm text-gray-400 bg-transparent border-b border-[#222222] focus:border-[#C5A059] outline-none w-full pb-2"
-                    />
-                  )}
-                  {block.type === "text-content" && (
-                    <textarea
-                      placeholder="Body Content"
-                      value={block.content.body}
-                      onChange={(e) =>
-                        updateBlockContent(block.id, "body", e.target.value)
-                      }
-                      className="h-32 bg-[#111111] border border-[#222222] p-4 text-gray-300 text-sm focus:border-[#C5A059] outline-none"
-                    />
-                  )}
-                  {block.type === "hero" && (
-                    <button
-                      onClick={() =>
-                        setShowMediaLibrary({
-                          blockId: block.id,
-                          field: "background",
-                        })
-                      }
-                      className="py-2 border border-dashed border-gray-700 text-[10px] uppercase font-bold tracking-widest text-gray-500 hover:text-white">
-                      {block.content.background
-                        ? "Change Background"
-                        : "Select Background"}
-                    </button>
-                  )}
-                  {block.type === "gallery" && (
-                    <div className="flex flex-wrap gap-4">
-                      {block.content.images?.map((url, i) => (
-                        <div
-                          key={i}
-                          className="w-20 h-20 bg-gray-900 border border-[#333333]">
-                          <Image
-                            src={url}
-                            alt="Gallery image"
-                            width={80}
-                            height={80}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      ))}
+
+                      const updated = {
+                        ...activePage,
+                        status: e.target.value as "draft" | "published",
+                      };
+
+                      setPages((currentPages) =>
+                        currentPages.map((page) =>
+                          isSamePage(page, activePage) ? updated : page,
+                        ),
+                      );
+
+                      setActivePage(updated);
+                    }}
+                    className="w-full bg-black border border-[#333333] p-2 text-sm focus:border-[#C5A059] outline-none">
+                    <option value="draft">Draft (Unpublished)</option>
+
+                    <option value="published">Published</option>
+                  </select>
+                </div>
+
+                {activePage?.id ? (
+                  <div className="flex gap-2 pt-1">
+                    {activePage.status === "draft" ? (
                       <button
                         onClick={() =>
-                          setShowMediaLibrary({
-                            blockId: block.id,
-                            field: "images",
-                          })
+                          executeAction(activePage.id as string, "publish")
                         }
-                        className="w-20 h-20 border-2 border-dashed border-gray-800 flex items-center justify-center text-gray-600 hover:text-white">
-                        +
+                        className="flex-1 py-2 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 text-[10px] uppercase font-bold tracking-widest transition-colors">
+                        Publish Now
                       </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
+                    ) : (
+                      <button
+                        onClick={() =>
+                          executeAction(activePage.id as string, "unpublish")
+                        }
+                        className="flex-1 py-2 bg-amber-950/60 hover:bg-amber-900 border border-amber-800 text-amber-300 text-[10px] uppercase font-bold tracking-widest transition-colors">
+                        Unpublish
+                      </button>
+                    )}
+                  </div>
+                ) : null}
 
-            {activePage?.blocks.length === 0 && (
-              <div className="py-24 text-center border-2 border-dashed border-[#222222] text-gray-600 uppercase tracking-widest text-sm">
-                This page is empty. Add a block from the sidebar to get started.
+                {activePage && pages.length > 1 ? (
+                  <button
+                    onClick={deletePage}
+                    className="mt-2 w-full py-2 bg-red-950/40 hover:bg-red-900/60 border border-red-900 text-red-400 text-[10px] uppercase font-bold tracking-widest transition-colors">
+                    Delete Page
+                  </button>
+                ) : null}
               </div>
-            )}
-          </div>
-        </main>
-      </div>
+            </div>
+
+            <div className="pt-6 border-t border-[#222]">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
+                Site Branding & Footer
+              </h3>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] uppercase text-gray-600 font-bold block">
+                  Brand Name
+                </label>
+                <input
+                  type="text"
+                  value={siteName}
+                  onChange={(e) => setSiteName(e.target.value)}
+                  className="w-full bg-black border border-[#333333] p-2 text-xs focus:border-[#C5A059] outline-none"
+                />
+
+                <label className="text-[10px] uppercase text-gray-600 font-bold block mt-2">
+                  Footer Heading
+                </label>
+                <input
+                  type="text"
+                  value={footerHeading}
+                  onChange={(e) => setFooterHeading(e.target.value)}
+                  className="w-full bg-black border border-[#333333] p-2 text-xs focus:border-[#C5A059] outline-none"
+                />
+
+                <label className="text-[10px] uppercase text-gray-600 font-bold block mt-2">
+                  Footer Copyright Text
+                </label>
+                <input
+                  type="text"
+                  value={footerText}
+                  onChange={(e) => setFooterText(e.target.value)}
+                  className="w-full bg-black border border-[#333333] p-2 text-xs focus:border-[#C5A059] outline-none"
+                />
+
+                {SOCIAL_LINK_FIELDS.map(([key, label]) => (
+                  <label
+                    key={key}
+                    className="text-[10px] uppercase text-gray-600 font-bold block mt-2">
+                    {label} URL
+                    <input
+                      type="url"
+                      value={socialLinks[key] || ""}
+                      onChange={(e) =>
+                        setSocialLinks((current) => ({
+                          ...current,
+                          [key]: e.target.value,
+                        }))
+                      }
+                      className="mt-1 w-full bg-black border border-[#333333] p-2 text-xs normal-case focus:border-[#C5A059] outline-none"
+                    />
+                  </label>
+                ))}
+
+                <label className="text-[10px] uppercase text-gray-600 font-bold block mt-2">
+                  Favicon URL or Path
+                </label>
+                <label className="text-[10px] uppercase text-gray-600 font-bold block">
+                  <input
+                    type="text"
+                    placeholder="/favicon.svg or image URL"
+                    value={faviconUrl}
+                    onChange={(e) => setFaviconUrl(e.target.value)}
+                    className="mt-1 w-full bg-black border border-[#333333] p-2 text-xs focus:border-[#C5A059] outline-none font-mono"
+                  />
+                </label>
+
+                <button
+                  onClick={handleSaveSiteSettings}
+                  className="py-1.5 px-3 bg-[#111] hover:bg-[#222] border border-[#333] text-[10px] uppercase font-bold tracking-widest text-[#C5A059] transition-colors">
+                  Save Site Settings
+                </button>
+              </div>
+            </div>
+          </aside>
+
+          {/* GrapesJS Visual Builder Canvas */}
+          <main className="flex-1 flex flex-col overflow-hidden bg-black">
+            <GrapesEditor
+              ref={editorRef}
+              key={activePage?.id || activePage?.slug}
+              initialData={activePage?.gjsData}
+              initialHtml={activePageWithCache?.htmlCache}
+              onSave={handleSaveDraft}
+              onPublish={handlePublishPage}
+            />
+          </main>
+        </div>
       )}
 
-      {showMediaLibrary && (
+      {showMediaLibrary ? (
         <MediaLibrary
           onClose={() => setShowMediaLibrary(null)}
           onSelect={(asset) => {
+            if (!activePage) {
+              return;
+            }
+
             if (showMediaLibrary.field === "background") {
-              updateBlockContent(
-                showMediaLibrary.blockId,
-                "background",
-                asset.blobUrl,
+              const currentBlocks = Array.isArray(activePage.blocks)
+                ? activePage.blocks
+                : [];
+
+              const updatedPage = {
+                ...activePage,
+                blocks: currentBlocks.map((block: Block) =>
+                  block.id === showMediaLibrary.blockId
+                    ? {
+                        ...block,
+                        content: {
+                          ...block.content,
+                          background: asset.blobUrl,
+                        },
+                      }
+                    : block,
+                ),
+              };
+
+              setPages((currentPages) =>
+                currentPages.map((page) =>
+                  isSamePage(page, activePage) ? updatedPage : page,
+                ),
               );
+
+              setActivePage(updatedPage);
             } else {
               const currentImages =
-                activePage?.blocks.find(
-                  (b) => b.id === showMediaLibrary.blockId,
+                activePage.blocks.find(
+                  (block: Block) => block.id === showMediaLibrary.blockId,
                 )?.content.images || [];
-              updateBlockContent(showMediaLibrary.blockId, "images", [
-                ...currentImages,
-                asset.blobUrl,
-              ]);
+
+              const updatedPage = {
+                ...activePage,
+                blocks: activePage.blocks.map((block: Block) =>
+                  block.id === showMediaLibrary.blockId
+                    ? {
+                        ...block,
+                        content: {
+                          ...block.content,
+                          images: [...currentImages, asset.blobUrl],
+                        },
+                      }
+                    : block,
+                ),
+              };
+
+              setPages((currentPages) =>
+                currentPages.map((page) =>
+                  isSamePage(page, activePage) ? updatedPage : page,
+                ),
+              );
+
+              setActivePage(updatedPage);
             }
+
             setShowMediaLibrary(null);
           }}
         />
-      )}
+      ) : null}
     </div>
   );
 }

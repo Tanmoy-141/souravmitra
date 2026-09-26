@@ -23,3 +23,7 @@ out/
 Thumbs.db
 .vercel
 .env*
+
+# IDE and tool artifacts
+.vscode/
+.playwright-mcp/

@@ -1,33 +1,84 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { testimonials } from '@/data/content';
+"use client";
 
-export default function TestimonialsSection() {
-  const [index, setIndex] = useState(0);
+import { useEffect, useState } from "react";
+import { testimonials } from "@/data/content";
+
+type Testimonial = (typeof testimonials)[number];
+
+interface TestimonialsSectionProps {
+  items?: Testimonial[];
+  heading?: string;
+}
+
+export function TestimonialsSection({
+  items = testimonials,
+  heading,
+}: TestimonialsSectionProps) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const activeTestimonial = items[activeIndex];
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setIndex((prev) => (prev + 1) % testimonials.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, []);
+    if (items.length < 2) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const timer = window.setInterval(() => {
+      setActiveIndex((index) => (index + 1) % items.length);
+    }, 6000);
+
+    return () => window.clearInterval(timer);
+  }, [items.length]);
+
+  if (!activeTestimonial) return null;
 
   return (
-    <section className="px-10 py-20 bg-[#0A0A0A] text-center">
-      <h2 className="text-3xl font-serif mb-12 text-[#FFFFFF]">Testimonials</h2>
-      <div className="relative h-40 max-w-2xl mx-auto">
-        {testimonials.map((t, i) => (
+    <section
+      aria-label="Publisher and client testimonials"
+      aria-roledescription="carousel"
+      className="border-y border-white/10 bg-[#0a0a0a] px-6 py-20 text-center text-white md:py-24">
+      <div className="mx-auto max-w-4xl">
+        <p className="mb-5 text-xs font-bold uppercase tracking-[0.3em] text-[#c5a059]">
+          Kind Words
+        </p>
+        <h2 className="mb-10 text-3xl font-serif md:text-4xl">
+          {heading || "What Publishers & Clients Say"}
+        </h2>
+
+        <div
+          key={activeIndex}
+          role="group"
+          aria-roledescription="slide"
+          aria-label={`${activeIndex + 1} of ${items.length}`}
+          className="testimonial-carousel-reveal mx-auto flex min-h-52 max-w-3xl flex-col items-center justify-center px-2 md:min-h-56">
+          <span
+            aria-hidden="true"
+            className="mb-3 text-5xl leading-none text-[#c5a059]">
+            &ldquo;
+          </span>
+          <blockquote className="text-xl italic leading-relaxed text-[#e5e5e5] md:text-3xl">
+            {activeTestimonial.quote}
+          </blockquote>
+          <p className="mt-7 text-xs font-bold uppercase tracking-[0.2em] text-[#c5a059]">
+            {activeTestimonial.author}
+          </p>
+        </div>
+
+        {items.length > 1 ? (
           <div
-            key={i}
-            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-              i === index ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
-            <p className="text-xl italic text-[#D4D4D4] mb-4">&ldquo;{t.quote}&rdquo;</p>
-            <p className="text-[#C5A059] font-medium">— {t.author}</p>
+            aria-hidden="true"
+            className="mt-8 flex items-center justify-center gap-2">
+            {items.map((testimonial, index) => (
+              <span
+                key={testimonial.author}
+                className={`h-1.5 rounded-full transition-[width,background-color] ${
+                  index === activeIndex ? "w-8 bg-[#c5a059]" : "w-2 bg-white/40"
+                }`}
+              />
+            ))}
           </div>
-        ))}
+        ) : null}
       </div>
     </section>
   );
 }
+
+export default TestimonialsSection;

@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get("search") || "";
 
   try {
-    let conditions = [];
+    const conditions = [];
 
     if (filter === "unread") {
       conditions.push(eq(inquiries.isRead, false));
@@ -57,8 +57,8 @@ export async function GET(req: NextRequest) {
           ilike(inquiries.name, searchTerm),
           ilike(inquiries.email, searchTerm),
           ilike(inquiries.company, searchTerm),
-          ilike(inquiries.message, searchTerm)
-        )
+          ilike(inquiries.message, searchTerm),
+        ),
       );
     }
 

@@ -152,7 +152,7 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
                 placeholder="Username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full p-3 bg-black border border-[#333333] text-white focus:border-[#C5A059] focus:outline-none"
+                className="w-full p-3 bg-black border border-[#333333] text-white placeholder:text-gray-500 focus:border-[#C5A059] focus:outline-none"
                 required
               />
               <div className="relative w-full">
@@ -161,7 +161,7 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
                   placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full p-3 pr-16 bg-black border border-[#333333] text-white focus:border-[#C5A059] focus:outline-none"
+                  className="w-full p-3 pr-16 bg-black border border-[#333333] text-white placeholder:text-gray-500 focus:border-[#C5A059] focus:outline-none"
                   required
                 />
                 <button
@@ -199,12 +199,16 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
           <>
             <div className="text-center">
               <h1 className="text-2xl font-bold text-white mb-2 uppercase tracking-tighter">
-                {recoveryMode === "username" ? "Find Username" : "Reset Password"}
+                {recoveryMode === "username"
+                  ? "Find Username"
+                  : "Reset Password"}
               </h1>
             </div>
 
             {recoveryStep === "request" && (
-              <form onSubmit={handleRequestRecovery} className="flex flex-col gap-4">
+              <form
+                onSubmit={handleRequestRecovery}
+                className="flex flex-col gap-4">
                 <p className="text-gray-400 text-sm">
                   {recoveryMode === "username"
                     ? "Enter your account email. If it matches, we'll email you your username."
@@ -212,13 +216,19 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
                 </p>
                 <input
                   type={recoveryMode === "username" ? "email" : "text"}
-                  placeholder={recoveryMode === "username" ? "Account Email" : "Username or Email"}
+                  placeholder={
+                    recoveryMode === "username"
+                      ? "Account Email"
+                      : "Username or Email"
+                  }
                   value={recoveryIdentifier}
                   onChange={(e) => setRecoveryIdentifier(e.target.value)}
-                  className="w-full p-3 bg-black border border-[#333333] text-white focus:border-[#C5A059] focus:outline-none"
+                  className="w-full p-3 bg-black border border-[#333333] text-white placeholder:text-gray-500 focus:border-[#C5A059] focus:outline-none"
                   required
                 />
-                {error && <p className="text-red-500 text-xs font-medium">{error}</p>}
+                {error && (
+                  <p className="text-red-500 text-xs font-medium">{error}</p>
+                )}
                 <button
                   type="submit"
                   disabled={loading}
@@ -229,7 +239,9 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
             )}
 
             {recoveryStep === "confirm" && (
-              <form onSubmit={handleConfirmReset} className="flex flex-col gap-4">
+              <form
+                onSubmit={handleConfirmReset}
+                className="flex flex-col gap-4">
                 <p className="text-gray-400 text-sm">{recoveryMessage}</p>
                 <input
                   type="text"
@@ -244,7 +256,7 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
                   placeholder="New Password (min 8 chars)"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full p-3 bg-black border border-[#333333] text-white focus:border-[#C5A059] focus:outline-none"
+                  className="w-full p-3 bg-black border border-[#333333] text-white placeholder:text-gray-500 focus:border-[#C5A059] focus:outline-none"
                   required
                   minLength={8}
                 />
@@ -253,11 +265,13 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
                   placeholder="Confirm New Password"
                   value={confirmNewPassword}
                   onChange={(e) => setConfirmNewPassword(e.target.value)}
-                  className="w-full p-3 bg-black border border-[#333333] text-white focus:border-[#C5A059] focus:outline-none"
+                  className="w-full p-3 bg-black border border-[#333333] text-white placeholder:text-gray-500 focus:border-[#C5A059] focus:outline-none"
                   required
                   minLength={8}
                 />
-                {error && <p className="text-red-500 text-xs font-medium">{error}</p>}
+                {error && (
+                  <p className="text-red-500 text-xs font-medium">{error}</p>
+                )}
                 <button
                   type="submit"
                   disabled={loading}

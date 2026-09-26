@@ -5,6 +5,8 @@ import { notFound } from "next/navigation";
 import { sanitizeHtml, safeCssForStyleTag } from "@/lib/sanitize";
 import ClientsSection from "@/components/ClientsSection";
 
+export const dynamic = "force-dynamic";
+
 export default async function AboutPage() {
   const pageResult = await db
     .select()

@@ -3,18 +3,28 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CustomPage } from "@/data/cms";
 
+const CORE_PAGE_SLUGS = new Set([
+  "/",
+  "about",
+  "contact",
+  "book-covers",
+  "illustration",
+  "fine-art",
+]);
+
 export const Header = () => {
   const [customPages, setCustomPages] = useState<CustomPage[]>([]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [siteName, setSiteName] = useState("Sourav Mitra");
 
   useEffect(() => {
     const fetchPages = async () => {
       try {
-        const res = await fetch("/api/cms");
+        const res = await fetch("/api/cms", { cache: "no-store" });
         const data = await res.json();
         if (data.pages) {
           setCustomPages(
-            data.pages.filter((p: CustomPage) => p.status === "published" && p.slug !== "about"),
+            data.pages.filter((p: CustomPage) => p.status === "published"),
           );
         }
       } catch {
@@ -23,6 +33,24 @@ export const Header = () => {
     };
     fetchPages();
   }, []);
+
+  useEffect(() => {
+    fetch("/api/cms/settings", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((data) => {
+        if (typeof data.siteName === "string" && data.siteName.trim()) {
+          setSiteName(data.siteName);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const getPageTitle = (slug: string, fallback: string) =>
+    customPages.find((page) => page.slug === slug)?.title || fallback;
+
+  const customNavPages = customPages.filter(
+    (page) => !CORE_PAGE_SLUGS.has(page.slug),
+  );
 
   // Close the mobile menu whenever the viewport grows past the mobile
   // breakpoint, so it doesn't stay stuck open if someone resizes/rotates.
@@ -40,23 +68,23 @@ export const Header = () => {
         href="/book-covers"
         onClick={() => setIsMenuOpen(false)}
         className="hover:text-white transition-colors">
-        Book Covers
+        {getPageTitle("book-covers", "Book Covers")}
       </Link>
       <Link
         href="/illustration"
         onClick={() => setIsMenuOpen(false)}
         className="hover:text-white transition-colors">
-        Illustration
+        {getPageTitle("illustration", "Illustration")}
       </Link>
       <Link
         href="/fine-art"
         onClick={() => setIsMenuOpen(false)}
         className="hover:text-white transition-colors">
-        Fine Art
+        {getPageTitle("fine-art", "Fine Art")}
       </Link>
 
       {/* Dynamic CMS Pages */}
-      {customPages.map((page) => (
+      {customNavPages.map((page) => (
         <Link
           key={page.slug}
           href={`/p/${page.slug}`}
@@ -70,13 +98,13 @@ export const Header = () => {
         href="/about"
         onClick={() => setIsMenuOpen(false)}
         className="hover:text-white transition-colors">
-        About
+        {getPageTitle("about", "About")}
       </Link>
     </>
   );
 
   return (
-    <header className="relative bg-[#000000] border-b border-[#333333]">
+    <header className="relative z-50 border-b border-[#333333] bg-[#000000]">
       <div className="flex justify-between items-center py-6 px-6 md:px-10">
         <Link
           href="/"
@@ -85,7 +113,7 @@ export const Header = () => {
           <div className="w-8 h-8 shrink-0 border border-gray-600 flex items-center justify-center text-[10px] text-gray-500">
             LOGO
           </div>
-          Sourav Mitra
+          {siteName}
         </Link>
 
         {/* Desktop nav */}
@@ -94,7 +122,7 @@ export const Header = () => {
           <Link
             href="/contact"
             className="text-[#C5A059] hover:text-white transition-colors border border-[#C5A059] px-4 py-1">
-            Contact
+            {getPageTitle("contact", "Contact")}
           </Link>
         </nav>
 
@@ -130,13 +158,13 @@ export const Header = () => {
 
       {/* Mobile nav panel */}
       {isMenuOpen && (
-        <nav className="md:hidden flex flex-col gap-6 px-6 pb-8 pt-2 text-[#D4D4D4] text-sm uppercase tracking-widest font-medium border-t border-[#222222]">
+        <nav className="absolute inset-x-0 top-full z-50 flex flex-col gap-6 border-t border-[#333333] bg-[#000000] px-6 pb-8 pt-5 text-sm font-medium uppercase tracking-widest text-[#D4D4D4] shadow-2xl md:hidden">
           {navLinks}
           <Link
             href="/contact"
             onClick={() => setIsMenuOpen(false)}
             className="text-[#C5A059] hover:text-white transition-colors border border-[#C5A059] px-4 py-2 text-center w-fit">
-            Contact
+            {getPageTitle("contact", "Contact")}
           </Link>
         </nav>
       )}

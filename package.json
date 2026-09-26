@@ -14,12 +14,14 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "db:seed-pages": "tsx scripts/seed-all-pages.ts",
     "db:seed-projects": "tsx scripts/seed-projects.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
     "@vercel/blob": "^2.8.0",
     "drizzle-orm": "^0.45.2",
+    "grapesjs": "^0.23.6",
     "isomorphic-dompurify": "4.2.0",
     "next": "^16.3.5",
     "pg": "^8.23.0",

@@ -26,6 +26,7 @@ export interface CustomPage {
   title: string;
   status: "draft" | "published";
   blocks: Block[];
+  gjsData?: unknown;
 }
 
 export interface MediaAsset {

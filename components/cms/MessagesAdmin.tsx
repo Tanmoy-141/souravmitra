@@ -5,7 +5,9 @@ import { type Inquiry } from "@/db/schema";
 export default function MessagesAdmin() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
-  const [filter, setFilter] = useState<"unread" | "read" | "archived" | "all">("unread");
+  const [filter, setFilter] = useState<"unread" | "read" | "archived" | "all">(
+    "unread",
+  );
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -13,12 +15,16 @@ export default function MessagesAdmin() {
   const fetchInquiries = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/inquiries?filter=${filter}&search=${encodeURIComponent(search)}`);
+      const res = await fetch(
+        `/api/inquiries?filter=${filter}&search=${encodeURIComponent(search)}`,
+      );
       const data = await res.json();
       if (data.success && Array.isArray(data.inquiries)) {
         setInquiries(data.inquiries);
         if (selectedInquiry) {
-          const updatedSelected = data.inquiries.find((i: Inquiry) => i.id === selectedInquiry.id);
+          const updatedSelected = data.inquiries.find(
+            (i: Inquiry) => i.id === selectedInquiry.id,
+          );
           setSelectedInquiry(updatedSelected || data.inquiries[0] || null);
         } else if (data.inquiries.length > 0) {
           setSelectedInquiry(data.inquiries[0]);
@@ -34,7 +40,39 @@ export default function MessagesAdmin() {
   };
 
   useEffect(() => {
-    fetchInquiries();
+    let ignore = false;
+    const load = async () => {
+      try {
+        const res = await fetch(
+          `/api/inquiries?filter=${filter}&search=${encodeURIComponent(search)}`,
+        );
+        const data = await res.json();
+        if (!ignore && data.success && Array.isArray(data.inquiries)) {
+          setInquiries(data.inquiries);
+          if (selectedInquiry) {
+            const updatedSelected = data.inquiries.find(
+              (i: Inquiry) => i.id === selectedInquiry.id,
+            );
+            setSelectedInquiry(updatedSelected || data.inquiries[0] || null);
+          } else if (data.inquiries.length > 0) {
+            setSelectedInquiry(data.inquiries[0]);
+          } else {
+            setSelectedInquiry(null);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch inquiries", err);
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    };
+    load();
+    return () => {
+      ignore = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -42,7 +80,10 @@ export default function MessagesAdmin() {
     fetchInquiries();
   };
 
-  const updateStatus = async (id: string, updates: { isRead?: boolean; isArchived?: boolean }) => {
+  const updateStatus = async (
+    id: string,
+    updates: { isRead?: boolean; isArchived?: boolean },
+  ) => {
     setActionLoading(true);
     try {
       const res = await fetch(`/api/inquiries/${id}`, {
@@ -65,7 +106,8 @@ export default function MessagesAdmin() {
   };
 
   const deleteInquiry = async (id: string) => {
-    if (!confirm("Are you sure you want to permanently delete this inquiry?")) return;
+    if (!confirm("Are you sure you want to permanently delete this inquiry?"))
+      return;
     setActionLoading(true);
     try {
       const res = await fetch(`/api/inquiries/${id}`, {
@@ -151,28 +193,41 @@ export default function MessagesAdmin() {
                     }
                   }}
                   className={`p-4 cursor-pointer transition-colors flex flex-col gap-1.5 ${
-                    isSelected ? "bg-[#111111] border-l-2 border-[#C5A059]" : "hover:bg-[#0a0a0a]"
+                    isSelected
+                      ? "bg-[#111111] border-l-2 border-[#C5A059]"
+                      : "hover:bg-[#0a0a0a]"
                   }`}>
                   <div className="flex items-center justify-between">
-                    <span className={`text-xs font-bold truncate ${!inq.isRead ? "text-white" : "text-gray-300"}`}>
+                    <span
+                      className={`text-xs font-bold truncate ${!inq.isRead ? "text-white" : "text-gray-300"}`}>
                       {inq.name}
                     </span>
                     <div className="flex items-center gap-2">
                       {!inq.isRead && (
-                        <span className="w-2 h-2 rounded-full bg-[#C5A059]" title="Unread" />
+                        <span
+                          className="w-2 h-2 rounded-full bg-[#C5A059]"
+                          title="Unread"
+                        />
                       )}
                       <span className="text-[10px] text-gray-500">
-                        {new Date(inq.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                        {new Date(inq.createdAt).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                        })}
                       </span>
                     </div>
                   </div>
-                  <div className="text-[11px] text-gray-400 truncate">{inq.email}</div>
+                  <div className="text-[11px] text-gray-400 truncate">
+                    {inq.email}
+                  </div>
                   {inq.projectType && (
                     <span className="self-start text-[9px] uppercase tracking-widest px-2 py-0.5 bg-[#1a1a1a] border border-[#333] text-[#C5A059]">
                       {inq.projectType}
                     </span>
                   )}
-                  <div className="text-[11px] text-gray-500 truncate mt-0.5">{inq.message}</div>
+                  <div className="text-[11px] text-gray-500 truncate mt-0.5">
+                    {inq.message}
+                  </div>
                 </div>
               );
             })
@@ -188,7 +243,9 @@ export default function MessagesAdmin() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-[#333333]">
               <div>
                 <div className="flex items-center gap-3 mb-2">
-                  <h2 className="text-xl font-bold tracking-tight text-white">{selectedInquiry.name}</h2>
+                  <h2 className="text-xl font-bold tracking-tight text-white">
+                    {selectedInquiry.name}
+                  </h2>
                   {selectedInquiry.projectType && (
                     <span className="text-[10px] uppercase tracking-widest px-2.5 py-0.5 bg-[#1a1a1a] border border-[#333] text-[#C5A059]">
                       {selectedInquiry.projectType}
@@ -196,11 +253,18 @@ export default function MessagesAdmin() {
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-4 text-xs text-gray-400">
-                  <a href={`mailto:${selectedInquiry.email}?subject=${encodeURIComponent(`Re: Portfolio Inquiry - ${selectedInquiry.projectType || "General"}`)}`} className="hover:text-[#C5A059] underline">
+                  <a
+                    href={`mailto:${selectedInquiry.email}?subject=${encodeURIComponent(`Re: Portfolio Inquiry - ${selectedInquiry.projectType || "General"}`)}`}
+                    className="hover:text-[#C5A059] underline">
                     {selectedInquiry.email}
                   </a>
-                  {selectedInquiry.company && <span>• Company: {selectedInquiry.company}</span>}
-                  <span>• Received: {new Date(selectedInquiry.createdAt).toLocaleString()}</span>
+                  {selectedInquiry.company && (
+                    <span>• Company: {selectedInquiry.company}</span>
+                  )}
+                  <span>
+                    • Received:{" "}
+                    {new Date(selectedInquiry.createdAt).toLocaleString()}
+                  </span>
                 </div>
               </div>
 
@@ -211,13 +275,21 @@ export default function MessagesAdmin() {
                   Reply via Email
                 </a>
                 <button
-                  onClick={() => updateStatus(selectedInquiry.id, { isRead: !selectedInquiry.isRead })}
+                  onClick={() =>
+                    updateStatus(selectedInquiry.id, {
+                      isRead: !selectedInquiry.isRead,
+                    })
+                  }
                   disabled={actionLoading}
                   className="border border-[#333] px-3 py-2 text-xs uppercase tracking-widest text-gray-300 hover:text-white hover:border-gray-500 transition-colors">
                   {selectedInquiry.isRead ? "Mark Unread" : "Mark Read"}
                 </button>
                 <button
-                  onClick={() => updateStatus(selectedInquiry.id, { isArchived: !selectedInquiry.isArchived })}
+                  onClick={() =>
+                    updateStatus(selectedInquiry.id, {
+                      isArchived: !selectedInquiry.isArchived,
+                    })
+                  }
                   disabled={actionLoading}
                   className="border border-[#333] px-3 py-2 text-xs uppercase tracking-widest text-gray-300 hover:text-white hover:border-gray-500 transition-colors">
                   {selectedInquiry.isArchived ? "Unarchive" : "Archive"}
@@ -233,7 +305,9 @@ export default function MessagesAdmin() {
 
             {/* Message Body */}
             <div className="flex flex-col gap-4">
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Message Content</h3>
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+                Message Content
+              </h3>
               <div className="p-6 bg-[#050505] border border-[#222222] text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">
                 {selectedInquiry.message}
               </div>
@@ -242,7 +316,9 @@ export default function MessagesAdmin() {
             {/* Metadata Footer */}
             <div className="pt-6 border-t border-[#222222] text-[11px] text-gray-600 flex justify-between">
               <span>Inquiry ID: {selectedInquiry.id}</span>
-              {selectedInquiry.ipAddress && <span>IP Address: {selectedInquiry.ipAddress}</span>}
+              {selectedInquiry.ipAddress && (
+                <span>IP Address: {selectedInquiry.ipAddress}</span>
+              )}
             </div>
           </div>
         ) : (

@@ -39,6 +39,10 @@ async function isAuthorized(req?: NextRequest): Promise<boolean> {
   return false;
 }
 
+function sanitizePageSlug(slug: string): string {
+  return slug.trim() === "/" ? "/" : sanitizeSlug(slug);
+}
+
 // GET: Fetch all pages or a single page by ?slug= or ?id= or ?trash=true
 export async function GET(req: NextRequest) {
   try {
@@ -49,7 +53,10 @@ export async function GET(req: NextRequest) {
     const authorized = await isAuthorized(req);
     const filterConditions = [];
     if (!authorized) {
-      filterConditions.push(eq(pages.status, "published"), isNull(pages.deletedAt));
+      filterConditions.push(
+        eq(pages.status, "published"),
+        isNull(pages.deletedAt),
+      );
     } else {
       if (trash) {
         filterConditions.push(isNotNull(pages.deletedAt));
@@ -76,7 +83,9 @@ export async function GET(req: NextRequest) {
       dbPages = await db
         .select()
         .from(pages)
-        .where(filterConditions.length > 0 ? and(...filterConditions) : undefined)
+        .where(
+          filterConditions.length > 0 ? and(...filterConditions) : undefined,
+        )
         .orderBy(desc(pages.updatedAt))
         .limit(100);
     }
@@ -88,6 +97,9 @@ export async function GET(req: NextRequest) {
       title: p.title,
       status: p.status,
       blocks: (p.gjsData as { blocks?: Block[] })?.blocks || [],
+      gjsData: p.gjsData,
+      htmlCache: p.htmlCache,
+      cssCache: p.cssCache,
       seoTitle: p.seoTitle,
       seoDescription: p.seoDescription,
       publishedAt: p.publishedAt,
@@ -103,10 +115,10 @@ export async function GET(req: NextRequest) {
     );
   } catch (err) {
     console.error("[CMS GET Error]:", err);
-    return NextResponse.json({
-      pages: [],
-      data: [],
-    });
+    return NextResponse.json(
+      { error: "Failed to load pages", pages: [], data: [] },
+      { status: 500 },
+    );
   }
 }
 
@@ -132,9 +144,19 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      const pagesToSave = result.data.pages.map((page) => ({
+        ...page,
+        ...(page.htmlCache !== undefined && {
+          htmlCache: page.htmlCache ? sanitizeHtml(page.htmlCache) : "",
+        }),
+        ...(page.cssCache !== undefined && {
+          cssCache: page.cssCache ? sanitizeCss(page.cssCache) : "",
+        }),
+      }));
+
       const results = [];
-      for (const page of result.data.pages) {
-        const cleanSlug = sanitizeSlug(page.slug);
+      for (const page of pagesToSave) {
+        const cleanSlug = sanitizePageSlug(page.slug);
 
         const [upserted] = await db
           .insert(pages)
@@ -143,7 +165,9 @@ export async function POST(req: NextRequest) {
             slug: cleanSlug,
             title: page.title,
             status: page.status || "draft",
-            gjsData: { blocks: page.blocks || [] },
+            gjsData: page.gjsData ?? { blocks: page.blocks || [] },
+            ...(page.htmlCache !== undefined && { htmlCache: page.htmlCache }),
+            ...(page.cssCache !== undefined && { cssCache: page.cssCache }),
             updatedAt: new Date(),
           })
           .onConflictDoUpdate({
@@ -152,7 +176,11 @@ export async function POST(req: NextRequest) {
               slug: cleanSlug,
               title: page.title,
               status: page.status || "draft",
-              gjsData: { blocks: page.blocks || [] },
+              gjsData: page.gjsData ?? { blocks: page.blocks || [] },
+              ...(page.htmlCache !== undefined && {
+                htmlCache: page.htmlCache,
+              }),
+              ...(page.cssCache !== undefined && { cssCache: page.cssCache }),
               updatedAt: new Date(),
             },
           })
@@ -191,14 +219,14 @@ export async function POST(req: NextRequest) {
     let sanitizedCss = "";
     try {
       sanitizedCss = cssCache ? sanitizeCss(cssCache) : "";
-    } catch (e) {
+    } catch {
       return NextResponse.json({ error: "Invalid CSS" }, { status: 400 });
     }
 
     const newPage = await db
       .insert(pages)
       .values({
-        slug: sanitizeSlug(slug),
+        slug: sanitizePageSlug(slug),
         title,
         seoTitle: seoTitle || null,
         seoDescription: seoDescription || null,
@@ -243,19 +271,19 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     const id = body.id;
     if (!id) {
-        return NextResponse.json(
-          { error: "Page ID is required" },
-          { status: 400 },
-        );
+      return NextResponse.json(
+        { error: "Page ID is required" },
+        { status: 400 },
+      );
     }
-    
+
     // Validate the update body (omitting ID for schema check)
     const result = CmsPageSchema.partial().safeParse(body);
     if (!result.success) {
-        return NextResponse.json(
-            { error: "Invalid update input", details: result.error.issues },
-            { status: 400 },
-        );
+      return NextResponse.json(
+        { error: "Invalid update input", details: result.error.issues },
+        { status: 400 },
+      );
     }
 
     const [existing] = await db
@@ -288,25 +316,20 @@ export async function PUT(req: NextRequest) {
     if (cssCache !== undefined) {
       try {
         sanitizedCss = cssCache ? sanitizeCss(cssCache) : "";
-      } catch (e) {
+      } catch {
         return NextResponse.json({ error: "Invalid CSS" }, { status: 400 });
       }
     }
 
     let newPublishedAt = existing.publishedAt;
-    let newStatus = status !== undefined ? status : existing.status;
-    if (status !== undefined) {
-      if (status === "published" && existing.status !== "published") {
-        newPublishedAt = new Date();
-      } else if (status === "draft") {
-        // Unpublish: keep publishedAt or clear? Per spec, content is retained, publishedAt is preserved or kept.
-      }
+    if (status === "published" && existing.status !== "published") {
+      newPublishedAt = new Date();
     }
 
     const updated = await db
       .update(pages)
       .set({
-        ...(slug && { slug: sanitizeSlug(slug) }),
+        ...(slug && { slug: sanitizePageSlug(slug) }),
         ...(title && { title }),
         ...(seoTitle !== undefined && { seoTitle }),
         ...(seoDescription !== undefined && { seoDescription }),
@@ -363,7 +386,9 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Page not found" }, { status: 404 });
     }
 
-    let updateValues: Record<string, any> = { updatedAt: new Date() };
+    const updateValues: Partial<typeof pages.$inferInsert> = {
+      updatedAt: new Date(),
+    };
 
     if (action === "publish") {
       updateValues.status = "published";

@@ -4,8 +4,12 @@ import { pages } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import type { Metadata } from "next";
 import BlockRenderer from "@/components/cms/BlockRenderer";
+import ProjectGridSection from "@/components/cms/ProjectGridSection";
+import ContactFormClient from "@/components/cms/ContactFormClient";
+import TestimonialsPortal from "@/components/cms/TestimonialsPortal";
 import { Block } from "@/data/cms";
 import { sanitizeHtml, safeCssForStyleTag } from "@/lib/sanitize";
+import { renderDynamicSegments } from "@/lib/dynamic-blocks";
 
 interface DynamicPageProps {
   params: Promise<{ slug: string }>;
@@ -15,7 +19,7 @@ export async function generateMetadata({
   params,
 }: DynamicPageProps): Promise<Metadata> {
   const { slug } = await params;
-  if (slug === 'about') {
+  if (slug === "about") {
     return { title: "Page Not Found" };
   }
   const pageResult = await db
@@ -43,8 +47,8 @@ export async function generateMetadata({
 
 export default async function DynamicCustomPage({ params }: DynamicPageProps) {
   const { slug } = await params;
-  
-  if (slug === 'about') {
+
+  if (slug === "about") {
     notFound();
   }
 
@@ -68,14 +72,14 @@ export default async function DynamicCustomPage({ params }: DynamicPageProps) {
 
   // Extract blocks from gjsData
   const blocks = (page.gjsData as { blocks?: Block[] })?.blocks || [];
-  
+
   // Sanitization on Read (Defense-in-depth)
   const safeHtml = sanitizeHtml(page.htmlCache || "");
 
   return (
     <main className="min-h-screen pb-24">
       {page.cssCache && <style>{safeCssForStyleTag(page.cssCache)}</style>}
-      
+
       {/* If blocks exist, render them using the dynamic renderer */}
       {blocks.length > 0 ? (
         <div className="flex flex-col">
@@ -88,11 +92,23 @@ export default async function DynamicCustomPage({ params }: DynamicPageProps) {
           <header className="mb-8 border-b pb-4">
             <h1 className="text-4xl font-bold tracking-tight">{page.title}</h1>
           </header>
-          <article
+          <div
             id="cms-page-content"
-            className="prose dark:prose-invert max-w-none"
-            dangerouslySetInnerHTML={{ __html: safeHtml }}
-          />
+            className="prose dark:prose-invert max-w-none">
+            {renderDynamicSegments(
+              safeHtml,
+              (block, key) =>
+                block === "project-grid" ? (
+                  <ProjectGridSection key={key} />
+                ) : (
+                  <ContactFormClient key={key} />
+                ),
+              (segmentHtml, key) => (
+                <TestimonialsPortal key={key} html={segmentHtml} />
+              ),
+              { ignoreBlocks: ["testimonials-carousel"] },
+            )}
+          </div>
         </div>
       )}
     </main>

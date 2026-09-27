@@ -16,7 +16,8 @@ export function TestimonialsSection({
 }: TestimonialsSectionProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const activeTestimonial = items[activeIndex];
+  const safeIndex = items.length > 0 ? activeIndex % items.length : 0;
+  const activeTestimonial = items[safeIndex];
 
   useEffect(() => {
     if (isPaused || items.length < 2) return;
@@ -76,10 +77,10 @@ export function TestimonialsSection({
           )}
 
           <div
-            key={activeIndex}
+            key={safeIndex}
             role="group"
             aria-roledescription="slide"
-            aria-label={`${activeIndex + 1} of ${items.length}`}
+            aria-label={`${safeIndex + 1} of ${items.length}`}
             className="testimonial-carousel-reveal mx-auto flex min-h-52 max-w-3xl flex-col items-center justify-center px-12 md:min-h-56">
             <span
               aria-hidden="true"
@@ -126,11 +127,11 @@ export function TestimonialsSection({
                 key={`${testimonial.author}-${index}`}
                 type="button"
                 role="tab"
-                aria-selected={index === activeIndex}
+                aria-selected={index === safeIndex}
                 aria-label={`Go to slide ${index + 1}: ${testimonial.author}`}
                 onClick={() => setActiveIndex(index)}
                 className={`h-2 rounded-full transition-all focus:outline-none cursor-pointer ${
-                  index === activeIndex
+                  index === safeIndex
                     ? "w-8 bg-[#c5a059]"
                     : "w-2 bg-white/40 hover:bg-white/80"
                 }`}

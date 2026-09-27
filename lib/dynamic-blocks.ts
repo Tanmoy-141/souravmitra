@@ -27,13 +27,20 @@ export function parseTestimonialBlock(blockHtml?: string): {
 } {
   if (!blockHtml) return {};
 
-  const headingMatch = blockHtml.match(/<h[234][^>]*>([\s\S]*?)<\/h[234]>/i);
+  const decodeEntities = (str: string) =>
+    str
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&ldquo;/g, "“")
+      .replace(/&rdquo;/g, "”")
+      .replace(/&rsquo;/g, "’")
+      .replace(/&lsquo;/g, "‘");
+
+  const headingMatch = blockHtml.match(/<h([1-4])[^>]*>([\s\S]*?)<\/h\1>/i);
   const heading = headingMatch
-    ? headingMatch[1]
-        .replace(/<[^>]+>/g, "")
-        .replace(/&nbsp;/g, " ")
-        .replace(/&amp;/g, "&")
-        .trim()
+    ? decodeEntities(headingMatch[2].replace(/<[^>]+>/g, "")).trim()
     : undefined;
 
   const pMatches = Array.from(
@@ -44,11 +51,9 @@ export function parseTestimonialBlock(blockHtml?: string): {
   const items: Array<{ quote: string; author: string }> = [];
 
   for (const match of pMatches) {
-    const raw = match[1]
-      .replace(/&nbsp;/g, " ")
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<[^>]+>/g, "")
-      .trim();
+    const raw = decodeEntities(
+      match[1].replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, ""),
+    ).trim();
 
     if (
       !raw ||
@@ -86,6 +91,28 @@ export function parseTestimonialBlock(blockHtml?: string): {
     } else if (lines.length === 1 && lines[0]) {
       const quote = lines[0].replace(/^[“"']+|[”"']+$/g, "").trim();
       if (quote) items.push({ quote, author: "Editorial Client" });
+    }
+  }
+
+  // Also check explicit data-testimonial-quote attributes if no items were extracted
+  if (items.length === 0) {
+    const explicitMatches = Array.from(
+      blockHtml.matchAll(
+        /data-testimonial-quote=(["'])(.*?)\1(?:[^>]*?data-testimonial-author=(["'])(.*?)\3)?/gi,
+      ),
+    );
+    for (const m of explicitMatches) {
+      const q = decodeEntities(m[2])
+        .replace(/^[“"']+|[”"']+$/g, "")
+        .trim();
+      const a = m[4]
+        ? decodeEntities(m[4])
+            .replace(/^[-—~:\s]+/, "")
+            .trim()
+        : "Editorial Client";
+      if (q) {
+        items.push({ quote: q, author: a });
+      }
     }
   }
 

@@ -8,9 +8,7 @@ import ContactFormClient from "@/components/cms/ContactFormClient";
 import ProjectGridSection from "@/components/cms/ProjectGridSection";
 import PortfolioCollection from "@/components/PortfolioCollection";
 import { parseTestimonialBlock } from "@/lib/dynamic-blocks";
-import type { testimonials } from "@/data/content";
 
-type TestimonialItem = (typeof testimonials)[number];
 type PortfolioCategory = "book-covers" | "illustration" | "fine-art";
 
 interface PortalTarget {
@@ -25,28 +23,6 @@ interface CmsDynamicBlockPortalProps {
   className?: string;
 }
 
-function parseExplicitTestimonials(
-  element: HTMLElement,
-): TestimonialItem[] | undefined {
-  const explicitQuotes = Array.from(
-    element.querySelectorAll<HTMLElement>("[data-testimonial-quote]"),
-  )
-    .map((quoteNode) => ({
-      quote:
-        quoteNode.dataset.testimonialQuote?.trim() ||
-        quoteNode.innerText.trim(),
-      author:
-        quoteNode.dataset.testimonialAuthor?.trim() ||
-        quoteNode.parentElement
-          ?.querySelector<HTMLElement>("[data-testimonial-author]")
-          ?.innerText.trim() ||
-        "",
-    }))
-    .filter((item) => item.quote && item.author);
-
-  return explicitQuotes.length > 0 ? explicitQuotes : undefined;
-}
-
 export function CmsDynamicBlockPortal({
   html,
   category,
@@ -58,6 +34,19 @@ export function CmsDynamicBlockPortal({
   useEffect(() => {
     if (!containerRef.current) return;
 
+    // Parse the immutable HTML string into an in-memory DOM document.
+    // This source document is completely detached from the live DOM and
+    // is never mutated by element.replaceChildren(), ensuring that
+    // headings, quotes, and attributes are preserved across React 19
+    // Strict Mode double-invocations and component re-renders.
+    const parsedDoc =
+      typeof window !== "undefined"
+        ? new DOMParser().parseFromString(html, "text/html")
+        : null;
+    const parsedMarkers = parsedDoc
+      ? Array.from(parsedDoc.querySelectorAll<HTMLElement>("[data-cms-block]"))
+      : [];
+
     const markers =
       containerRef.current.querySelectorAll<HTMLElement>("[data-cms-block]");
 
@@ -66,6 +55,8 @@ export function CmsDynamicBlockPortal({
     Array.from(markers).forEach((element, index) => {
       const block = element.dataset.cmsBlock;
       if (!block) return;
+
+      const sourceEl = parsedMarkers[index] || element;
 
       // Reset placeholder styling so real component renders seamlessly
       element.classList.remove(
@@ -99,13 +90,50 @@ export function CmsDynamicBlockPortal({
       }
 
       if (block === "testimonials-carousel") {
-        const explicit = parseExplicitTestimonials(element);
-        const parsed = parseTestimonialBlock(element.outerHTML);
+        // Parse from the pristine source element (parsedDoc) or fallback to element
+        const parsed = parseTestimonialBlock(sourceEl.outerHTML);
         const heading =
-          element.querySelector("h1, h2, h3, h4")?.textContent?.trim() ||
+          sourceEl
+            .querySelector("h1, h2, h3, h4")
+            ?.textContent?.replace(/\u00a0/g, " ")
+            .trim() ||
+          element
+            .querySelector("h1, h2, h3, h4")
+            ?.textContent?.replace(/\u00a0/g, " ")
+            .trim() ||
           parsed.heading ||
           undefined;
-        const items = explicit || parsed.items;
+
+        // Fallback: also check explicit data-testimonial-quote attributes on sourceEl
+        const explicitNodes = Array.from(
+          sourceEl.querySelectorAll<HTMLElement>("[data-testimonial-quote]"),
+        );
+        const explicitItems = explicitNodes
+          .map((node) => ({
+            quote: (
+              node.getAttribute("data-testimonial-quote") ||
+              node.dataset.testimonialQuote ||
+              ""
+            )
+              .replace(/^[“"']+|[”"']+$/g, "")
+              .trim(),
+            author:
+              (
+                node.getAttribute("data-testimonial-author") ||
+                node.dataset.testimonialAuthor ||
+                ""
+              )
+                .replace(/^[-—~:\s]+/, "")
+                .trim() || "Editorial Client",
+          }))
+          .filter((item) => Boolean(item.quote));
+
+        const items =
+          parsed.items && parsed.items.length > 0
+            ? parsed.items
+            : explicitItems.length > 0
+              ? explicitItems
+              : undefined;
 
         element.replaceChildren();
         newTargets.push({
@@ -115,7 +143,14 @@ export function CmsDynamicBlockPortal({
         });
       } else if (block === "project-carousel") {
         const heading =
-          element.querySelector("h1, h2, h3, h4")?.textContent?.trim() ||
+          sourceEl
+            .querySelector("h1, h2, h3, h4")
+            ?.textContent?.replace(/\u00a0/g, " ")
+            .trim() ||
+          element
+            .querySelector("h1, h2, h3, h4")
+            ?.textContent?.replace(/\u00a0/g, " ")
+            .trim() ||
           undefined;
         element.replaceChildren();
         newTargets.push({

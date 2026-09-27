@@ -68,7 +68,12 @@ export default function MediaLibrary({ onSelect, onClose }: MediaLibraryProps) {
 
         <div className="p-6 overflow-y-auto grid grid-cols-2 md:grid-cols-4 gap-4">
           <label className="aspect-square border-2 border-dashed border-[#333333] hover:border-[#C5A059] flex flex-col items-center justify-center gap-2 text-gray-500 transition-colors cursor-pointer">
-            <input type="file" className="hidden" onChange={handleUpload} disabled={uploading} />
+            <input
+              type="file"
+              className="hidden"
+              onChange={handleUpload}
+              disabled={uploading}
+            />
             <span className="text-2xl">{uploading ? "..." : "+"}</span>
             <span className="text-[10px] uppercase font-bold tracking-widest">
               {uploading ? "Uploading" : "Upload Image"}
@@ -76,7 +81,9 @@ export default function MediaLibrary({ onSelect, onClose }: MediaLibraryProps) {
           </label>
 
           {loading ? (
-            <div className="col-span-full text-center text-gray-500 text-xs py-10">Loading...</div>
+            <div className="col-span-full text-center text-gray-500 text-xs py-10">
+              Loading...
+            </div>
           ) : (
             assets.map((asset) => (
               <div
@@ -90,6 +97,31 @@ export default function MediaLibrary({ onSelect, onClose }: MediaLibraryProps) {
                   sizes="(min-width: 768px) 25vw, 50vw"
                   className="object-cover opacity-60 group-hover:opacity-100 transition-opacity"
                 />
+                <button
+                  type="button"
+                  title="Delete image"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (!confirm(`Delete image "${asset.name}"?`)) return;
+                    try {
+                      await fetch("/api/media", {
+                        method: "DELETE",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          id: asset.id,
+                          src: asset.blobUrl,
+                        }),
+                      });
+                      setAssets((prev) =>
+                        prev.filter((a) => a.id !== asset.id),
+                      );
+                    } catch (err) {
+                      console.error("Failed to delete asset:", err);
+                    }
+                  }}
+                  className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-black/80 border border-red-500/50 text-red-400 hover:bg-red-600 hover:text-white hover:border-red-600 flex items-center justify-center text-xs font-bold transition-all opacity-0 group-hover:opacity-100 cursor-pointer">
+                  ✕
+                </button>
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 transition-opacity">
                   <span className="text-[10px] text-white font-bold uppercase tracking-widest">
                     Select

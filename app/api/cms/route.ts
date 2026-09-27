@@ -44,6 +44,26 @@ function sanitizePageSlug(slug: string): string {
   return slug.trim() === "/" ? "/" : sanitizeSlug(slug);
 }
 
+function revalidateCmsPaths(slug?: string) {
+  try {
+    revalidatePath("/", "page");
+    revalidatePath("/about", "page");
+    revalidatePath("/book-covers", "page");
+    revalidatePath("/illustration", "page");
+    revalidatePath("/fine-art", "page");
+    revalidatePath("/contact", "page");
+    revalidatePath("/[slug]", "page");
+    if (slug) {
+      const clean = sanitizePageSlug(slug);
+      if (clean && clean !== "/") {
+        revalidatePath(`/${clean}`, "page");
+      }
+    }
+  } catch (err) {
+    console.error("Failed to revalidate paths:", err);
+  }
+}
+
 // GET: Fetch all pages or a single page by ?slug= or ?id= or ?trash=true
 export async function GET(req: NextRequest) {
   try {
@@ -189,15 +209,8 @@ export async function POST(req: NextRequest) {
         results.push(upserted);
       }
 
-      try {
-        revalidatePath("/", "page");
-        revalidatePath("/[slug]", "page");
-        revalidatePath("/book-covers", "page");
-        revalidatePath("/illustration", "page");
-        revalidatePath("/fine-art", "page");
-        revalidatePath("/contact", "page");
-      } catch (err) {
-        console.error("Failed to revalidate paths:", err);
+      for (const page of pagesToSave) {
+        revalidateCmsPaths(page.slug);
       }
 
       return NextResponse.json({
@@ -359,16 +372,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Page not found" }, { status: 404 });
     }
 
-    try {
-      revalidatePath("/", "page");
-      revalidatePath("/[slug]", "page");
-      revalidatePath("/book-covers", "page");
-      revalidatePath("/illustration", "page");
-      revalidatePath("/fine-art", "page");
-      revalidatePath("/contact", "page");
-    } catch (err) {
-      console.error("Failed to revalidate paths:", err);
-    }
+    revalidateCmsPaths(updated[0].slug);
 
     return NextResponse.json(updated[0]);
   } catch {
@@ -432,6 +436,7 @@ export async function PATCH(req: NextRequest) {
       .where(eq(pages.id, id))
       .returning();
 
+    revalidateCmsPaths(updated.slug);
     return NextResponse.json({ success: true, page: updated });
   } catch (err) {
     console.error("[CMS PATCH Error]:", err);

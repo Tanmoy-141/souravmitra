@@ -505,23 +505,26 @@ async function seedAllPages() {
           </section>
 
           <section class="py-16 border-t border-[#222]">
-            <h2 class="text-3xl font-serif text-white text-center mb-12">Clients & Collaborators</h2>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-              <div class="p-6 bg-[#0a0a0a] border border-[#222] flex flex-col items-center justify-center transition-all hover:border-[#C5A059]">
-                <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" alt="Penguin Logo" class="h-10 object-contain mb-3 filter grayscale hover:grayscale-0 transition-all" />
-                <span class="text-xs font-bold text-gray-300">Penguin Random House</span>
-              </div>
-              <div class="p-6 bg-[#0a0a0a] border border-[#222] flex flex-col items-center justify-center transition-all hover:border-[#C5A059]">
-                <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" alt="HarperCollins Logo" class="h-10 object-contain mb-3 filter grayscale hover:grayscale-0 transition-all" />
-                <span class="text-xs font-bold text-gray-300">HarperCollins</span>
-              </div>
-              <div class="p-6 bg-[#0a0a0a] border border-[#222] flex flex-col items-center justify-center transition-all hover:border-[#C5A059]">
-                <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" alt="Macmillan Logo" class="h-10 object-contain mb-3 filter grayscale hover:grayscale-0 transition-all" />
-                <span class="text-xs font-bold text-gray-300">Macmillan Publishers</span>
-              </div>
-              <div class="p-6 bg-[#0a0a0a] border border-[#222] flex flex-col items-center justify-center transition-all hover:border-[#C5A059]">
-                <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" alt="Hachette Logo" class="h-10 object-contain mb-3 filter grayscale hover:grayscale-0 transition-all" />
-                <span class="text-xs font-bold text-gray-300">Hachette Book Group</span>
+            <div class="flex flex-col items-center">
+              <h2 class="text-3xl font-serif text-white mb-4">Clients</h2>
+              <div class="w-10 h-1 bg-[#C5A059] mb-12"></div>
+              <div class="flex flex-wrap items-center justify-center gap-10 md:gap-16 w-full text-center">
+                <div class="flex flex-col items-center w-28 md:w-36 transition-all hover:scale-105">
+                  <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" alt="Penguin Logo" class="h-12 w-auto max-w-[120px] object-contain mb-3" />
+                  <span class="text-xs uppercase tracking-widest text-gray-300 font-medium">Penguin Random House</span>
+                </div>
+                <div class="flex flex-col items-center w-28 md:w-36 transition-all hover:scale-105">
+                  <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" alt="HarperCollins Logo" class="h-12 w-auto max-w-[120px] object-contain mb-3" />
+                  <span class="text-xs uppercase tracking-widest text-gray-300 font-medium">HarperCollins</span>
+                </div>
+                <div class="flex flex-col items-center w-28 md:w-36 transition-all hover:scale-105">
+                  <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" alt="Macmillan Logo" class="h-12 w-auto max-w-[120px] object-contain mb-3" />
+                  <span class="text-xs uppercase tracking-widest text-gray-300 font-medium">Macmillan Publishers</span>
+                </div>
+                <div class="flex flex-col items-center w-28 md:w-36 transition-all hover:scale-105">
+                  <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" alt="Hachette Logo" class="h-12 w-auto max-w-[120px] object-contain mb-3" />
+                  <span class="text-xs uppercase tracking-widest text-gray-300 font-medium">Hachette Book Group</span>
+                </div>
               </div>
             </div>
           </section>

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { resolveSession } from "@/lib/auth";
 import { cookies } from "next/headers";
-import { listMediaAssets, saveMediaAsset } from "@/lib/media";
+import { listMediaAssets, saveMediaAsset, deleteMediaAsset } from "@/lib/media";
 import fs from "fs/promises";
 import path from "path";
 
@@ -62,111 +62,202 @@ export async function POST(req: NextRequest) {
   }
 
   const formData = await req.formData();
-  const file = formData.get("file") as File | null;
 
-  if (!file) {
+  // Collect all file objects regardless of input name ('file', 'file[]', 'files', 'files[]', etc.)
+  const files: File[] = [];
+  for (const [, value] of formData.entries()) {
+    if (
+      typeof value === "object" &&
+      value !== null &&
+      "arrayBuffer" in value &&
+      "name" in value &&
+      (value as File).size > 0
+    ) {
+      files.push(value as File);
+    }
+  }
+
+  if (files.length === 0) {
     return NextResponse.json(
       { success: false, message: "No file provided" },
       { status: 400 },
     );
   }
 
-  if (file.size > MAX_FILE_SIZE_BYTES) {
-    return NextResponse.json(
-      { success: false, message: "File must be under 10MB" },
-      { status: 400 },
-    );
+  const savedAssets: Array<{
+    id: string;
+    blobUrl: string;
+    name: string;
+    type: string;
+    size: number;
+  }> = [];
+
+  for (const file of files) {
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      return NextResponse.json(
+        { success: false, message: `File "${file.name}" must be under 10MB` },
+        { status: 400 },
+      );
+    }
+
+    if (!ALLOWED_TYPES.has(file.type)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Unsupported file type for "${file.name}". Allowed: JPEG, PNG, WebP, GIF, SVG, MP4, WebM.`,
+        },
+        { status: 400 },
+      );
+    }
+
+    try {
+      // Create a new File with a sanitized name
+      const safeName = sanitizeFilename(file.name);
+      const safeFile = new File([file], safeName, { type: file.type });
+
+      const fileBuffer = Buffer.from(await file.arrayBuffer());
+      const ext = path.extname(safeName);
+      const base = path.basename(safeName, ext);
+      const uniqueLocalName = `${base}-${Date.now()}${ext}`;
+
+      let blobUrl: string;
+      let pathname: string;
+
+      if (process.env.BLOB_READ_WRITE_TOKEN) {
+        try {
+          const blob = await put(safeFile.name, safeFile, {
+            access: "public",
+            addRandomSuffix: true,
+          });
+          blobUrl = blob.url;
+          pathname = blob.pathname;
+        } catch (blobErr) {
+          console.warn(
+            "[media] Vercel blob put failed, falling back to local storage:",
+            blobErr,
+          );
+          const uploadsDir = path.join(process.cwd(), "public", "uploads");
+          await fs.mkdir(uploadsDir, { recursive: true });
+          const filePath = path.join(uploadsDir, uniqueLocalName);
+          await fs.writeFile(filePath, fileBuffer);
+          blobUrl = `/uploads/${uniqueLocalName}`;
+          pathname = `/uploads/${uniqueLocalName}`;
+        }
+      } else {
+        // Local storage fallback when BLOB_READ_WRITE_TOKEN is not configured
+        try {
+          const uploadsDir = path.join(process.cwd(), "public", "uploads");
+          await fs.mkdir(uploadsDir, { recursive: true });
+          const filePath = path.join(uploadsDir, uniqueLocalName);
+          await fs.writeFile(filePath, fileBuffer);
+          blobUrl = `/uploads/${uniqueLocalName}`;
+          pathname = `/uploads/${uniqueLocalName}`;
+        } catch (fsErr) {
+          console.warn(
+            "[media] filesystem write failed, using data URL fallback:",
+            fsErr,
+          );
+          const base64 = fileBuffer.toString("base64");
+          blobUrl = `data:${file.type};base64,${base64}`;
+          pathname = safeName;
+        }
+      }
+
+      // Save metadata to DB
+      const [asset] = await saveMediaAsset({
+        blobUrl,
+        pathname,
+        name: safeName,
+        type: file.type,
+        size: file.size,
+        uploadedBy: userId,
+      });
+
+      if (asset) {
+        savedAssets.push(asset);
+      }
+    } catch (err) {
+      console.error("[media] upload failed for file:", file.name, err);
+      return NextResponse.json(
+        { success: false, message: `Upload failed for ${file.name}` },
+        { status: 500 },
+      );
+    }
   }
 
-  if (!ALLOWED_TYPES.has(file.type)) {
+  return NextResponse.json({
+    success: true,
+    asset: savedAssets[0],
+    data: savedAssets.map((a) => ({
+      src: a.blobUrl,
+      name: a.name,
+      type: a.type,
+    })),
+  });
+}
+
+export async function DELETE(req: NextRequest) {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) {
     return NextResponse.json(
-      {
-        success: false,
-        message:
-          "Unsupported file type. Allowed: JPEG, PNG, WebP, GIF, MP4, WebM.",
-      },
-      { status: 400 },
+      { success: false, message: "Unauthorized" },
+      { status: 401 },
     );
   }
 
   try {
-    // Create a new File with a sanitized name
-    const safeName = sanitizeFilename(file.name);
-    const safeFile = new File([file], safeName, { type: file.type });
+    let src = "";
+    let id = "";
 
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
-    const ext = path.extname(safeName);
-    const base = path.basename(safeName, ext);
-    const uniqueLocalName = `${base}-${Date.now()}${ext}`;
+    try {
+      const body = await req.json();
+      src = body.src || "";
+      id = body.id || "";
+    } catch {
+      const url = new URL(req.url);
+      src = url.searchParams.get("src") || "";
+      id = url.searchParams.get("id") || "";
+    }
 
-    let blobUrl: string;
-    let pathname: string;
+    if (!src && !id) {
+      return NextResponse.json(
+        { success: false, message: "Asset src or id required" },
+        { status: 400 },
+      );
+    }
 
-    if (process.env.BLOB_READ_WRITE_TOKEN) {
+    // If local file, attempt to remove from disk
+    if (src.startsWith("/uploads/")) {
       try {
-        const blob = await put(safeFile.name, safeFile, {
-          access: "public",
-          addRandomSuffix: true,
-        });
-        blobUrl = blob.url;
-        pathname = blob.pathname;
-      } catch (blobErr) {
-        console.warn(
-          "[media] Vercel blob put failed, falling back to local storage:",
-          blobErr,
-        );
-        const uploadsDir = path.join(process.cwd(), "public", "uploads");
-        await fs.mkdir(uploadsDir, { recursive: true });
-        const filePath = path.join(uploadsDir, uniqueLocalName);
-        await fs.writeFile(filePath, fileBuffer);
-        blobUrl = `/uploads/${uniqueLocalName}`;
-        pathname = `/uploads/${uniqueLocalName}`;
+        const localPath = path.join(process.cwd(), "public", src);
+        await fs.unlink(localPath);
+      } catch (err) {
+        console.warn("[media] Local file delete notice:", err);
       }
-    } else {
-      // Local storage fallback when BLOB_READ_WRITE_TOKEN is not configured
+    } else if (
+      src.includes("public.blob.vercel-storage.com") &&
+      process.env.BLOB_READ_WRITE_TOKEN
+    ) {
       try {
-        const uploadsDir = path.join(process.cwd(), "public", "uploads");
-        await fs.mkdir(uploadsDir, { recursive: true });
-        const filePath = path.join(uploadsDir, uniqueLocalName);
-        await fs.writeFile(filePath, fileBuffer);
-        blobUrl = `/uploads/${uniqueLocalName}`;
-        pathname = `/uploads/${uniqueLocalName}`;
-      } catch (fsErr) {
-        console.warn(
-          "[media] filesystem write failed, using data URL fallback:",
-          fsErr,
-        );
-        const base64 = fileBuffer.toString("base64");
-        blobUrl = `data:${file.type};base64,${base64}`;
-        pathname = safeName;
+        const { del } = await import("@vercel/blob");
+        await del(src);
+      } catch (err) {
+        console.warn("[media] Vercel blob delete notice:", err);
       }
     }
 
-    // Save metadata to DB
-    const [asset] = await saveMediaAsset({
-      blobUrl,
-      pathname,
-      name: safeName,
-      type: file.type,
-      size: file.size,
-      uploadedBy: userId,
-    });
+    // Delete record from DB
+    const deleted = await deleteMediaAsset(id || src);
 
     return NextResponse.json({
       success: true,
-      asset,
-      data: [
-        {
-          src: blobUrl,
-          name: safeName,
-          type: file.type,
-        },
-      ],
+      message: "Asset deleted successfully",
+      deleted,
     });
   } catch (err) {
-    console.error("[media] upload failed:", err);
+    console.error("[media] Delete asset failed:", err);
     return NextResponse.json(
-      { success: false, message: "Upload failed" },
+      { success: false, message: "Failed to delete asset" },
       { status: 500 },
     );
   }

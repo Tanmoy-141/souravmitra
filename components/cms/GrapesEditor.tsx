@@ -431,9 +431,19 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                 command: "open-assets",
                 label: "🖼️ Change Image",
               },
+              {
+                attributes: { title: "Remove Image from page" },
+                command: "remove-image-component",
+                label: "🗑️ Remove Image",
+              },
               ...defaultToolbar,
             ]);
           }
+        } else if (
+          component.is("link") ||
+          component.get("tagName")?.toLowerCase() === "a"
+        ) {
+          setActiveRightTab("traits");
         } else if (
           component.is("testimonials-carousel") ||
           component.closest?.('[data-cms-block="testimonials-carousel"]')
@@ -524,6 +534,70 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             err,
           );
         });
+
+      /*
+       * Synchronize asset deletion with /api/media
+       */
+      editor.on("asset:remove", async (asset) => {
+        const src = asset.get
+          ? asset.get("src")
+          : (asset as { src?: string }).src;
+        if (!src) return;
+        try {
+          await fetch("/api/media", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ src }),
+          });
+        } catch (err) {
+          console.error("Failed to delete asset from server:", err);
+        }
+      });
+
+      /*
+       * Command to remove the currently selected image component from canvas
+       */
+      editor.Commands.add("remove-image-component", {
+        run: (ed) => {
+          const selected = ed.getSelected();
+          if (selected) {
+            selected.remove();
+          }
+        },
+      });
+
+      /*
+       * When AssetManager opens for an image, add a 'Remove Image from Page' option in the modal header
+       */
+      editor.on("run:open-assets", () => {
+        const selected = editor.getSelected();
+        if (selected && selected.is("image")) {
+          setTimeout(() => {
+            const header = document.querySelector(".gjs-mdl-header");
+            if (header && !header.querySelector(".gjs-custom-remove-img-btn")) {
+              const removeBtn = document.createElement("button");
+              removeBtn.className = "gjs-custom-remove-img-btn";
+              removeBtn.type = "button";
+              removeBtn.innerHTML = "🗑️ Remove Image from Page";
+              removeBtn.style.cssText =
+                "margin-left: 16px; padding: 4px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; background: #2a1111; color: #ff6b6b; border: 1px solid #6b2222; border-radius: 3px; cursor: pointer; transition: all 0.2s;";
+              removeBtn.onmouseenter = () => {
+                removeBtn.style.background = "#d32f2f";
+                removeBtn.style.color = "#ffffff";
+              };
+              removeBtn.onmouseleave = () => {
+                removeBtn.style.background = "#2a1111";
+                removeBtn.style.color = "#ff6b6b";
+              };
+              removeBtn.onclick = () => {
+                selected.remove();
+                editor.Modal.close();
+              };
+              header.appendChild(removeBtn);
+            }
+          }, 80);
+        }
+      });
 
       /*
        * GrapesJS device commands.
@@ -1052,7 +1126,90 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       });
 
       /*
-       * Basic Image block
+       * Basic: Text block
+       */
+      bm.add("text-block", {
+        label: "Text",
+        category: "Basic",
+        content: {
+          type: "text",
+          content:
+            "Enter your custom text here. Click to edit or format text directly.",
+          style: {
+            padding: "0.5rem 0",
+            color: "#d1d5db",
+            "font-size": "1.05rem",
+            "line-height": "1.7",
+            "margin-bottom": "1rem",
+          },
+        },
+      });
+
+      /*
+       * Basic: Heading block
+       */
+      bm.add("heading-block", {
+        label: "Heading",
+        category: "Basic",
+        content: {
+          type: "text",
+          tagName: "h2",
+          content: "Section Heading",
+          style: {
+            "font-family": "serif",
+            "font-size": "2.25rem",
+            color: "#ffffff",
+            "margin-bottom": "1rem",
+            "line-height": "1.2",
+          },
+        },
+      });
+
+      /*
+       * Basic: Button / Link block
+       */
+      bm.add("link-button-block", {
+        label: "Button / Link",
+        category: "Basic",
+        content: {
+          type: "link",
+          content: "Explore Work &rarr;",
+          attributes: { href: "#" },
+          style: {
+            display: "inline-block",
+            padding: "0.85rem 2.25rem",
+            "background-color": "#C5A059",
+            color: "#000000",
+            "font-weight": "700",
+            "text-transform": "uppercase",
+            "letter-spacing": "0.15em",
+            "font-size": "0.75rem",
+            "text-decoration": "none",
+            "border-radius": "2px",
+          },
+        },
+      });
+
+      /*
+       * Basic: Text Link block
+       */
+      bm.add("text-link-block", {
+        label: "Text Link",
+        category: "Basic",
+        content: {
+          type: "link",
+          content: "Clickable Link Text",
+          attributes: { href: "#" },
+          style: {
+            color: "#C5A059",
+            "text-decoration": "underline",
+            "font-size": "1rem",
+          },
+        },
+      });
+
+      /*
+       * Basic: Image block
        */
       bm.add("image-block", {
         label: "Image",
@@ -1065,6 +1222,97 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             height: "auto",
           },
         },
+      });
+
+      /*
+       * Basic: Quote Box block
+       */
+      bm.add("quote-box-block", {
+        label: "Quote Box",
+        category: "Basic",
+        content: `
+        <div style="padding: 2.5rem; background: #0a0a0a; border-left: 3px solid #C5A059; margin: 2rem auto; max-width: 800px; box-sizing: border-box;">
+          <blockquote style="font-size: 1.35rem; font-family: serif; font-style: italic; color: #e5e5e5; margin: 0 0 1rem 0; line-height: 1.5;">
+            "Add an inspiring quote or highlight excerpt here."
+          </blockquote>
+          <p style="color: #C5A059; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.15em; margin: 0; font-weight: bold;">
+            &mdash; Author or Source
+          </p>
+        </div>
+      `,
+      });
+
+      /*
+       * Basic: Divider / Spacer block
+       */
+      bm.add("divider-block", {
+        label: "Divider",
+        category: "Basic",
+        content: `
+        <div style="padding: 2.5rem 0; width: 100%; max-width: 1100px; margin: 0 auto; box-sizing: border-box;">
+          <hr style="border: none; border-top: 1px solid rgba(255, 255, 255, 0.15); margin: 0;" />
+        </div>
+      `,
+      });
+
+      /*
+       * Layout: Container / Section block
+       */
+      bm.add("container-block", {
+        label: "Container",
+        category: "Layout",
+        content: `
+        <section style="padding: 4rem 1.5rem; width: 100%; min-height: 160px; box-sizing: border-box;">
+          <div style="max-width: 1100px; margin: 0 auto; width: 100%; min-height: 100px; border: 1px dashed rgba(255,255,255,0.2); padding: 2rem; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; box-sizing: border-box; border-radius: 4px;">
+            <p style="color: #666; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.15em; margin: 0;">
+              Container &bull; Drop text, images, or blocks here
+            </p>
+          </div>
+        </section>
+      `,
+      });
+
+      /*
+       * Layout: 2 Columns block
+       */
+      bm.add("columns-2-block", {
+        label: "2 Columns",
+        category: "Layout",
+        content: `
+        <section style="padding: 3rem 1.5rem; width: 100%; max-width: 1100px; margin: 0 auto; box-sizing: border-box;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; width: 100%;">
+            <div style="min-height: 140px; padding: 1.5rem; background: #0d0d0d; border: 1px dashed rgba(255,255,255,0.15); border-radius: 4px; box-sizing: border-box;">
+              <p style="color: #666; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; text-align: center; margin: 0;">Column 1</p>
+            </div>
+            <div style="min-height: 140px; padding: 1.5rem; background: #0d0d0d; border: 1px dashed rgba(255,255,255,0.15); border-radius: 4px; box-sizing: border-box;">
+              <p style="color: #666; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; text-align: center; margin: 0;">Column 2</p>
+            </div>
+          </div>
+        </section>
+      `,
+      });
+
+      /*
+       * Layout: 3 Columns block
+       */
+      bm.add("columns-3-block", {
+        label: "3 Columns",
+        category: "Layout",
+        content: `
+        <section style="padding: 3rem 1.5rem; width: 100%; max-width: 1100px; margin: 0 auto; box-sizing: border-box;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; width: 100%;">
+            <div style="min-height: 140px; padding: 1.5rem; background: #0d0d0d; border: 1px dashed rgba(255,255,255,0.15); border-radius: 4px; box-sizing: border-box;">
+              <p style="color: #666; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; text-align: center; margin: 0;">Column 1</p>
+            </div>
+            <div style="min-height: 140px; padding: 1.5rem; background: #0d0d0d; border: 1px dashed rgba(255,255,255,0.15); border-radius: 4px; box-sizing: border-box;">
+              <p style="color: #666; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; text-align: center; margin: 0;">Column 2</p>
+            </div>
+            <div style="min-height: 140px; padding: 1.5rem; background: #0d0d0d; border: 1px dashed rgba(255,255,255,0.15); border-radius: 4px; box-sizing: border-box;">
+              <p style="color: #666; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; text-align: center; margin: 0;">Column 3</p>
+            </div>
+          </div>
+        </section>
+      `,
       });
 
       /*
@@ -1177,6 +1425,108 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       });
 
       /*
+       * Portfolio: Client Logos Section block (clean inline logos, matching bottom preferred appearance, full color)
+       */
+      bm.add("client-logos-block", {
+        label: "Client Logos Section",
+        category: "Portfolio",
+        content: `
+        <section style="padding: 4rem 1rem; background-color: #000000; width: 100%; box-sizing: border-box;">
+          <div style="max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; text-align: center;">
+            <h2 style="font-family: serif; font-size: 2rem; color: #FFFFFF; margin-bottom: 0.75rem; letter-spacing: 0.02em;">
+              Clients
+            </h2>
+            <div style="width: 2.5rem; height: 3px; background-color: #C5A059; margin-bottom: 3rem;"></div>
+            <div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 3rem; width: 100%;">
+              <div style="display: flex; flex-direction: column; align-items: center; width: 140px; padding: 0.5rem; text-align: center;">
+                <img 
+                  src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" 
+                  alt="Client Logo" 
+                  style="height: 48px; width: auto; max-width: 120px; object-fit: contain; margin-bottom: 0.75rem; display: block;"
+                />
+                <span style="font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; color: #d1d5db; font-weight: 500;">
+                  Penguin Random House
+                </span>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: center; width: 140px; padding: 0.5rem; text-align: center;">
+                <img 
+                  src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" 
+                  alt="Client Logo" 
+                  style="height: 48px; width: auto; max-width: 120px; object-fit: contain; margin-bottom: 0.75rem; display: block;"
+                />
+                <span style="font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; color: #d1d5db; font-weight: 500;">
+                  HarperCollins
+                </span>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: center; width: 140px; padding: 0.5rem; text-align: center;">
+                <img 
+                  src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" 
+                  alt="Client Logo" 
+                  style="height: 48px; width: auto; max-width: 120px; object-fit: contain; margin-bottom: 0.75rem; display: block;"
+                />
+                <span style="font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; color: #d1d5db; font-weight: 500;">
+                  Macmillan Publishers
+                </span>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: center; width: 140px; padding: 0.5rem; text-align: center;">
+                <img 
+                  src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" 
+                  alt="Client Logo" 
+                  style="height: 48px; width: auto; max-width: 120px; object-fit: contain; margin-bottom: 0.75rem; display: block;"
+                />
+                <span style="font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; color: #d1d5db; font-weight: 500;">
+                  Hachette Book Group
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+      `,
+      });
+
+      /*
+       * Portfolio: Single Brand Logo Item (drag-and-drop placeholder into any section/container)
+       */
+      bm.add("brand-logo-item-block", {
+        label: "Brand Logo Item",
+        category: "Portfolio",
+        content: `
+        <div style="display: inline-flex; flex-direction: column; align-items: center; width: 140px; padding: 0.5rem; text-align: center;">
+          <img 
+            src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" 
+            alt="Brand Logo" 
+            style="height: 48px; width: auto; max-width: 120px; object-fit: contain; margin-bottom: 0.75rem; display: block;"
+          />
+          <span style="font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; color: #d1d5db; font-weight: 500;">
+            Brand Name
+          </span>
+        </div>
+      `,
+      });
+
+      /*
+       * Layout: Brand Logos Container (placeholder container for dropping brand logos)
+       */
+      bm.add("brand-logos-container-block", {
+        label: "Brand Logos Container",
+        category: "Layout",
+        content: `
+        <div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2.5rem; width: 100%; min-height: 100px; padding: 2rem 1rem; border: 1px dashed rgba(197, 160, 89, 0.4); border-radius: 4px; box-sizing: border-box;">
+          <div style="display: flex; flex-direction: column; align-items: center; width: 140px; padding: 0.5rem; text-align: center;">
+            <img 
+              src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" 
+              alt="Brand Logo" 
+              style="height: 48px; width: auto; max-width: 120px; object-fit: contain; margin-bottom: 0.75rem; display: block;"
+            />
+            <span style="font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; color: #d1d5db; font-weight: 500;">
+              Brand Logo
+            </span>
+          </div>
+        </div>
+      `,
+      });
+
+      /*
        * Cleanup.
        *
        * Delayed slightly so React development
@@ -1265,9 +1615,37 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           .gjs-am-asset {
             border: 1px solid #333 !important;
             background: #181818 !important;
+            position: relative !important;
           }
           .gjs-am-asset:hover {
             border-color: #C5A059 !important;
+          }
+          .gjs-am-close {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            position: absolute !important;
+            top: 4px !important;
+            right: 4px !important;
+            width: 22px !important;
+            height: 22px !important;
+            background: rgba(0, 0, 0, 0.85) !important;
+            color: #ff5252 !important;
+            border: 1px solid #ff5252 !important;
+            border-radius: 50% !important;
+            font-size: 14px !important;
+            font-weight: bold !important;
+            opacity: 0.9 !important;
+            cursor: pointer !important;
+            z-index: 20 !important;
+            transition: all 0.2s ease !important;
+          }
+          .gjs-am-close:hover {
+            background: #d32f2f !important;
+            color: #ffffff !important;
+            border-color: #d32f2f !important;
+            opacity: 1 !important;
+            transform: scale(1.15) !important;
           }
           .gjs-traits-container input, .gjs-traits-container select {
             background-color: #141414 !important;
@@ -1300,15 +1678,65 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             background-color: #1a1a1a !important;
             color: #C5A059 !important;
           }
+          /* Ensure preview devices toolbar stays in flex layout without overlapping header */
+          .panel__devices.gjs-pn-panel,
+          .panel__devices {
+            position: static !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            top: auto !important;
+            left: auto !important;
+            right: auto !important;
+            bottom: auto !important;
+            margin: 0 !important;
+            padding: 2px !important;
+            background: #141414 !important;
+            border: 1px solid #333 !important;
+            border-radius: 4px !important;
+          }
+          .panel__devices .gjs-pn-buttons {
+            position: static !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 2px !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .panel__devices .gjs-pn-btn {
+            position: static !important;
+            margin: 0 !important;
+            padding: 4px 10px !important;
+            font-size: 11px !important;
+            font-weight: 600 !important;
+            letter-spacing: 0.05em !important;
+            text-transform: uppercase !important;
+            color: #999 !important;
+            background: transparent !important;
+            border: 1px solid transparent !important;
+            border-radius: 3px !important;
+            cursor: pointer !important;
+            transition: all 0.15s ease !important;
+            line-height: normal !important;
+            height: auto !important;
+          }
+          .panel__devices .gjs-pn-btn:hover {
+            color: #fff !important;
+            background: #222 !important;
+          }
+          .panel__devices .gjs-pn-btn.gjs-pn-active {
+            color: #C5A059 !important;
+            background: #222 !important;
+            border-color: #383838 !important;
+          }
         `}</style>
-        <div className="flex items-center justify-between px-4 py-2 bg-[#0c0c0c] border-b border-[#222] text-xs text-gray-400 shrink-0">
-          <div className="flex items-center gap-4">
-            <span className="font-bold text-[#C5A059] uppercase tracking-widest">
-              Visual Editor (GrapesJS)
+        <div className="flex items-center justify-between px-4 py-2.5 bg-[#0c0c0c] border-b border-[#222] text-xs text-gray-400 shrink-0">
+          <div className="flex items-center gap-6">
+            <span className="font-bold text-[#C5A059] uppercase tracking-widest text-xs whitespace-nowrap select-none">
+              Visual Editor
             </span>
 
             <div
-              className="panel__devices relative z-20 flex gap-1 rounded-sm border border-[#333] bg-[#141414] p-1 shadow-lg"
+              className="panel__devices flex items-center gap-1 rounded border border-[#333] bg-[#141414] p-0.5"
               role="group"
               aria-label="Preview viewport"
             />

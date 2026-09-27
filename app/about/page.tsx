@@ -3,7 +3,7 @@ import { pages } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { sanitizeHtml, safeCssForStyleTag } from "@/lib/sanitize";
-import ClientsSection from "@/components/ClientsSection";
+import CmsDynamicBlockPortal from "@/components/cms/CmsDynamicBlockPortal";
 
 export const dynamic = "force-dynamic";
 
@@ -30,16 +30,11 @@ export default async function AboutPage() {
   const safeHtml = sanitizeHtml(page.htmlCache || "");
 
   return (
-    <>
+    <main className="min-h-screen pb-24">
       {page.cssCache && <style>{safeCssForStyleTag(page.cssCache)}</style>}
-      <article
-        id="cms-page-content"
-        className="prose dark:prose-invert max-w-none"
-        dangerouslySetInnerHTML={{ __html: safeHtml }}
-      />
-      <div className="py-12">
-        <ClientsSection />
+      <div id="cms-page-content" className="w-full" suppressHydrationWarning>
+        <CmsDynamicBlockPortal html={safeHtml} />
       </div>
-    </>
+    </main>
   );
 }

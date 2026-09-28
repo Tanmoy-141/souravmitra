@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import grapesjs from "grapesjs";
-import type { Editor, ToolbarButtonProps } from "grapesjs";
+import type { Editor, ToolbarButtonProps, Component } from "grapesjs";
 import "grapesjs/dist/css/grapes.min.css";
 type GrapesProjectData = ReturnType<Editor["getProjectData"]>;
 
@@ -129,6 +129,9 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
 
     const destroyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    const onSaveRef = useRef(onSave);
+    onSaveRef.current = onSave;
+
     const [activeRightTab, setActiveRightTab] = useState<
       "styles" | "traits" | "layers"
     >("styles");
@@ -216,13 +219,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           upload: "/api/media",
           uploadName: "file",
           autoAdd: true,
-          assets: [
-            {
-              src: "https://static.wixstatic.com/media/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg/v1/fill/w_1920,h_1080,al_c,q_90,enc_avif,quality_auto/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg",
-              name: "Hero Default Artwork",
-              type: "image",
-            },
-          ],
+          assets: [],
         },
 
         traitManager: {
@@ -415,28 +412,47 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
 
       editorRef.current = editor;
 
+      let lastSelectedImageComponent: Component | null = null;
+
       /*
        * When an image or dynamic carousel component is selected, switch right sidebar to Settings/Traits
        * and ensure quick edit buttons are available in the toolbar
        */
       editor.on("component:selected", (component) => {
-        if (component.is("image")) {
+        if (
+          component.is("image") ||
+          component.get("tagName")?.toLowerCase() === "img" ||
+          (component.find && component.find("img").length > 0)
+        ) {
+          lastSelectedImageComponent =
+            component.is("image") ||
+            component.get("tagName")?.toLowerCase() === "img"
+              ? component
+              : component.find("img")[0];
+
           setActiveRightTab("traits");
           const defaultToolbar = (component.get("toolbar") ||
             []) as ToolbarButtonProps[];
           if (!defaultToolbar.some((item) => item.command === "open-assets")) {
+            const filteredDefaults = defaultToolbar.filter(
+              (item) =>
+                item.command !== "core:component-delete" &&
+                item.command !== "tlb-delete",
+            );
             component.set("toolbar", [
               {
+                id: "change-image",
                 attributes: { title: "Change / Upload Image" },
                 command: "open-assets",
                 label: "🖼️ Change Image",
               },
+              ...filteredDefaults,
               {
+                id: "remove-image",
                 attributes: { title: "Remove Image from page" },
                 command: "remove-image-component",
-                label: "🗑️ Remove Image",
+                label: "🗑️ Remove",
               },
-              ...defaultToolbar,
             ]);
           }
         } else if (
@@ -462,6 +478,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           ) {
             target.set("toolbar", [
               {
+                id: "edit-testimonials",
                 attributes: { title: "Edit Carousel Slides & Quotes" },
                 command: "open-testimonials-editor",
                 label: "💬 Edit Carousel",
@@ -487,6 +504,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           ) {
             target.set("toolbar", [
               {
+                id: "edit-project-carousel",
                 attributes: { title: "Edit Projects Carousel Heading" },
                 command: "open-project-carousel-editor",
                 label: "🖼️ Edit Heading",
@@ -512,30 +530,6 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       });
 
       /*
-       * Preload uploaded media from /api/media into AssetManager
-       */
-      fetch("/api/media")
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data?.assets && Array.isArray(data.assets)) {
-            const existingAssets = data.assets.map(
-              (a: { blobUrl: string; name?: string; type?: string }) => ({
-                src: a.blobUrl,
-                name: a.name || "Uploaded Media",
-                type: a.type?.startsWith("video") ? "video" : "image",
-              }),
-            );
-            editor.AssetManager.add(existingAssets);
-          }
-        })
-        .catch((err) => {
-          console.error(
-            "Failed to load existing media assets for GrapesJS:",
-            err,
-          );
-        });
-
-      /*
        * Synchronize asset deletion with /api/media
        */
       editor.on("asset:remove", async (asset) => {
@@ -559,7 +553,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
        */
       editor.Commands.add("remove-image-component", {
         run: (ed) => {
-          const selected = ed.getSelected();
+          const selected = ed.getSelected() || lastSelectedImageComponent;
           if (selected) {
             selected.remove();
           }
@@ -567,36 +561,505 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       });
 
       /*
-       * When AssetManager opens for an image, add a 'Remove Image from Page' option in the modal header
+       * Active Image Asset Manager with explicit Save button & footer bar.
+       * Only loads the current/active image and newly uploaded image — no unrelated image clutter.
        */
-      editor.on("run:open-assets", () => {
-        const selected = editor.getSelected();
-        if (selected && selected.is("image")) {
-          setTimeout(() => {
-            const header = document.querySelector(".gjs-mdl-header");
-            if (header && !header.querySelector(".gjs-custom-remove-img-btn")) {
-              const removeBtn = document.createElement("button");
-              removeBtn.className = "gjs-custom-remove-img-btn";
-              removeBtn.type = "button";
-              removeBtn.innerHTML = "🗑️ Remove Image from Page";
-              removeBtn.style.cssText =
-                "margin-left: 16px; padding: 4px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; background: #2a1111; color: #ff6b6b; border: 1px solid #6b2222; border-radius: 3px; cursor: pointer; transition: all 0.2s;";
-              removeBtn.onmouseenter = () => {
-                removeBtn.style.background = "#d32f2f";
-                removeBtn.style.color = "#ffffff";
-              };
-              removeBtn.onmouseleave = () => {
-                removeBtn.style.background = "#2a1111";
-                removeBtn.style.color = "#ff6b6b";
-              };
-              removeBtn.onclick = () => {
-                selected.remove();
-                editor.Modal.close();
-              };
-              header.appendChild(removeBtn);
-            }
-          }, 80);
+      let modalActiveSrc = "";
+      let isManagingAssetCollection = false;
+      let isAssetModalOpen = false;
+
+      const getTargetImageComponent = (): Component | null => {
+        if (
+          lastSelectedImageComponent &&
+          (lastSelectedImageComponent.is?.("image") ||
+            lastSelectedImageComponent.get?.("tagName")?.toLowerCase() ===
+              "img")
+        ) {
+          return lastSelectedImageComponent;
         }
+        const selected = editor.getSelected();
+        if (
+          selected &&
+          (selected.is?.("image") ||
+            selected.get?.("tagName")?.toLowerCase() === "img")
+        ) {
+          lastSelectedImageComponent = selected;
+          return selected;
+        }
+        if (selected && selected.find?.("img")?.length) {
+          lastSelectedImageComponent = selected.find("img")[0];
+          return lastSelectedImageComponent;
+        }
+        // Fallback: look for hero artwork img in canvas
+        const heroImg = editor
+          .getWrapper()
+          ?.find?.(
+            'img[alt*="Hero"], img[src*="static.wixstatic.com"], section img',
+          )?.[0];
+        if (heroImg) {
+          lastSelectedImageComponent = heroImg;
+          return heroImg;
+        }
+        return null;
+      };
+
+      const getAssetSrcFromCard = (cardEl: HTMLElement): string => {
+        const preview = cardEl.querySelector(".gjs-am-preview") as HTMLElement;
+        if (preview) {
+          const bg =
+            preview.style.backgroundImage ||
+            window.getComputedStyle(preview).backgroundImage;
+          if (bg && bg !== "none") {
+            const match = bg.match(/url\(['"]?(.*?)['"]?\)/);
+            if (match && match[1]) {
+              return match[1];
+            }
+          }
+        }
+        const img = cardEl.querySelector("img");
+        if (img && img.src) return img.src;
+        const dataSrc =
+          cardEl.getAttribute("data-src") || cardEl.getAttribute("data-url");
+        if (dataSrc) return dataSrc;
+        return "";
+      };
+
+      // Updates only the active selection indicators (footer & card highlights)
+      const updateActiveUI = (src: string) => {
+        modalActiveSrc = src;
+        const dialog = document.querySelector(".gjs-mdl-dialog");
+        if (!dialog) return;
+
+        const fileName = src ? src.split("/").pop() || "Active Image" : "None";
+
+        const footerThumb = dialog.querySelector(
+          ".gjs-custom-active-thumb",
+        ) as HTMLImageElement | null;
+        const footerName = dialog.querySelector(
+          ".gjs-custom-active-name",
+        ) as HTMLElement | null;
+
+        if (footerThumb) {
+          if (src) {
+            footerThumb.src = src;
+            footerThumb.style.display = "block";
+          } else {
+            footerThumb.style.display = "none";
+          }
+        }
+        if (footerName) {
+          footerName.textContent = fileName;
+          footerName.setAttribute("title", src);
+        }
+
+        // Highlight corresponding card
+        dialog.querySelectorAll(".gjs-am-asset").forEach((card) => {
+          const cardEl = card as HTMLElement;
+          const cardSrc = getAssetSrcFromCard(cardEl);
+          if (cardSrc && cardSrc === src) {
+            cardEl.classList.add("gjs-custom-active-card");
+            cardEl.style.outline = "2px solid #C5A059";
+            cardEl.style.outlineOffset = "2px";
+            cardEl.style.boxShadow = "0 0 14px rgba(197, 160, 89, 0.45)";
+          } else {
+            cardEl.classList.remove("gjs-custom-active-card");
+            cardEl.style.outline = "";
+            cardEl.style.outlineOffset = "";
+            cardEl.style.boxShadow = "";
+          }
+        });
+      };
+
+      const applyAndSaveImage = (srcToApply?: string) => {
+        const finalSrc = srcToApply || modalActiveSrc;
+        if (!finalSrc) {
+          alert("Please select or upload an image first.");
+          return;
+        }
+        const comp = getTargetImageComponent();
+        if (comp) {
+          comp.set("src", finalSrc);
+          comp.addAttributes({ src: finalSrc });
+        }
+        editor.trigger("change:canvas");
+
+        // Persist draft immediately if onSave callback is provided
+        if (onSaveRef.current) {
+          const projectData = editor.getProjectData();
+          const html = editor.getHtml() ?? "";
+          const css = editor.getCss() ?? "";
+          onSaveRef.current(projectData, html, css);
+        }
+
+        editor.Modal.close();
+      };
+
+      // Injects Header Save button and Footer bar into modal safely
+      const injectModalControls = () => {
+        const dialog = document.querySelector(
+          ".gjs-mdl-dialog",
+        ) as HTMLElement | null;
+        const header = document.querySelector(
+          ".gjs-mdl-header",
+        ) as HTMLElement | null;
+        if (!dialog || !header) return;
+
+        // Verify this is the Asset Manager modal
+        const isAssetModal =
+          Boolean(
+            dialog.querySelector(
+              ".gjs-am-file-uploader, .gjs-am-assets-cont, .gjs-am-assets, [data-open-assets]",
+            ),
+          ) ||
+          (dialog.querySelector(".gjs-mdl-title")?.textContent || "")
+            .toLowerCase()
+            .includes("image");
+
+        if (!isAssetModal) return;
+
+        // 1. Header: "Save Image" and "Remove Image" buttons
+        let headerActions = header.querySelector(
+          ".gjs-custom-header-actions",
+        ) as HTMLElement | null;
+        if (!headerActions) {
+          headerActions = document.createElement("div");
+          headerActions.className = "gjs-custom-header-actions";
+          headerActions.style.cssText =
+            "display: inline-flex; align-items: center; gap: 8px; margin-left: auto; margin-right: 12px;";
+
+          const headerSaveBtn = document.createElement("button");
+          headerSaveBtn.className = "gjs-custom-save-img-btn";
+          headerSaveBtn.type = "button";
+          headerSaveBtn.innerHTML = "💾 Save Image";
+          headerSaveBtn.title = "Save and apply selected active image";
+          headerSaveBtn.style.cssText =
+            "padding: 6px 18px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; background: #C5A059; color: #000000; border: 1px solid #C5A059; border-radius: 3px; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px rgba(197, 160, 89, 0.35);";
+          headerSaveBtn.onmouseenter = () => {
+            headerSaveBtn.style.background = "#dfb96e";
+          };
+          headerSaveBtn.onmouseleave = () => {
+            headerSaveBtn.style.background = "#C5A059";
+          };
+          headerSaveBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            applyAndSaveImage();
+          };
+
+          const headerRemoveBtn = document.createElement("button");
+          headerRemoveBtn.className = "gjs-custom-remove-img-btn";
+          headerRemoveBtn.type = "button";
+          headerRemoveBtn.innerHTML = "🗑️ Remove Image";
+          headerRemoveBtn.title = "Remove image from page";
+          headerRemoveBtn.style.cssText =
+            "padding: 6px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; background: #2a1111; color: #ff6b6b; border: 1px solid #6b2222; border-radius: 3px; cursor: pointer; transition: all 0.2s;";
+          headerRemoveBtn.onmouseenter = () => {
+            headerRemoveBtn.style.background = "#d32f2f";
+            headerRemoveBtn.style.color = "#ffffff";
+          };
+          headerRemoveBtn.onmouseleave = () => {
+            headerRemoveBtn.style.background = "#2a1111";
+            headerRemoveBtn.style.color = "#ff6b6b";
+          };
+          headerRemoveBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const comp = getTargetImageComponent();
+            if (comp) {
+              comp.remove();
+            }
+            editor.trigger("change:canvas");
+            if (onSaveRef.current) {
+              onSaveRef.current(
+                editor.getProjectData(),
+                editor.getHtml() ?? "",
+                editor.getCss() ?? "",
+              );
+            }
+            editor.Modal.close();
+          };
+
+          headerActions.appendChild(headerSaveBtn);
+          headerActions.appendChild(headerRemoveBtn);
+
+          const closeBtn = header.querySelector(".gjs-mdl-btn-close");
+          if (closeBtn) {
+            header.insertBefore(headerActions, closeBtn);
+          } else {
+            header.appendChild(headerActions);
+          }
+        }
+
+        // 2. Footer Bar with Active Thumbnail & Save Button
+        let footer = dialog.querySelector(
+          ".gjs-custom-modal-footer",
+        ) as HTMLElement | null;
+        if (!footer) {
+          footer = document.createElement("div");
+          footer.className = "gjs-custom-modal-footer";
+          footer.style.cssText =
+            "display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-top: 1px solid #282828; background: #0e0e0e; border-radius: 0 0 6px 6px; box-sizing: border-box; width: 100%; margin-top: 8px;";
+
+          const activeInfo = document.createElement("div");
+          activeInfo.className = "gjs-custom-active-container";
+          activeInfo.style.cssText =
+            "display: flex; align-items: center; gap: 12px; font-size: 12px; color: #ccc;";
+
+          const fileName = modalActiveSrc
+            ? modalActiveSrc.split("/").pop() || "Active Image"
+            : "None";
+
+          activeInfo.innerHTML = `
+            <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; font-weight: 700;">Selected:</span>
+            <img class="gjs-custom-active-thumb" src="${modalActiveSrc || ""}" style="width: 36px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid #C5A059; display: ${modalActiveSrc ? "block" : "none"};" />
+            <div style="display: flex; flex-direction: column;">
+              <span class="gjs-custom-active-name" style="max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; font-size: 11px; font-weight: 600;" title="${modalActiveSrc}">${fileName}</span>
+              <span style="font-size: 10px; color: #888;">Click Save to apply to page</span>
+            </div>
+          `;
+
+          const footerActions = document.createElement("div");
+          footerActions.style.cssText =
+            "display: flex; align-items: center; gap: 10px;";
+
+          const cancelBtn = document.createElement("button");
+          cancelBtn.type = "button";
+          cancelBtn.innerHTML = "Cancel";
+          cancelBtn.style.cssText =
+            "padding: 7px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: #222; color: #bbb; border: 1px solid #444; border-radius: 3px; cursor: pointer; transition: all 0.2s;";
+          cancelBtn.onmouseenter = () => {
+            cancelBtn.style.background = "#333";
+            cancelBtn.style.color = "#fff";
+          };
+          cancelBtn.onmouseleave = () => {
+            cancelBtn.style.background = "#222";
+            cancelBtn.style.color = "#bbb";
+          };
+          cancelBtn.onclick = (e) => {
+            e.preventDefault();
+            editor.Modal.close();
+          };
+
+          const footerSaveBtn = document.createElement("button");
+          footerSaveBtn.className = "gjs-custom-footer-save-btn";
+          footerSaveBtn.type = "button";
+          footerSaveBtn.innerHTML = "💾 Save &amp; Apply Image";
+          footerSaveBtn.style.cssText =
+            "padding: 7px 22px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; background: #C5A059; color: #000; border: 1px solid #C5A059; border-radius: 3px; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 10px rgba(197, 160, 89, 0.35);";
+          footerSaveBtn.onmouseenter = () => {
+            footerSaveBtn.style.background = "#dfb96e";
+          };
+          footerSaveBtn.onmouseleave = () => {
+            footerSaveBtn.style.background = "#C5A059";
+          };
+          footerSaveBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            applyAndSaveImage();
+          };
+
+          footerActions.appendChild(cancelBtn);
+          footerActions.appendChild(footerSaveBtn);
+
+          footer.appendChild(activeInfo);
+          footer.appendChild(footerActions);
+          dialog.appendChild(footer);
+        }
+
+        // 3. Card click & delete listener in the modal (bound only once via attribute)
+        if (!dialog.getAttribute("data-custom-handlers-bound")) {
+          dialog.setAttribute("data-custom-handlers-bound", "true");
+
+          // Capture phase to intercept card removal BEFORE GrapesJS throws undefined error
+          dialog.addEventListener(
+            "click",
+            (e) => {
+              const removeBtn = (e.target as HTMLElement).closest(
+                "[data-toggle='asset-remove'], .gjs-am-close",
+              );
+              if (!removeBtn) return;
+
+              e.stopPropagation();
+              e.preventDefault();
+
+              const card = removeBtn.closest(
+                ".gjs-am-asset",
+              ) as HTMLElement | null;
+              if (card) {
+                const src = getAssetSrcFromCard(card);
+                card.remove();
+
+                if (src && modalActiveSrc === src) {
+                  modalActiveSrc = "";
+                  updateActiveUI("");
+                }
+
+                if (src) {
+                  const am = editor.AssetManager;
+                  const found = am
+                    .getAll()
+                    .find(
+                      (a: { get?: (prop: string) => string; src?: string }) => {
+                        const s = a.get ? a.get("src") : a.src;
+                        return s === src;
+                      },
+                    );
+                  if (found) {
+                    am.getAll().remove(found);
+                  }
+
+                  fetch("/api/media", {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ src }),
+                  }).catch(() => {});
+                }
+              }
+            },
+            true, // Capture phase!
+          );
+
+          // Card selection click
+          dialog.addEventListener("click", (e) => {
+            const card = (e.target as HTMLElement).closest(
+              ".gjs-am-asset",
+            ) as HTMLElement | null;
+            if (!card) return;
+            if (
+              (e.target as HTMLElement).closest(
+                "[data-toggle='asset-remove'], .gjs-am-close",
+              )
+            ) {
+              return;
+            }
+            const src = getAssetSrcFromCard(card);
+            if (src) {
+              updateActiveUI(src);
+            }
+          });
+
+          // Card double click -> apply & save immediately
+          dialog.addEventListener("dblclick", (e) => {
+            const card = (e.target as HTMLElement).closest(
+              ".gjs-am-asset",
+            ) as HTMLElement | null;
+            if (!card) return;
+            if (
+              (e.target as HTMLElement).closest(
+                "[data-toggle='asset-remove'], .gjs-am-close",
+              )
+            ) {
+              return;
+            }
+            const src = getAssetSrcFromCard(card);
+            if (src) {
+              updateActiveUI(src);
+              applyAndSaveImage(src);
+            }
+          });
+        }
+
+        if (modalActiveSrc) {
+          updateActiveUI(modalActiveSrc);
+        }
+      };
+
+      const triggerModalInjection = () => {
+        injectModalControls();
+        setTimeout(injectModalControls, 50);
+        setTimeout(injectModalControls, 150);
+        setTimeout(injectModalControls, 350);
+      };
+
+      // Called when user opens the asset manager modal
+      const handleOpenAssetManager = (targetComp?: Component | null) => {
+        if (isAssetModalOpen) {
+          triggerModalInjection();
+          return;
+        }
+        isAssetModalOpen = true;
+
+        const target = targetComp || getTargetImageComponent();
+        const currentSrc = target
+          ? target.get("src") ||
+            (target.getAttributes() as Record<string, string>)?.src ||
+            ""
+          : "";
+
+        modalActiveSrc = currentSrc;
+
+        const am = editor.AssetManager;
+        if (am) {
+          isManagingAssetCollection = true;
+          try {
+            // Keep ONLY the current active image in the asset list — no clutter from other images
+            am.getAll().reset([]);
+            if (currentSrc) {
+              am.add({
+                src: currentSrc,
+                name: "Current Artwork",
+                type: "image",
+              });
+            }
+          } finally {
+            isManagingAssetCollection = false;
+          }
+        }
+
+        triggerModalInjection();
+      };
+
+      // Listen for newly uploaded assets
+      editor.on(
+        "asset:add",
+        (asset: { get?: (prop: string) => string; src?: string }) => {
+          // If we are resetting the collection ourselves, DO NOT recurse!
+          if (isManagingAssetCollection) return;
+
+          const src = asset.get ? asset.get("src") : asset.src;
+          if (src) {
+            modalActiveSrc = src;
+            updateActiveUI(src);
+          }
+          triggerModalInjection();
+        },
+      );
+
+      editor.on("command:run:open-assets", (data) => {
+        const options = (data as { options?: { target?: Component } })?.options;
+        if (options && options.target) {
+          lastSelectedImageComponent = options.target || null;
+        }
+        handleOpenAssetManager(lastSelectedImageComponent);
+      });
+
+      editor.on("asset:open", () => {
+        handleOpenAssetManager(lastSelectedImageComponent);
+      });
+
+      editor.on("modal:open", () => {
+        setTimeout(() => {
+          const dialog = document.querySelector(".gjs-mdl-dialog");
+          if (
+            dialog &&
+            (dialog.querySelector(
+              ".gjs-am-file-uploader, .gjs-am-assets-cont, .gjs-am-assets",
+            ) ||
+              (dialog.querySelector(".gjs-mdl-title")?.textContent || "")
+                .toLowerCase()
+                .includes("image"))
+          ) {
+            handleOpenAssetManager(lastSelectedImageComponent);
+          }
+        }, 15);
+      });
+
+      editor.on("modal:close", () => {
+        isAssetModalOpen = false;
+      });
+
+      editor.on("asset:close", () => {
+        isAssetModalOpen = false;
       });
 
       /*
@@ -1594,12 +2057,16 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             background-color: #121212 !important;
             border: 1px solid #333 !important;
             color: #fff !important;
-            border-radius: 4px !important;
-            max-width: 720px !important;
+            border-radius: 6px !important;
+            max-width: 760px !important;
+            overflow: hidden !important;
           }
           .gjs-mdl-header {
             border-bottom: 1px solid #222 !important;
             color: #C5A059 !important;
+            display: flex !important;
+            align-items: center !important;
+            padding: 10px 16px !important;
           }
           .gjs-am-file-uploader {
             border: 2px dashed #444 !important;
@@ -1616,9 +2083,31 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             border: 1px solid #333 !important;
             background: #181818 !important;
             position: relative !important;
+            cursor: pointer !important;
+            border-radius: 4px !important;
+            transition: all 0.2s ease !important;
           }
           .gjs-am-asset:hover {
             border-color: #C5A059 !important;
+          }
+          .gjs-am-asset.gjs-custom-active-card,
+          .gjs-am-asset.gjs-am-highlight,
+          .gjs-am-asset.gjs-highlight {
+            outline: 2px solid #C5A059 !important;
+            outline-offset: 2px !important;
+            box-shadow: 0 0 14px rgba(197, 160, 89, 0.45) !important;
+            border-color: #C5A059 !important;
+          }
+          .gjs-custom-save-img-btn {
+            background: #C5A059 !important;
+            color: #000000 !important;
+            border: 1px solid #C5A059 !important;
+            font-weight: 700 !important;
+            transition: all 0.2s ease !important;
+          }
+          .gjs-custom-save-img-btn:hover {
+            background: #dfb96e !important;
+            box-shadow: 0 3px 12px rgba(197, 160, 89, 0.5) !important;
           }
           .gjs-am-close {
             display: flex !important;
@@ -1727,6 +2216,161 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             color: #C5A059 !important;
             background: #222 !important;
             border-color: #383838 !important;
+          }
+
+          /* Professional floating toolbar styling & alignment (prevents overlapping) */
+          :root {
+            --gjs-color-blue: #C5A059 !important;
+          }
+
+          .gjs-toolbar {
+            position: absolute !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            background: #141414 !important;
+            background: linear-gradient(180deg, #1c1c1c 0%, #111111 100%) !important;
+            border: 1px solid rgba(197, 160, 89, 0.45) !important;
+            border-radius: 6px !important;
+            padding: 3px 4px !important;
+            gap: 3px !important;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75), 0 2px 6px rgba(0, 0, 0, 0.5) !important;
+            z-index: 100 !important;
+            white-space: nowrap !important;
+            box-sizing: border-box !important;
+            height: auto !important;
+            line-height: normal !important;
+            pointer-events: all !important;
+          }
+
+          .gjs-toolbar-item {
+            width: auto !important;
+            min-width: 28px !important;
+            height: 28px !important;
+            padding: 0 10px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 5px !important;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+            font-size: 11px !important;
+            font-weight: 600 !important;
+            letter-spacing: 0.03em !important;
+            color: #d8d8d8 !important;
+            background: #202020 !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 4px !important;
+            cursor: pointer !important;
+            transition: all 0.15s ease !important;
+            box-sizing: border-box !important;
+            white-space: nowrap !important;
+            user-select: none !important;
+            line-height: 1 !important;
+            margin: 0 !important;
+          }
+
+          .gjs-toolbar-item:hover {
+            background: #303030 !important;
+            color: #ffffff !important;
+            border-color: rgba(255, 255, 255, 0.2) !important;
+            transform: translateY(-1px) !important;
+          }
+
+          .gjs-toolbar-item:active {
+            transform: translateY(0) !important;
+          }
+
+          .gjs-toolbar-item svg {
+            width: 14px !important;
+            height: 14px !important;
+            fill: currentColor !important;
+            display: inline-block !important;
+            vertical-align: middle !important;
+            flex-shrink: 0 !important;
+          }
+
+          /* Primary Action Buttons (Change Image, Edit Carousel, Edit Heading) */
+          .gjs-toolbar-item__change-image,
+          .gjs-toolbar-item__edit-testimonials,
+          .gjs-toolbar-item__edit-project-carousel,
+          .gjs-toolbar-item[title*="Change"],
+          .gjs-toolbar-item[title*="Upload"],
+          .gjs-toolbar-item[title*="Edit"] {
+            background: #241c0e !important;
+            color: #C5A059 !important;
+            border: 1px solid rgba(197, 160, 89, 0.5) !important;
+            font-weight: 700 !important;
+          }
+
+          .gjs-toolbar-item__change-image:hover,
+          .gjs-toolbar-item__edit-testimonials:hover,
+          .gjs-toolbar-item__edit-project-carousel:hover,
+          .gjs-toolbar-item[title*="Change"]:hover,
+          .gjs-toolbar-item[title*="Upload"]:hover,
+          .gjs-toolbar-item[title*="Edit"]:hover {
+            background: #C5A059 !important;
+            color: #000000 !important;
+            border-color: #C5A059 !important;
+            box-shadow: 0 2px 8px rgba(197, 160, 89, 0.35) !important;
+          }
+
+          /* Destructive / Remove Action Buttons */
+          .gjs-toolbar-item__remove-image,
+          .gjs-toolbar-item[title*="Remove"],
+          .gjs-toolbar-item[title*="Delete"],
+          .gjs-toolbar-item__tlb-delete {
+            color: #ff7878 !important;
+            border-color: rgba(239, 68, 68, 0.25) !important;
+          }
+
+          .gjs-toolbar-item__remove-image:hover,
+          .gjs-toolbar-item[title*="Remove"]:hover,
+          .gjs-toolbar-item[title*="Delete"]:hover,
+          .gjs-toolbar-item__tlb-delete:hover {
+            background: #d32f2f !important;
+            color: #ffffff !important;
+            border-color: #d32f2f !important;
+            box-shadow: 0 2px 8px rgba(211, 47, 47, 0.4) !important;
+          }
+
+          /* Icon-only button padding */
+          .gjs-toolbar-item:has(svg:only-child) {
+            padding: 0 7px !important;
+            min-width: 28px !important;
+          }
+
+          /* Component Selection Badge (tag indicator on hover/select) */
+          .gjs-badge {
+            background-color: #161616 !important;
+            color: #C5A059 !important;
+            border: 1px solid rgba(197, 160, 89, 0.5) !important;
+            border-radius: 3px !important;
+            padding: 2px 6px !important;
+            font-size: 10px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.05em !important;
+            text-transform: uppercase !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6) !important;
+          }
+
+          /* Selection & Hover Outlines */
+          .gjs-cv-canvas .gjs-highlighter {
+            border: 1px dashed rgba(197, 160, 89, 0.6) !important;
+            outline: none !important;
+          }
+
+          .gjs-cv-canvas .gjs-com-selected,
+          .gjs-cv-canvas .gjs-selected {
+            outline: 2px solid #C5A059 !important;
+            outline-offset: -1px !important;
+          }
+
+          /* Resizer Handles (squares on edges) */
+          .gjs-resizer-h {
+            border: 1px solid #141414 !important;
+            background-color: #C5A059 !important;
+            border-radius: 2px !important;
+            width: 8px !important;
+            height: 8px !important;
           }
         `}</style>
         <div className="flex items-center justify-between px-4 py-2.5 bg-[#0c0c0c] border-b border-[#222] text-xs text-gray-400 shrink-0">

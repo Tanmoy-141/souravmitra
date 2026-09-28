@@ -506,24 +506,23 @@ async function seedAllPages() {
 
           <section class="py-16 border-t border-[#222]">
             <div class="flex flex-col items-center">
-              <h2 class="text-3xl font-serif text-white mb-4">Clients</h2>
-              <div class="w-10 h-1 bg-[#C5A059] mb-12"></div>
-              <div class="flex flex-wrap items-center justify-center gap-10 md:gap-16 w-full text-center">
-                <div class="flex flex-col items-center w-28 md:w-36 transition-all hover:scale-105">
-                  <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" alt="Penguin Logo" class="h-12 w-auto max-w-[120px] object-contain mb-3" />
-                  <span class="text-xs uppercase tracking-widest text-gray-300 font-medium">Penguin Random House</span>
+              <h2 class="text-3xl font-bold text-white mb-2 tracking-tight">Clients</h2>
+              <div class="w-8 h-0.5 bg-gray-400 opacity-70 mb-14"></div>
+              <div class="flex flex-wrap items-center justify-center gap-10 sm:gap-14 md:gap-16 lg:gap-20 w-full text-center">
+                <div class="flex items-center justify-center transition-all duration-300 hover:scale-105 opacity-85 hover:opacity-100">
+                  <img src="/clients/talo.png" alt="talo" class="h-10 sm:h-11 md:h-12 w-auto object-contain" />
                 </div>
-                <div class="flex flex-col items-center w-28 md:w-36 transition-all hover:scale-105">
-                  <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" alt="HarperCollins Logo" class="h-12 w-auto max-w-[120px] object-contain mb-3" />
-                  <span class="text-xs uppercase tracking-widest text-gray-300 font-medium">HarperCollins</span>
+                <div class="flex items-center justify-center transition-all duration-300 hover:scale-105 opacity-85 hover:opacity-100">
+                  <img src="/clients/solid_state.png" alt="SOLID STATE" class="h-10 sm:h-11 md:h-12 w-auto object-contain" />
                 </div>
-                <div class="flex flex-col items-center w-28 md:w-36 transition-all hover:scale-105">
-                  <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" alt="Macmillan Logo" class="h-12 w-auto max-w-[120px] object-contain mb-3" />
-                  <span class="text-xs uppercase tracking-widest text-gray-300 font-medium">Macmillan Publishers</span>
+                <div class="flex items-center justify-center transition-all duration-300 hover:scale-105 opacity-85 hover:opacity-100">
+                  <img src="/clients/noted.png" alt="NOTED" class="h-10 sm:h-11 md:h-12 w-auto object-contain" />
                 </div>
-                <div class="flex flex-col items-center w-28 md:w-36 transition-all hover:scale-105">
-                  <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" alt="Hachette Logo" class="h-12 w-auto max-w-[120px] object-contain mb-3" />
-                  <span class="text-xs uppercase tracking-widest text-gray-300 font-medium">Hachette Book Group</span>
+                <div class="flex items-center justify-center transition-all duration-300 hover:scale-105 opacity-85 hover:opacity-100">
+                  <img src="/clients/goan.png" alt="GOAN" class="h-10 sm:h-11 md:h-12 w-auto object-contain" />
+                </div>
+                <div class="flex items-center justify-center transition-all duration-300 hover:scale-105 opacity-85 hover:opacity-100">
+                  <img src="/clients/mowi.png" alt="MOWI" class="h-10 sm:h-11 md:h-12 w-auto object-contain" />
                 </div>
               </div>
             </div>

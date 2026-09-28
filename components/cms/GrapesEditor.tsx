@@ -1888,58 +1888,53 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       });
 
       /*
-       * Portfolio: Client Logos Section block (clean inline logos, matching bottom preferred appearance, full color)
+       * Portfolio: Client Logos Section block (clean monochrome logos matching reference screenshot)
        */
       bm.add("client-logos-block", {
         label: "Client Logos Section",
         category: "Portfolio",
         content: `
-        <section style="padding: 4rem 1rem; background-color: #000000; width: 100%; box-sizing: border-box;">
+        <section class="py-16 border-t border-[#222]" style="background-color: #000000; width: 100%; box-sizing: border-box; padding: 4rem 1.5rem;">
           <div style="max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; text-align: center;">
-            <h2 style="font-family: serif; font-size: 2rem; color: #FFFFFF; margin-bottom: 0.75rem; letter-spacing: 0.02em;">
+            <h2 style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 1.875rem; font-weight: 700; color: #FFFFFF; margin-bottom: 0.5rem; letter-spacing: -0.01em;">
               Clients
             </h2>
-            <div style="width: 2.5rem; height: 3px; background-color: #C5A059; margin-bottom: 3rem;"></div>
-            <div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 3rem; width: 100%;">
-              <div style="display: flex; flex-direction: column; align-items: center; width: 140px; padding: 0.5rem; text-align: center;">
+            <div style="width: 2rem; height: 2px; background-color: #9CA3AF; opacity: 0.7; margin-bottom: 3.5rem;"></div>
+            <div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 3.5rem; width: 100%;">
+              <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;">
                 <img 
-                  src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" 
-                  alt="Client Logo" 
-                  style="height: 48px; width: auto; max-width: 120px; object-fit: contain; margin-bottom: 0.75rem; display: block;"
+                  src="/clients/talo.png" 
+                  alt="talo" 
+                  style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
                 />
-                <span style="font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; color: #d1d5db; font-weight: 500;">
-                  Penguin Random House
-                </span>
               </div>
-              <div style="display: flex; flex-direction: column; align-items: center; width: 140px; padding: 0.5rem; text-align: center;">
+              <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;">
                 <img 
-                  src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" 
-                  alt="Client Logo" 
-                  style="height: 48px; width: auto; max-width: 120px; object-fit: contain; margin-bottom: 0.75rem; display: block;"
+                  src="/clients/solid_state.png" 
+                  alt="SOLID STATE" 
+                  style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
                 />
-                <span style="font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; color: #d1d5db; font-weight: 500;">
-                  HarperCollins
-                </span>
               </div>
-              <div style="display: flex; flex-direction: column; align-items: center; width: 140px; padding: 0.5rem; text-align: center;">
+              <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;">
                 <img 
-                  src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" 
-                  alt="Client Logo" 
-                  style="height: 48px; width: auto; max-width: 120px; object-fit: contain; margin-bottom: 0.75rem; display: block;"
+                  src="/clients/noted.png" 
+                  alt="NOTED" 
+                  style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
                 />
-                <span style="font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; color: #d1d5db; font-weight: 500;">
-                  Macmillan Publishers
-                </span>
               </div>
-              <div style="display: flex; flex-direction: column; align-items: center; width: 140px; padding: 0.5rem; text-align: center;">
+              <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;">
                 <img 
-                  src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" 
-                  alt="Client Logo" 
-                  style="height: 48px; width: auto; max-width: 120px; object-fit: contain; margin-bottom: 0.75rem; display: block;"
+                  src="/clients/goan.png" 
+                  alt="GOAN" 
+                  style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
                 />
-                <span style="font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; color: #d1d5db; font-weight: 500;">
-                  Hachette Book Group
-                </span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;">
+                <img 
+                  src="/clients/mowi.png" 
+                  alt="MOWI" 
+                  style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
+                />
               </div>
             </div>
           </div>

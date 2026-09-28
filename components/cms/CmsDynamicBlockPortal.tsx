@@ -7,6 +7,7 @@ import ProjectCarousel from "@/components/ProjectCarousel";
 import ContactFormClient from "@/components/cms/ContactFormClient";
 import ProjectGridSection from "@/components/cms/ProjectGridSection";
 import PortfolioCollection from "@/components/PortfolioCollection";
+import ClientsSection from "@/components/ClientsSection";
 import { parseTestimonialBlock } from "@/lib/dynamic-blocks";
 
 type PortfolioCategory = "book-covers" | "illustration" | "fine-art";
@@ -175,6 +176,13 @@ export function CmsDynamicBlockPortal({
           ) : (
             <ProjectGridSection />
           ),
+        });
+      } else if (block === "clients-section" || block === "client-logos") {
+        element.replaceChildren();
+        newTargets.push({
+          element,
+          key: `portal-clients-${index}`,
+          node: <ClientsSection />,
         });
       }
     });

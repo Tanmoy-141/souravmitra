@@ -10,6 +10,8 @@ import {
 import grapesjs from "grapesjs";
 import type { Editor, ToolbarButtonProps, Component } from "grapesjs";
 import "grapesjs/dist/css/grapes.min.css";
+import CustomFontModal from "./CustomFontModal";
+import { CustomFont, formatFontFaceCss } from "@/lib/fonts";
 type GrapesProjectData = ReturnType<Editor["getProjectData"]>;
 
 interface GrapesEditorProps {
@@ -135,6 +137,12 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
     const [activeRightTab, setActiveRightTab] = useState<
       "styles" | "traits" | "layers"
     >("styles");
+    const [isPreviewActive, setIsPreviewActive] = useState(false);
+    const [showFontModal, setShowFontModal] = useState(false);
+    const [customFonts, setCustomFonts] = useState<CustomFont[]>([]);
+    const [hasSelectedElement, setHasSelectedElement] = useState(false);
+    const customFontsRef = useRef<CustomFont[]>([]);
+    customFontsRef.current = customFonts;
 
     useImperativeHandle(
       ref,
@@ -152,6 +160,129 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       }),
       [],
     );
+
+    const injectFontIntoDocumentAndCanvas = (font: CustomFont, ed: Editor) => {
+      // 1. Host document head injection (for modal specimens & UI previews)
+      const hostId = `custom-font-style-${font.id}`;
+      if (!document.getElementById(hostId)) {
+        if (font.type === "upload") {
+          const style = document.createElement("style");
+          style.id = hostId;
+          style.textContent = formatFontFaceCss(font);
+          document.head.appendChild(style);
+        } else {
+          const link = document.createElement("link");
+          link.id = hostId;
+          link.rel = "stylesheet";
+          link.href = font.url;
+          document.head.appendChild(link);
+        }
+      }
+
+      // 2. Editor Canvas iframe document head injection
+      try {
+        const canvasDoc = ed.Canvas?.getDocument();
+        if (canvasDoc && canvasDoc.head && !canvasDoc.getElementById(hostId)) {
+          if (font.type === "upload") {
+            const style = canvasDoc.createElement("style");
+            style.id = hostId;
+            style.textContent = formatFontFaceCss(font);
+            canvasDoc.head.appendChild(style);
+          } else {
+            const link = canvasDoc.createElement("link");
+            link.id = hostId;
+            link.rel = "stylesheet";
+            link.href = font.url;
+            canvasDoc.head.appendChild(link);
+          }
+        }
+      } catch (err) {
+        console.warn("Canvas iframe head injection pending:", err);
+      }
+
+      // 3. Add to StyleManager 'font-family' property options
+      try {
+        const sm = ed.StyleManager;
+        if (sm) {
+          const fontProp =
+            sm.getProperty("Typography", "font-family") ||
+            (sm as any).getProperty("font-family");
+          if (fontProp) {
+            const fontId = `'${font.family}', sans-serif`;
+            const fontLabel = `✨ ${font.family} (${
+              font.type === "google"
+                ? "Google"
+                : font.type === "upload"
+                  ? "Uploaded"
+                  : "Custom"
+            })`;
+            const currentOpts =
+              (typeof (fontProp as any).getOptions === "function"
+                ? (fontProp as any).getOptions()
+                : (fontProp as any).get?.("options")) || [];
+
+            const exists = currentOpts.some((opt: any) => {
+              const optId = typeof opt === "string" ? opt : opt?.id;
+              return (
+                optId &&
+                (optId === fontId ||
+                  optId.toLowerCase().includes(font.family.toLowerCase()))
+              );
+            });
+
+            if (!exists) {
+              if (typeof (fontProp as any).addOption === "function") {
+                (fontProp as any).addOption({ id: fontId, label: fontLabel });
+              } else if (typeof (fontProp as any).set === "function") {
+                (fontProp as any).set("options", [
+                  ...currentOpts,
+                  { id: fontId, label: fontLabel },
+                ]);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("StyleManager font-family option sync error:", err);
+      }
+    };
+
+    const setupTypographyCustomFontButton = () => {
+      const container = document.querySelector(".gjs-sm-container");
+      if (!container) return;
+      const titles = container.querySelectorAll(
+        ".gjs-sm-sector-title, .gjs-sm-title",
+      );
+      titles.forEach((titleEl) => {
+        if (
+          titleEl.textContent?.includes("Typography") &&
+          !titleEl.querySelector(".gjs-custom-add-font-btn")
+        ) {
+          const btn = document.createElement("button");
+          btn.className = "gjs-custom-add-font-btn";
+          btn.type = "button";
+          btn.innerHTML = "+ Custom Font";
+          btn.title =
+            "Install Google Font, Web Font URL, or upload .woff2 font file";
+          btn.style.cssText =
+            "margin-left: auto; padding: 2px 7px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; background: #1c1508; color: #C5A059; border: 1px solid rgba(197,160,89,0.4); border-radius: 2px; cursor: pointer; transition: all 0.2s;";
+          btn.onmouseenter = () => {
+            btn.style.background = "#C5A059";
+            btn.style.color = "#000000";
+          };
+          btn.onmouseleave = () => {
+            btn.style.background = "#1c1508";
+            btn.style.color = "#C5A059";
+          };
+          btn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowFontModal(true);
+          };
+          titleEl.appendChild(btn);
+        }
+      });
+    };
 
     useEffect(() => {
       if (!containerRef.current) {
@@ -245,6 +376,9 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         canvas: {
           styles: [
             "https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css",
+            "https://fonts.googleapis.com/css2?family=Almendra:ital,wght@0,400;0,700;1,400&family=Bellefair&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Cardo:ital,wght@0,400;0,700;1,400&family=Castoro+Titling&family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400..900&family=Cormorant+Garamond:ital,wght@0,300..700;1,300..700&family=Crimson+Pro:ital,wght@0,300..900;1,300..900&family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Faustina:ital,wght@0,300..800;1,300..800&family=Forum&family=Frank+Ruhl+Libre:wght@300..900&family=Italiana&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400..700;1,400..700&family=Marcellus&family=MedievalSharp&family=Merriweather:ital,wght@0,300..900;1,300..900&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Playfair+Display+SC:ital,wght@0,400;0,700;0,900;1,400&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Prata&family=Spectral:ital,wght@0,200..800;1,200..800&family=Unna:ital,wght@0,400;0,700;1,400&family=Vollkorn:ital,wght@0,400..900;1,400..900&display=swap",
+            "https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,300..900;1,300..900&family=Be+Vietnam+Pro:ital,wght@0,300..900;1,300..900&family=Cabin:ital,wght@0,400..700;1,400..700&family=DM+Sans:ital,opsz,wght@0,9..40,300..900;1,9..40,300..900&family=Epilogue:ital,wght@0,300..900;1,300..900&family=Inter:wght@300..900&family=Jost:ital,wght@0,300..900;1,300..900&family=Lexend:wght@300..900&family=Manrope:wght@300..800&family=Montserrat:ital,wght@0,300..900;1,300..900&family=Outfit:wght@300..900&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Poppins:ital,wght@0,300..900;1,300..900&family=Raleway:ital,wght@0,300..900;1,300..900&family=Sora:wght@300..800&family=Space+Grotesk:wght@300..700&family=Syne:wght@400..800&family=Urbanist:ital,wght@0,300..900;1,300..900&family=Work+Sans:ital,wght@0,300..900;1,300..900&display=swap",
+            "https://fonts.googleapis.com/css2?family=Alex+Brush&family=Anton&family=Audiowide&family=Bebas+Neue&family=Bungee&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Creepster&family=Dancing+Script:wght@400..700&family=Fira+Code:wght@400..700&family=Great+Vibes&family=JetBrains+Mono:ital,wght@0,300..800;1,300..800&family=Nosifer&family=Orbitron:wght@400..900&family=Oswald:wght@300..700&family=Parisienne&family=Pirata+One&family=Righteous&family=Russo+One&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Special+Elite&family=Teko:wght@400..700&family=Uncial+Antiqua&display=swap",
           ],
         },
 
@@ -328,39 +462,651 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             {
               name: "Typography",
               open: false,
+              properties: [
+                {
+                  name: "Font Family",
+                  property: "font-family",
+                  type: "select",
+                  defaults: "inherit",
+                  options: [
+                    { id: "inherit", label: "Default / Inherit" },
 
-              buildProps: [
-                "font-family",
-                "font-size",
-                "font-weight",
-                "font-style",
-                "letter-spacing",
-                "color",
-                "line-height",
-                "text-align",
-                "text-transform",
-                "text-decoration",
-                "white-space",
-                "word-break",
+                    // Classical, Roman & Monumental (Book Covers / Fantasy / Luxury)
+                    {
+                      id: "'Playfair Display', Georgia, serif",
+                      label: "Playfair Display (Classical Serif)",
+                    },
+                    {
+                      id: "'Playfair Display SC', Georgia, serif",
+                      label: "Playfair Display SC (Small Caps / Title)",
+                    },
+                    {
+                      id: "'Cinzel', serif",
+                      label: "Cinzel (Classical Roman)",
+                    },
+                    {
+                      id: "'Cinzel Decorative', serif",
+                      label: "Cinzel Decorative (Ornate Fantasy Title)",
+                    },
+                    {
+                      id: "'Cormorant Garamond', Garamond, serif",
+                      label: "Cormorant Garamond (Fine Art Editorial)",
+                    },
+                    {
+                      id: "'EB Garamond', Garamond, serif",
+                      label: "EB Garamond (Humanist Classic)",
+                    },
+                    {
+                      id: "'Bodoni Moda', 'Didot', serif",
+                      label: "Bodoni Moda (Vogue Fashion Editorial)",
+                    },
+                    {
+                      id: "'Marcellus', 'Times New Roman', serif",
+                      label: "Marcellus (Sculpted Roman Elegance)",
+                    },
+                    {
+                      id: "'Italiana', 'Didot', serif",
+                      label: "Italiana (Italian Fashion Title)",
+                    },
+                    {
+                      id: "'Prata', 'Didot', serif",
+                      label: "Prata (Didone Tear-Drop Serif)",
+                    },
+                    {
+                      id: "'Castoro Titling', serif",
+                      label: "Castoro Titling (Stately Formal Title)",
+                    },
+                    {
+                      id: "'Forum', serif",
+                      label: "Forum (Antique Roman Monumental)",
+                    },
+                    {
+                      id: "'Bellefair', serif",
+                      label: "Bellefair (Slender Luxury Editorial)",
+                    },
+                    {
+                      id: "'Unna', serif",
+                      label: "Unna (Delicate Literary Serif)",
+                    },
+                    {
+                      id: "'Almendra', serif",
+                      label: "Almendra (Dark Fantasy & Gothic Novel)",
+                    },
+                    {
+                      id: "'MedievalSharp', cursive",
+                      label: "MedievalSharp (Illuminated Manuscript)",
+                    },
+
+                    // Literary & Editorial Serifs
+                    {
+                      id: "'Lora', Georgia, serif",
+                      label: "Lora (Contemporary Book Editorial)",
+                    },
+                    {
+                      id: "'Merriweather', Georgia, serif",
+                      label: "Merriweather (Readable Literary Serif)",
+                    },
+                    {
+                      id: "'Crimson Pro', serif",
+                      label: "Crimson Pro (Prestigious Publishing)",
+                    },
+                    {
+                      id: "'Newsreader', serif",
+                      label: "Newsreader (Refined Editorial Long-Form)",
+                    },
+                    {
+                      id: "'Spectral', serif",
+                      label: "Spectral (Scholarly & Fiction Serif)",
+                    },
+                    {
+                      id: "'Libre Baskerville', serif",
+                      label: "Libre Baskerville (British Editorial)",
+                    },
+                    {
+                      id: "'Cardo', serif",
+                      label: "Cardo (Ancient & Scholarly Text)",
+                    },
+                    {
+                      id: "'Faustina', serif",
+                      label: "Faustina (Literary Classic)",
+                    },
+                    {
+                      id: "'Frank Ruhl Libre', serif",
+                      label: "Frank Ruhl Libre (Grand Headline Serif)",
+                    },
+                    {
+                      id: "'Vollkorn', serif",
+                      label: "Vollkorn (Warm Humanist Serif)",
+                    },
+                    {
+                      id: "Georgia, serif",
+                      label: "Georgia (Traditional Web Serif)",
+                    },
+                    {
+                      id: "Garamond, 'Times New Roman', serif",
+                      label: "Garamond (Old-Style Serif)",
+                    },
+                    {
+                      id: "'Times New Roman', Times, serif",
+                      label: "Times New Roman (Web Classic)",
+                    },
+
+                    // Modern Clean & Geometric Sans-Serif
+                    {
+                      id: "'Plus Jakarta Sans', -apple-system, sans-serif",
+                      label: "Plus Jakarta Sans (Ultra Clean Modern)",
+                    },
+                    {
+                      id: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+                      label: "Inter (High Legibility UI)",
+                    },
+                    {
+                      id: "'Outfit', -apple-system, sans-serif",
+                      label: "Outfit (Geometric Minimalist)",
+                    },
+                    {
+                      id: "'Montserrat', sans-serif",
+                      label: "Montserrat (Bold Architectural)",
+                    },
+                    {
+                      id: "'Poppins', sans-serif",
+                      label: "Poppins (Rounded Geometric)",
+                    },
+                    {
+                      id: "'Raleway', sans-serif",
+                      label: "Raleway (Light Elegant Sans)",
+                    },
+                    {
+                      id: "'Space Grotesk', sans-serif",
+                      label: "Space Grotesk (Neo-Brutalist Tech)",
+                    },
+                    {
+                      id: "'Syne', sans-serif",
+                      label: "Syne (Avant-Garde Expressive)",
+                    },
+                    {
+                      id: "'DM Sans', sans-serif",
+                      label: "DM Sans (Crisp Contemporary Sans)",
+                    },
+                    {
+                      id: "'Urbanist', sans-serif",
+                      label: "Urbanist (Futuristic Geometric Sans)",
+                    },
+                    {
+                      id: "'Manrope', sans-serif",
+                      label: "Manrope (Semi-Geometric Modern)",
+                    },
+                    {
+                      id: "'Sora', sans-serif",
+                      label: "Sora (Humanist Tech Sans)",
+                    },
+                    {
+                      id: "'Lexend', sans-serif",
+                      label: "Lexend (Hyper-Legible Clean Sans)",
+                    },
+                    {
+                      id: "'Work Sans', sans-serif",
+                      label: "Work Sans (Versatile Grotesque)",
+                    },
+                    {
+                      id: "'Jost', sans-serif",
+                      label: "Jost (Futura-Style Geometric)",
+                    },
+                    {
+                      id: "'Be Vietnam Pro', sans-serif",
+                      label: "Be Vietnam Pro (Contemporary Balanced)",
+                    },
+                    {
+                      id: "'Cabin', sans-serif",
+                      label: "Cabin (Humanist Warm Sans)",
+                    },
+                    {
+                      id: "'Archivo', sans-serif",
+                      label: "Archivo (Dynamic Editorial Sans)",
+                    },
+                    {
+                      id: "'Epilogue', sans-serif",
+                      label: "Epilogue (Expressive Contemporary Sans)",
+                    },
+                    {
+                      id: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                      label: "System UI (Apple / Segoe)",
+                    },
+                    {
+                      id: "'Helvetica Neue', Arial, sans-serif",
+                      label: "Helvetica Neue (Swiss Modern)",
+                    },
+                    {
+                      id: "Arial, sans-serif",
+                      label: "Arial (Standard Clean)",
+                    },
+                    {
+                      id: "'Trebuchet MS', sans-serif",
+                      label: "Trebuchet MS (Humanist Sans)",
+                    },
+
+                    // Display, Poster, Sci-Fi & Horror
+                    {
+                      id: "'Bebas Neue', sans-serif",
+                      label: "Bebas Neue (Punchy Headline Sans)",
+                    },
+                    {
+                      id: "'Oswald', sans-serif",
+                      label: "Oswald (Condensed Bold Headline)",
+                    },
+                    {
+                      id: "'Anton', sans-serif",
+                      label: "Anton (Massive Impact Poster)",
+                    },
+                    {
+                      id: "'Teko', sans-serif",
+                      label: "Teko (Narrow Ultra-Condensed Title)",
+                    },
+                    {
+                      id: "'Orbitron', sans-serif",
+                      label: "Orbitron (Cyberpunk & Sci-Fi Display)",
+                    },
+                    {
+                      id: "'Audiowide', cursive",
+                      label: "Audiowide (Futuristic Galactic Tech)",
+                    },
+                    {
+                      id: "'Russo One', sans-serif",
+                      label: "Russo One (Bold Heroic Title)",
+                    },
+                    {
+                      id: "'Righteous', cursive",
+                      label: "Righteous (Retro-Futuristic Display)",
+                    },
+                    {
+                      id: "'Bungee', cursive",
+                      label: "Bungee (Urban Block Poster)",
+                    },
+                    {
+                      id: "'Pirata One', cursive",
+                      label: "Pirata One (Gothic Adventure Fantasy)",
+                    },
+                    {
+                      id: "'Uncial Antiqua', cursive",
+                      label: "Uncial Antiqua (Celtic & Ancient Myth)",
+                    },
+                    {
+                      id: "'Creepster', cursive",
+                      label: "Creepster (Horror & Supernatural)",
+                    },
+                    {
+                      id: "'Nosifer', cursive",
+                      label: "Nosifer (Bleeding Dark Horror)",
+                    },
+
+                    // Elegant Calligraphy & Script
+                    {
+                      id: "'Great Vibes', cursive",
+                      label: "Great Vibes (Royal Calligraphy Script)",
+                    },
+                    {
+                      id: "'Alex Brush', cursive",
+                      label: "Alex Brush (Fluid Luxury Signature Script)",
+                    },
+                    {
+                      id: "'Dancing Script', cursive",
+                      label: "Dancing Script (Artistic Dynamic Script)",
+                    },
+                    {
+                      id: "'Parisienne', cursive",
+                      label: "Parisienne (French Art Deco Script)",
+                    },
+
+                    // Monospace & Screenplay Typewriter
+                    {
+                      id: "'Courier Prime', monospace",
+                      label: "Courier Prime (Screenplay & Crisp Typewriter)",
+                    },
+                    {
+                      id: "'Special Elite', cursive",
+                      label: "Special Elite (Vintage Distressed Typewriter)",
+                    },
+                    {
+                      id: "'Space Mono', monospace",
+                      label: "Space Mono (Tech Monospace)",
+                    },
+                    {
+                      id: "'JetBrains Mono', monospace",
+                      label: "JetBrains Mono (Developer Minimalist)",
+                    },
+                    {
+                      id: "'Fira Code', monospace",
+                      label: "Fira Code (Modern Code Monospace)",
+                    },
+                    {
+                      id: "'Courier New', Courier, monospace",
+                      label: "Courier New (Classic Typewriter)",
+                    },
+                  ],
+                },
+                {
+                  name: "Font Size",
+                  property: "font-size",
+                  type: "integer",
+                  units: ["px", "rem", "em", "vw"],
+                  defaults: "16px",
+                  min: 8,
+                  max: 160,
+                  step: 1,
+                },
+                {
+                  name: "Font Weight",
+                  property: "font-weight",
+                  type: "select",
+                  defaults: "400",
+                  options: [
+                    { id: "100", label: "100 - Thin" },
+                    { id: "200", label: "200 - Extra Light" },
+                    { id: "300", label: "300 - Light" },
+                    { id: "400", label: "400 - Regular" },
+                    { id: "500", label: "500 - Medium" },
+                    { id: "600", label: "600 - Semi Bold" },
+                    { id: "700", label: "700 - Bold" },
+                    { id: "800", label: "800 - Extra Bold" },
+                    { id: "900", label: "900 - Black" },
+                  ],
+                },
+                {
+                  name: "Font Style",
+                  property: "font-style",
+                  type: "radio",
+                  defaults: "normal",
+                  options: [
+                    { id: "normal", label: "Normal" },
+                    { id: "italic", label: "Italic" },
+                    { id: "oblique", label: "Oblique" },
+                  ],
+                },
+                {
+                  name: "Letter Spacing",
+                  property: "letter-spacing",
+                  type: "integer",
+                  units: ["px", "em", "rem"],
+                  defaults: "0px",
+                  min: -5,
+                  max: 30,
+                  step: 0.5,
+                },
+                {
+                  name: "Line Height",
+                  property: "line-height",
+                  type: "integer",
+                  units: ["", "px", "em", "rem", "%"],
+                  defaults: "1.5",
+                  min: 0.5,
+                  max: 4,
+                  step: 0.1,
+                },
+                {
+                  name: "Text Color",
+                  property: "color",
+                  type: "color",
+                },
+                {
+                  name: "Text Align",
+                  property: "text-align",
+                  type: "radio",
+                  defaults: "left",
+                  options: [
+                    { id: "left", label: "Left" },
+                    { id: "center", label: "Center" },
+                    { id: "right", label: "Right" },
+                    { id: "justify", label: "Justify" },
+                  ],
+                },
+                {
+                  name: "Text Transform",
+                  property: "text-transform",
+                  type: "radio",
+                  defaults: "none",
+                  options: [
+                    { id: "none", label: "None" },
+                    { id: "uppercase", label: "UPPER" },
+                    { id: "lowercase", label: "lower" },
+                    { id: "capitalize", label: "Capital" },
+                  ],
+                },
+                {
+                  name: "Text Decoration",
+                  property: "text-decoration",
+                  type: "radio",
+                  defaults: "none",
+                  options: [
+                    { id: "none", label: "None" },
+                    { id: "underline", label: "Underline" },
+                    { id: "line-through", label: "Strikethrough" },
+                  ],
+                },
+                {
+                  name: "Text Shadow",
+                  property: "text-shadow",
+                  type: "select",
+                  defaults: "none",
+                  options: [
+                    { id: "none", label: "None" },
+                    {
+                      id: "0 2px 4px rgba(0,0,0,0.6)",
+                      label: "Soft Shadow (0 2px 4px)",
+                    },
+                    {
+                      id: "0 4px 12px rgba(0,0,0,0.85)",
+                      label: "Deep Dark (0 4px 12px)",
+                    },
+                    {
+                      id: "0 0 10px rgba(197, 160, 89, 0.65)",
+                      label: "Gold Glow (#C5A059)",
+                    },
+                    {
+                      id: "0 0 20px rgba(255, 255, 255, 0.7)",
+                      label: "White Neon Glow",
+                    },
+                    {
+                      id: "2px 2px 0px rgba(0,0,0,1)",
+                      label: "Hard Retro Shadow",
+                    },
+                  ],
+                },
+                {
+                  name: "White Space",
+                  property: "white-space",
+                  type: "select",
+                  defaults: "normal",
+                  options: [
+                    { id: "normal", label: "Normal" },
+                    { id: "nowrap", label: "No Wrap" },
+                    { id: "pre", label: "Pre" },
+                    { id: "pre-line", label: "Pre-Line" },
+                    { id: "pre-wrap", label: "Pre-Wrap" },
+                  ],
+                },
               ],
             },
 
             {
               name: "Background & Effects",
               open: false,
-
-              buildProps: [
-                "background-color",
-                "background-image",
-                "background-size",
-                "background-position",
-                "background-repeat",
-                "opacity",
-                "border-radius",
-                "border",
-                "box-shadow",
-                "transform",
-                "transition",
+              properties: [
+                {
+                  name: "Background Color",
+                  property: "background-color",
+                  type: "color",
+                },
+                {
+                  name: "Background Image",
+                  property: "background-image",
+                  type: "file",
+                },
+                {
+                  name: "Background Size",
+                  property: "background-size",
+                  type: "select",
+                  defaults: "auto",
+                  options: [
+                    { id: "auto", label: "Auto" },
+                    { id: "cover", label: "Cover (Fill Container)" },
+                    { id: "contain", label: "Contain (Fit Inside)" },
+                  ],
+                },
+                {
+                  name: "Background Position",
+                  property: "background-position",
+                  type: "select",
+                  defaults: "center center",
+                  options: [
+                    { id: "center center", label: "Center Center" },
+                    { id: "top center", label: "Top Center" },
+                    { id: "bottom center", label: "Bottom Center" },
+                    { id: "left center", label: "Left Center" },
+                    { id: "right center", label: "Right Center" },
+                  ],
+                },
+                {
+                  name: "Background Repeat",
+                  property: "background-repeat",
+                  type: "select",
+                  defaults: "repeat",
+                  options: [
+                    { id: "repeat", label: "Repeat" },
+                    { id: "no-repeat", label: "No Repeat" },
+                    { id: "repeat-x", label: "Repeat X" },
+                    { id: "repeat-y", label: "Repeat Y" },
+                  ],
+                },
+                {
+                  name: "Glassmorphism Blur",
+                  property: "backdrop-filter",
+                  type: "select",
+                  defaults: "none",
+                  options: [
+                    { id: "none", label: "None" },
+                    { id: "blur(8px)", label: "Soft Glass (8px)" },
+                    { id: "blur(16px)", label: "Medium Glass (16px)" },
+                    {
+                      id: "blur(24px) saturate(180%)",
+                      label: "Deep Saturated Glass (24px)",
+                    },
+                    {
+                      id: "blur(12px) brightness(1.2)",
+                      label: "Bright Frosted Glass",
+                    },
+                  ],
+                },
+                {
+                  name: "Opacity",
+                  property: "opacity",
+                  type: "slider",
+                  defaults: "1",
+                  min: 0,
+                  max: 1,
+                  step: 0.05,
+                },
+                {
+                  name: "Border Radius",
+                  property: "border-radius",
+                  type: "integer",
+                  units: ["px", "%", "rem"],
+                  defaults: "0px",
+                  min: 0,
+                  max: 100,
+                },
+                {
+                  name: "Box Shadow Presets",
+                  property: "box-shadow",
+                  type: "select",
+                  defaults: "none",
+                  options: [
+                    { id: "none", label: "None" },
+                    {
+                      id: "0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -1px rgba(0,0,0,0.3)",
+                      label: "Subtle Drop Shadow",
+                    },
+                    {
+                      id: "0 10px 25px -5px rgba(0,0,0,0.6), 0 8px 10px -6px rgba(0,0,0,0.5)",
+                      label: "Deep Floating Shadow",
+                    },
+                    {
+                      id: "0 20px 45px -10px rgba(0,0,0,0.85)",
+                      label: "Cinematic High Elevation",
+                    },
+                    {
+                      id: "0 0 25px rgba(197, 160, 89, 0.4)",
+                      label: "Gold Atmospheric Glow",
+                    },
+                    {
+                      id: "0 0 40px rgba(197, 160, 89, 0.7)",
+                      label: "Intense Gold Spotlight",
+                    },
+                    {
+                      id: "inset 0 2px 4px 0 rgba(0, 0, 0, 0.6)",
+                      label: "Inner Inset Shadow",
+                    },
+                    {
+                      id: "inset 0 0 0 1px rgba(255, 255, 255, 0.12)",
+                      label: "Glassmorphic Inner Border",
+                    },
+                    {
+                      id: "inset 0 0 0 1px rgba(197, 160, 89, 0.4)",
+                      label: "Gold Inset Border",
+                    },
+                  ],
+                },
+                {
+                  name: "Image / Color Filter",
+                  property: "filter",
+                  type: "select",
+                  defaults: "none",
+                  options: [
+                    { id: "none", label: "None (Full Color)" },
+                    { id: "grayscale(100%)", label: "Monochrome (B&W 100%)" },
+                    { id: "grayscale(50%)", label: "Muted B&W (50%)" },
+                    { id: "sepia(40%)", label: "Vintage Sepia" },
+                    {
+                      id: "contrast(125%) brightness(105%)",
+                      label: "Punchy High Contrast",
+                    },
+                    { id: "blur(4px)", label: "Soft Focus Blur (4px)" },
+                  ],
+                },
+                {
+                  name: "Hover Scale & Float",
+                  property: "transform",
+                  type: "select",
+                  defaults: "none",
+                  options: [
+                    { id: "none", label: "None" },
+                    { id: "scale(1.03)", label: "Subtle Zoom (1.03x)" },
+                    { id: "scale(1.06)", label: "Medium Zoom (1.06x)" },
+                    { id: "translateY(-6px)", label: "Hover Float Up (-6px)" },
+                    { id: "translateY(-12px)", label: "Deep Float Up (-12px)" },
+                  ],
+                },
+                {
+                  name: "Smooth Transition",
+                  property: "transition",
+                  type: "select",
+                  defaults: "none",
+                  options: [
+                    { id: "none", label: "None" },
+                    { id: "all 0.2s ease", label: "Fast (200ms ease)" },
+                    {
+                      id: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
+                      label: "Smooth Fluid (350ms)",
+                    },
+                    {
+                      id: "all 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
+                      label: "Luxurious Slow (500ms)",
+                    },
+                    {
+                      id: "transform 0.4s ease, box-shadow 0.4s ease",
+                      label: "Transform & Shadow Only",
+                    },
+                  ],
+                },
               ],
             },
           ],
@@ -381,6 +1127,12 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                 },
 
                 {
+                  id: "device-tablet",
+                  label: "Tablet",
+                  command: "set-device-tablet",
+                },
+
+                {
                   id: "device-mobile",
                   label: "Mobile",
                   command: "set-device-mobile",
@@ -395,6 +1147,12 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             {
               name: "Desktop",
               width: "",
+            },
+
+            {
+              name: "Tablet",
+              width: "768px",
+              widthMedia: "992px",
             },
 
             {
@@ -419,6 +1177,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
        * and ensure quick edit buttons are available in the toolbar
        */
       editor.on("component:selected", (component) => {
+        setHasSelectedElement(true);
         if (
           component.is("image") ||
           component.get("tagName")?.toLowerCase() === "img" ||
@@ -513,6 +1272,10 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             ]);
           }
         }
+      });
+
+      editor.on("component:deselected", () => {
+        setHasSelectedElement(Boolean(editor.getSelected()));
       });
 
       editor.on("component:dblclick", (component) => {
@@ -1092,10 +1855,51 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         },
       });
 
+      editor.Commands.add("set-device-tablet", {
+        run: () => {
+          editor.setDevice("Tablet");
+        },
+      });
+
       editor.Commands.add("set-device-mobile", {
         run: () => {
           editor.setDevice("Mobile");
         },
+      });
+
+      /*
+       * Custom Font Studio command
+       */
+      editor.Commands.add("open-custom-fonts-studio", {
+        run: () => {
+          setShowFontModal(true);
+        },
+      });
+
+      /*
+       * Inject custom fonts and setup typography studio trigger when canvas loads
+       */
+      editor.on("load", () => {
+        customFontsRef.current.forEach((font) => {
+          injectFontIntoDocumentAndCanvas(font, editor);
+        });
+        setTimeout(setupTypographyCustomFontButton, 250);
+      });
+
+      editor.on("canvas:frame:load", () => {
+        customFontsRef.current.forEach((font) => {
+          injectFontIntoDocumentAndCanvas(font, editor);
+        });
+      });
+
+      /*
+       * Listen for preview mode events to synchronize top bar preview state
+       */
+      editor.on("stop:preview", () => {
+        setIsPreviewActive(false);
+      });
+      editor.on("run:preview", () => {
+        setIsPreviewActive(true);
       });
 
       /*
@@ -2006,6 +2810,265 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       });
 
       /*
+       * Portfolio: Hero Banner Showcase with dual CTAs and dark aesthetic
+       */
+      bm.add("hero-banner-showcase", {
+        label: "Hero Banner Showcase",
+        category: "Portfolio",
+        content: `
+        <section style="position: relative; width: 100%; min-height: 80vh; overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; padding: 5rem 1.5rem; background: #000000; box-sizing: border-box;">
+          <img 
+            src="https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?q=80&w=1920" 
+            alt="Hero Cinematic Artwork" 
+            style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; opacity: 0.5; filter: contrast(110%);" 
+          />
+          <div style="position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.85) 100%); pointer-events: none; z-index: 1;"></div>
+          <div style="position: relative; z-index: 2; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;">
+            <span style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.25em; color: #C5A059; margin-bottom: 1.25rem;">
+              Digital Painter &bull; Book Cover Artist
+            </span>
+            <h1 style="font-size: 3.75rem; font-family: 'Playfair Display', Georgia, serif; color: #FFFFFF; margin-bottom: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1.15;">
+              Crafting Myth &amp; Mystery
+            </h1>
+            <p style="font-size: 1.25rem; color: #d4d4d4; margin-bottom: 2.5rem; font-weight: 300; max-width: 680px; line-height: 1.6;">
+              Award-winning dark fantasy, sci-fi, and historical fiction illustrations for premier publishing houses worldwide.
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+              <a
+                href="/book-covers"
+                style="display: inline-block; padding: 1rem 2.25rem; background-color: #C5A059; color: #000000; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; font-size: 0.75rem; text-decoration: none; border-radius: 2px;"
+              >
+                View Cover Gallery
+              </a>
+              <a
+                href="/contact"
+                style="display: inline-block; padding: 1rem 2.25rem; background: transparent; color: #FFFFFF; border: 1px solid rgba(255,255,255,0.4); font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; font-size: 0.75rem; text-decoration: none; border-radius: 2px;"
+              >
+                Inquire for Commission
+              </a>
+            </div>
+          </div>
+        </section>
+      `,
+      });
+
+      /*
+       * Portfolio: Artist Bio Split (50/50 Portrait & Story)
+       */
+      bm.add("artist-bio-split", {
+        label: "Artist Bio & Portrait",
+        category: "Portfolio",
+        content: `
+        <section style="padding: 5rem 1.5rem; background-color: #080808; width: 100%; box-sizing: border-box; border-top: 1px solid #1a1a1a; border-bottom: 1px solid #1a1a1a;">
+          <div style="max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 3.5rem; align-items: center;">
+            <div style="position: relative; width: 100%; max-width: 440px; margin: 0 auto;">
+              <img 
+                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=800" 
+                alt="Artist Portrait" 
+                style="width: 100%; height: auto; object-fit: cover; border-radius: 4px; border: 1px solid #2a2a2a; box-shadow: 0 16px 36px rgba(0,0,0,0.6);"
+              />
+            </div>
+            <div style="display: flex; flex-direction: column; justify-content: center;">
+              <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; color: #C5A059; margin-bottom: 0.75rem;">
+                About The Artist
+              </span>
+              <h2 style="font-family: 'Playfair Display', Georgia, serif; font-size: 2.5rem; color: #ffffff; margin-bottom: 1.5rem; line-height: 1.2;">
+                Sourav Mitra
+              </h2>
+              <p style="font-size: 1rem; color: #a3a3a3; line-height: 1.8; margin-bottom: 1.25rem;">
+                With over 8 years in commercial illustration and more than 550 completed book covers, Sourav specializes in atmospheric fantasy, gothic horror, and narrative storytelling. His work combines classical painterly lighting with cinematic depth.
+              </p>
+              <div style="padding: 1.25rem; background: #121212; border-left: 2px solid #C5A059; margin-bottom: 1.5rem;">
+                <p style="font-family: 'Playfair Display', serif; font-style: italic; font-size: 1.05rem; color: #e5e5e5; margin: 0;">
+                  "Every cover is an invitation into a world waiting to be explored."
+                </p>
+              </div>
+              <div>
+                <a href="/contact" style="display: inline-block; padding: 0.85rem 2rem; background: #C5A059; color: #000; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; text-decoration: none; border-radius: 2px;">
+                  Get In Touch &rarr;
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+      `,
+      });
+
+      /*
+       * Portfolio: Artwork Feature Spotlight Card
+       */
+      bm.add("artwork-feature-card", {
+        label: "Artwork Feature Card",
+        category: "Portfolio",
+        content: `
+        <section style="padding: 4rem 1.5rem; background: #000000; width: 100%; box-sizing: border-box;">
+          <div style="max-width: 900px; margin: 0 auto; background: #0c0c0c; border: 1px solid #222; border-radius: 4px; overflow: hidden; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); box-shadow: 0 12px 30px rgba(0,0,0,0.7);">
+            <div style="min-height: 320px; position: relative;">
+              <img 
+                src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800" 
+                alt="Featured Artwork" 
+                style="width: 100%; height: 100%; object-fit: cover; display: block;"
+              />
+            </div>
+            <div style="padding: 2.5rem; display: flex; flex-direction: column; justify-content: center;">
+              <span style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; color: #C5A059; margin-bottom: 0.5rem;">
+                Featured Artwork Spotlight
+              </span>
+              <h3 style="font-family: 'Playfair Display', Georgia, serif; font-size: 2rem; color: #fff; margin-bottom: 0.75rem;">
+                The Whispering Citadel
+              </h3>
+              <p style="font-size: 0.85rem; color: #888; margin-bottom: 1.25rem;">
+                Digital Painting &bull; 2024 &bull; Tor Books Publishing
+              </p>
+              <p style="font-size: 0.95rem; color: #bbb; line-height: 1.6; margin-bottom: 1.75rem;">
+                Created as the cover illustration for a dark fantasy bestseller. Features intricately sculpted gothic arches, eerie fog, and atmospheric rim lighting.
+              </p>
+              <a href="/book-covers" style="display: inline-block; align-self: flex-start; padding: 0.75rem 1.75rem; border: 1px solid #C5A059; color: #C5A059; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; text-decoration: none; border-radius: 2px;">
+                View In Gallery
+              </a>
+            </div>
+          </div>
+        </section>
+      `,
+      });
+
+      /*
+       * Portfolio: Awards & Recognitions Trio
+       */
+      bm.add("awards-trio-block", {
+        label: "Awards & Honors Trio",
+        category: "Portfolio",
+        content: `
+        <section style="padding: 4.5rem 1.5rem; background: #090909; width: 100%; box-sizing: border-box; border-top: 1px solid #1a1a1a;">
+          <div style="max-width: 1100px; margin: 0 auto; text-align: center;">
+            <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.25em; color: #C5A059; margin-bottom: 0.5rem; display: block;">
+              Recognition &amp; Accolades
+            </span>
+            <h2 style="font-family: 'Playfair Display', serif; font-size: 2.25rem; color: #ffffff; margin-bottom: 3.5rem;">
+              Honors &amp; Selected Features
+            </h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 2rem;">
+              <div style="background: #111111; border: 1px solid #222; padding: 2.5rem 1.5rem; border-radius: 4px; display: flex; flex-direction: column; align-items: center;">
+                <span style="font-size: 2rem; color: #C5A059; margin-bottom: 1rem;">🏆</span>
+                <h4 style="font-family: 'Playfair Display', serif; font-size: 1.25rem; color: #fff; margin-bottom: 0.5rem;">
+                  Best Cover Art 2023
+                </h4>
+                <p style="font-size: 0.85rem; color: #888; line-height: 1.6; margin: 0;">
+                  Awarded for Outstanding Fantasy Cover Design at the International Speculative Fiction Guild.
+                </p>
+              </div>
+              <div style="background: #111111; border: 1px solid #222; padding: 2.5rem 1.5rem; border-radius: 4px; display: flex; flex-direction: column; align-items: center;">
+                <span style="font-size: 2rem; color: #C5A059; margin-bottom: 1rem;">⭐</span>
+                <h4 style="font-family: 'Playfair Display', serif; font-size: 1.25rem; color: #fff; margin-bottom: 0.5rem;">
+                  Spectrum Fantastic Art
+                </h4>
+                <p style="font-size: 0.85rem; color: #888; line-height: 1.6; margin: 0;">
+                  Selected for publication in Volume 29 celebrating the finest contemporary fantastic art.
+                </p>
+              </div>
+              <div style="background: #111111; border: 1px solid #222; padding: 2.5rem 1.5rem; border-radius: 4px; display: flex; flex-direction: column; align-items: center;">
+                <span style="font-size: 2rem; color: #C5A059; margin-bottom: 1rem;">🎖️</span>
+                <h4 style="font-family: 'Playfair Display', serif; font-size: 1.25rem; color: #fff; margin-bottom: 0.5rem;">
+                  550+ Published Covers
+                </h4>
+                <p style="font-size: 0.85rem; color: #888; line-height: 1.6; margin: 0;">
+                  Trusted by major publishers including Tor, Orbit, Penguin Random House, and independent authors.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      `,
+      });
+
+      /*
+       * Portfolio: Commission Call-To-Action Banner
+       */
+      bm.add("cta-banner-block", {
+        label: "Commission CTA Banner",
+        category: "Portfolio",
+        content: `
+        <section style="padding: 5rem 1.5rem; background: linear-gradient(180deg, #0d0d0d 0%, #050505 100%); width: 100%; box-sizing: border-box;">
+          <div style="max-width: 960px; margin: 0 auto; padding: 3.5rem 2rem; background: #121212; border: 1px solid rgba(197, 160, 89, 0.35); border-radius: 4px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
+            <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.25em; color: #C5A059; margin-bottom: 1rem; display: block;">
+              Let's Work Together
+            </span>
+            <h2 style="font-family: 'Playfair Display', Georgia, serif; font-size: 2.5rem; color: #ffffff; margin-bottom: 1.25rem; line-height: 1.2;">
+              Ready to Bring Your Story to Life?
+            </h2>
+            <p style="font-size: 1.05rem; color: #aaa; max-width: 600px; margin: 0 auto 2.25rem auto; line-height: 1.7;">
+              Currently booking custom book cover commissions and commercial illustration projects for upcoming publishing quarters.
+            </p>
+            <a
+              href="/contact"
+              style="display: inline-block; padding: 1rem 2.5rem; background: #C5A059; color: #000; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; text-decoration: none; border-radius: 2px;"
+            >
+              Request a Commission Quote
+            </a>
+          </div>
+        </section>
+      `,
+      });
+
+      /*
+       * Media: Responsive Video / Reel Embed
+       */
+      bm.add("video-reel-block", {
+        label: "Video / Reel Embed",
+        category: "Media",
+        content: `
+        <section style="padding: 4rem 1.5rem; background: #000000; width: 100%; box-sizing: border-box;">
+          <div style="max-width: 900px; margin: 0 auto; text-align: center;">
+            <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; color: #C5A059; margin-bottom: 0.5rem; display: block;">
+              Process &amp; Timelapse
+            </span>
+            <h3 style="font-family: 'Playfair Display', serif; font-size: 2rem; color: #fff; margin-bottom: 2rem;">
+              Behind The Canvas
+            </h3>
+            <div style="position: relative; width: 100%; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 4px; border: 1px solid #222; box-shadow: 0 12px 30px rgba(0,0,0,0.8);">
+              <iframe
+                src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                title="Artwork Process Video"
+                style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen
+              ></iframe>
+            </div>
+          </div>
+        </section>
+      `,
+      });
+
+      /*
+       * Basic: Social & Art Links Bar
+       */
+      bm.add("social-links-bar-block", {
+        label: "Social & Art Links Bar",
+        category: "Basic",
+        content: `
+        <section style="padding: 2.5rem 1.5rem; background: #0a0a0a; width: 100%; box-sizing: border-box; border-top: 1px solid #1a1a1a;">
+          <div style="max-width: 800px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2rem;">
+            <a href="https://artstation.com" target="_blank" rel="noopener noreferrer" style="color: #999; text-decoration: none; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em;">
+              ArtStation
+            </a>
+            <span style="color: #333;">&bull;</span>
+            <a href="https://behance.net" target="_blank" rel="noopener noreferrer" style="color: #999; text-decoration: none; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em;">
+              Behance
+            </a>
+            <span style="color: #333;">&bull;</span>
+            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" style="color: #999; text-decoration: none; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em;">
+              Instagram
+            </a>
+            <span style="color: #333;">&bull;</span>
+            <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" style="color: #999; text-decoration: none; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em;">
+              LinkedIn
+            </a>
+          </div>
+        </section>
+      `,
+      });
+
+      /*
        * Cleanup.
        *
        * Delayed slightly so React development
@@ -2031,6 +3094,87 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       };
     }, [initialData, initialHtml]);
 
+    // Fetch installed custom fonts from DB on mount
+    useEffect(() => {
+      fetch("/api/cms/fonts")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && Array.isArray(data.fonts)) {
+            setCustomFonts(data.fonts);
+            if (editorRef.current) {
+              data.fonts.forEach((font: CustomFont) => {
+                injectFontIntoDocumentAndCanvas(font, editorRef.current!);
+              });
+            }
+          }
+        })
+        .catch((err) => console.warn("Failed to load custom fonts:", err));
+    }, []);
+
+    // Ensure Typography button is injected when switching to styles tab
+    useEffect(() => {
+      if (activeRightTab === "styles") {
+        setTimeout(setupTypographyCustomFontButton, 100);
+        setTimeout(setupTypographyCustomFontButton, 400);
+      }
+    }, [activeRightTab]);
+
+    const handleFontInstalled = (
+      font: CustomFont,
+      applyImmediately: boolean,
+    ) => {
+      setCustomFonts((prev) => {
+        const filtered = prev.filter(
+          (f) =>
+            f.id !== font.id &&
+            f.family.toLowerCase() !== font.family.toLowerCase(),
+        );
+        return [...filtered, font];
+      });
+
+      const ed = editorRef.current;
+      if (ed) {
+        injectFontIntoDocumentAndCanvas(font, ed);
+        if (applyImmediately) {
+          const selected = ed.getSelected();
+          if (selected) {
+            selected.addStyle({
+              "font-family": `'${font.family}', sans-serif`,
+            });
+            ed.trigger("component:update", selected);
+          }
+        }
+      }
+    };
+
+    const handleFontDeleted = (fontId: string) => {
+      setCustomFonts((prev) => prev.filter((f) => f.id !== fontId));
+      const hostEl = document.getElementById(`custom-font-style-${fontId}`);
+      if (hostEl) hostEl.remove();
+
+      const ed = editorRef.current;
+      if (ed) {
+        try {
+          const canvasDoc = ed.Canvas?.getDocument();
+          const canvasEl = canvasDoc?.getElementById(
+            `custom-font-style-${fontId}`,
+          );
+          if (canvasEl) canvasEl.remove();
+        } catch {}
+      }
+    };
+
+    const handleApplyFontToSelected = (font: CustomFont) => {
+      const ed = editorRef.current;
+      if (ed) {
+        const selected = ed.getSelected();
+        if (selected) {
+          selected.addStyle({ "font-family": `'${font.family}', sans-serif` });
+          ed.trigger("component:update", selected);
+        }
+      }
+    };
+
     const handleExportSave = (isPublish = false) => {
       const editor = editorRef.current;
 
@@ -2053,13 +3197,40 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
 
       if (isPublish && onPublish) {
         onPublish(projectData, html, css);
-
         return;
       }
 
       if (!isPublish && onSave) {
         onSave(projectData, html, css);
       }
+    };
+
+    const handleUndo = () => {
+      editorRef.current?.UndoManager?.undo();
+    };
+
+    const handleRedo = () => {
+      editorRef.current?.UndoManager?.redo();
+    };
+
+    const handleTogglePreview = () => {
+      const editor = editorRef.current;
+      if (!editor) return;
+      if (isPreviewActive) {
+        editor.stopCommand("preview");
+        setIsPreviewActive(false);
+      } else {
+        editor.runCommand("preview");
+        setIsPreviewActive(true);
+      }
+    };
+
+    const handleViewCode = () => {
+      editorRef.current?.runCommand("export-template");
+    };
+
+    const handleToggleFullscreen = () => {
+      editorRef.current?.runCommand("core:fullscreen");
     };
 
     return (
@@ -2390,28 +3561,105 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           }
         `}</style>
         <div className="flex items-center justify-between px-4 py-2.5 bg-[#0c0c0c] border-b border-[#222] text-xs text-gray-400 shrink-0">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
             <span className="font-bold text-[#C5A059] uppercase tracking-widest text-xs whitespace-nowrap select-none">
               Visual Editor
             </span>
 
+            {/* Responsive Device Viewport Switcher */}
             <div
               className="panel__devices flex items-center gap-1 rounded border border-[#333] bg-[#141414] p-0.5"
               role="group"
               aria-label="Preview viewport"
             />
+
+            <div className="h-4 w-px bg-[#262626]" />
+
+            {/* History Controls: Undo & Redo */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={handleUndo}
+                title="Undo last change (Ctrl+Z)"
+                className="px-2.5 py-1 text-[11px] font-semibold tracking-wider text-gray-400 hover:text-white bg-[#141414] hover:bg-[#202020] border border-[#2a2a2a] hover:border-[#444] rounded transition-all flex items-center gap-1.5">
+                <span>↶</span>
+                <span>Undo</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleRedo}
+                title="Redo next change (Ctrl+Y)"
+                className="px-2.5 py-1 text-[11px] font-semibold tracking-wider text-gray-400 hover:text-white bg-[#141414] hover:bg-[#202020] border border-[#2a2a2a] hover:border-[#444] rounded transition-all flex items-center gap-1.5">
+                <span>↷</span>
+                <span>Redo</span>
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            {/* Clean Preview Toggle */}
             <button
+              type="button"
+              onClick={handleTogglePreview}
+              title={
+                isPreviewActive
+                  ? "Exit Preview Mode"
+                  : "Preview page without editor overlays"
+              }
+              className={`px-3 py-1.5 rounded text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+                isPreviewActive
+                  ? "bg-[#C5A059] text-black shadow-md shadow-[#C5A059]/20"
+                  : "border border-[#333] text-gray-300 hover:text-white hover:border-[#C5A059] bg-[#141414]"
+              }`}>
+              <span>{isPreviewActive ? "✏️" : "👁️"}</span>
+              <span>{isPreviewActive ? "Edit Mode" : "Preview"}</span>
+            </button>
+
+            {/* View / Export Code */}
+            <button
+              type="button"
+              onClick={handleViewCode}
+              title="View and Export generated HTML & CSS Code"
+              className="px-2.5 py-1.5 border border-[#333] text-gray-300 hover:text-white hover:border-[#C5A059] bg-[#141414] rounded transition-colors text-[11px] font-bold tracking-wider flex items-center gap-1.5">
+              <span>&lt;/&gt;</span>
+              <span>Code</span>
+            </button>
+
+            {/* Fullscreen Mode */}
+            <button
+              type="button"
+              onClick={handleToggleFullscreen}
+              title="Toggle Fullscreen Editor"
+              className="px-2.5 py-1.5 border border-[#333] text-gray-300 hover:text-white hover:border-[#C5A059] bg-[#141414] rounded transition-colors text-[11px] font-bold tracking-wider flex items-center gap-1.5">
+              <span>⛶</span>
+              <span>Fullscreen</span>
+            </button>
+
+            {/* Custom Font Studio Modal Trigger */}
+            <button
+              type="button"
+              onClick={() => setShowFontModal(true)}
+              title="Install & Manage Custom Typography Fonts (Google Fonts, Web URLs, Uploads)"
+              className="px-2.5 py-1.5 border border-[#333] hover:border-[#C5A059] text-[#C5A059] hover:text-white bg-[#141414] rounded transition-colors text-[11px] font-bold tracking-wider flex items-center gap-1.5">
+              <span>🔤</span>
+              <span>
+                Fonts {customFonts.length > 0 && `(${customFonts.length})`}
+              </span>
+            </button>
+
+            <div className="h-4 w-px bg-[#262626]" />
+
+            <button
+              type="button"
               onClick={() => handleExportSave(false)}
-              className="px-3 py-1.5 border border-[#333] text-gray-300 hover:text-white hover:border-[#C5A059] transition-colors uppercase tracking-widest font-bold">
+              className="px-3 py-1.5 border border-[#333] text-gray-300 hover:text-white hover:border-[#C5A059] transition-colors uppercase tracking-widest font-bold text-xs">
               Save Draft
             </button>
 
             <button
+              type="button"
               onClick={() => handleExportSave(true)}
-              className="px-3 py-1.5 bg-[#C5A059] text-black hover:bg-white transition-colors uppercase tracking-widest font-bold">
+              className="px-3 py-1.5 bg-[#C5A059] text-black hover:bg-white transition-colors uppercase tracking-widest font-bold text-xs shadow-md shadow-[#C5A059]/20">
               Publish Page
             </button>
           </div>
@@ -2464,8 +3712,16 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               className={`flex-1 overflow-y-auto ${
                 activeRightTab === "styles" ? "block" : "hidden"
               }`}>
-              <div className="px-4 py-2.5 text-[10px] uppercase tracking-widest font-bold text-[#C5A059] border-b border-[#222]">
-                Styles &amp; Resizing
+              <div className="px-4 py-2.5 text-[10px] uppercase tracking-widest font-bold text-[#C5A059] border-b border-[#222] flex items-center justify-between">
+                <span>Styles &amp; Resizing</span>
+                <button
+                  type="button"
+                  onClick={() => setShowFontModal(true)}
+                  className="px-2 py-0.5 bg-[#1f1a10] hover:bg-[#C5A059] text-[#C5A059] hover:text-black border border-[#C5A059]/40 hover:border-[#C5A059] rounded text-[9px] font-bold tracking-wider flex items-center gap-1 transition-all"
+                  title="Install Google Fonts, Web Font URLs, or Upload Font Files">
+                  <span>🔤</span>
+                  <span>+ Custom Font</span>
+                </button>
               </div>
               <div className="gjs-sm-container" />
             </div>
@@ -2499,6 +3755,17 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             </div>
           </div>
         </div>
+
+        {/* Custom Font Studio Modal */}
+        <CustomFontModal
+          isOpen={showFontModal}
+          onClose={() => setShowFontModal(false)}
+          onFontInstalled={handleFontInstalled}
+          onFontDeleted={handleFontDeleted}
+          onApplyFontToSelected={handleApplyFontToSelected}
+          installedFonts={customFonts}
+          hasSelectedElement={hasSelectedElement}
+        />
       </div>
     );
   },

@@ -47,7 +47,10 @@ export async function GET() {
     ]);
 
     const themeData =
-      (themeSetting[0]?.gjsData as { faviconUrl?: string }) || {};
+      (themeSetting[0]?.gjsData as {
+        faviconUrl?: string;
+        customFonts?: unknown[];
+      }) || {};
     const headerData =
       (headerSetting[0]?.gjsData as {
         siteName?: string;
@@ -72,6 +75,7 @@ export async function GET() {
 
     return NextResponse.json({
       faviconUrl: themeData.faviconUrl || "/favicon.svg",
+      customFonts: themeData.customFonts || [],
       logoUrl: headerData.logoUrl || "",
       siteName: headerData.siteName || "Sourav Mitra",
       footerHeading: footerData.heading || "FOLLOW ME ON",
@@ -117,7 +121,10 @@ export async function PUT(req: NextRequest) {
     ]);
 
     const currentThemeData =
-      (currentTheme[0]?.gjsData as { faviconUrl?: string }) || {};
+      (currentTheme[0]?.gjsData as {
+        faviconUrl?: string;
+        customFonts?: unknown[];
+      }) || {};
     const currentHeaderData =
       (currentHeader[0]?.gjsData as {
         siteName?: string;
@@ -135,6 +142,7 @@ export async function PUT(req: NextRequest) {
         typeof body.faviconUrl === "string"
           ? body.faviconUrl.trim() || "/favicon.svg"
           : currentThemeData.faviconUrl || "/favicon.svg",
+      customFonts: currentThemeData.customFonts || [],
     };
     const headerData = {
       siteName:

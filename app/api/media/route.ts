@@ -18,6 +18,10 @@ const ALLOWED_EXTENSIONS = new Set([
   ".ico",
   ".mp4",
   ".webm",
+  ".woff2",
+  ".woff",
+  ".ttf",
+  ".otf",
 ]);
 
 const ALLOWED_TYPES = new Set([
@@ -35,6 +39,16 @@ const ALLOWED_TYPES = new Set([
   "image/vnd.microsoft.icon",
   "video/mp4",
   "video/webm",
+  "font/woff2",
+  "font/woff",
+  "font/ttf",
+  "font/otf",
+  "application/font-woff",
+  "application/font-woff2",
+  "application/x-font-woff",
+  "application/x-font-ttf",
+  "application/x-font-truetype",
+  "application/x-font-opentype",
 ]);
 
 /** Normalizes the MIME type based on file extension and provided type */
@@ -48,6 +62,10 @@ function getNormalizedMimeType(filename: string, rawMime: string): string {
   if (ext === ".ico") return "image/x-icon";
   if (ext === ".mp4") return "video/mp4";
   if (ext === ".webm") return "video/webm";
+  if (ext === ".woff2") return "font/woff2";
+  if (ext === ".woff") return "font/woff";
+  if (ext === ".ttf") return "font/ttf";
+  if (ext === ".otf") return "font/otf";
   return rawMime || "application/octet-stream";
 }
 
@@ -154,7 +172,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: `Unsupported file type for "${file.name}". Supported formats: JPG, JPEG, PNG, SVG (and WebP, GIF).`,
+          message: `Unsupported file type for "${file.name}". Supported formats: Images (JPG, PNG, SVG, WebP, GIF), Videos (MP4, WebM), and Fonts (WOFF2, WOFF, TTF, OTF).`,
         },
         { status: 400 },
       );

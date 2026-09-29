@@ -1232,7 +1232,7 @@ export default function AdminDashboard() {
                   <input
                     ref={logoInputRef}
                     type="file"
-                    accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                    accept=".jpg,.jpeg,.png,.svg,image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
                     className="hidden"
                     onChange={handleLogoUpload}
                   />
@@ -1332,7 +1332,7 @@ export default function AdminDashboard() {
                   <input
                     ref={faviconInputRef}
                     type="file"
-                    accept="image/png,image/jpeg,image/jpg,image/webp,image/x-icon,image/svg+xml"
+                    accept=".jpg,.jpeg,.png,.svg,.ico,image/png,image/jpeg,image/jpg,image/webp,image/x-icon,image/svg+xml"
                     className="hidden"
                     onChange={handleFaviconUpload}
                   />

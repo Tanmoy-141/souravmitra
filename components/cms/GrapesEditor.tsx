@@ -866,6 +866,27 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           dialog.appendChild(footer);
         }
 
+        // Configure file uploader input to accept JPG, JPEG, PNG, SVG
+        const uploaderInput = dialog.querySelector(
+          ".gjs-am-file-uploader input[type='file']",
+        ) as HTMLInputElement | null;
+        if (
+          uploaderInput &&
+          !uploaderInput.getAttribute("data-custom-accept")
+        ) {
+          uploaderInput.setAttribute("data-custom-accept", "true");
+          uploaderInput.setAttribute(
+            "accept",
+            ".jpg,.jpeg,.png,.svg,image/jpeg,image/png,image/svg+xml",
+          );
+        }
+        const uploaderTitle = dialog.querySelector(".gjs-am-title");
+        if (uploaderTitle && !uploaderTitle.getAttribute("data-custom-title")) {
+          uploaderTitle.setAttribute("data-custom-title", "true");
+          uploaderTitle.textContent =
+            "Drop JPG, JPEG, PNG, or SVG files here or click to upload";
+        }
+
         // 3. Card click & delete listener in the modal (bound only once via attribute)
         if (!dialog.getAttribute("data-custom-handlers-bound")) {
           dialog.setAttribute("data-custom-handlers-bound", "true");
@@ -1963,13 +1984,13 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       });
 
       /*
-       * Layout: Brand Logos Container (placeholder container for dropping brand logos)
+       * Layout: Brand Logos Container (clean container for dropping brand logos)
        */
       bm.add("brand-logos-container-block", {
         label: "Brand Logos Container",
         category: "Layout",
         content: `
-        <div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2.5rem; width: 100%; min-height: 100px; padding: 2rem 1rem; border: 1px dashed rgba(197, 160, 89, 0.4); border-radius: 4px; box-sizing: border-box;">
+        <div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2.5rem; width: 100%; min-height: 80px; padding: 1.5rem 1rem; box-sizing: border-box;">
           <div style="display: flex; flex-direction: column; align-items: center; width: 140px; padding: 0.5rem; text-align: center;">
             <img 
               src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200" 

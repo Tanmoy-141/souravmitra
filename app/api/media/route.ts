@@ -7,17 +7,49 @@ import fs from "fs/promises";
 import path from "path";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+
+const ALLOWED_EXTENSIONS = new Set([
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".svg",
+  ".webp",
+  ".gif",
+  ".ico",
+  ".mp4",
+  ".webm",
+]);
+
 const ALLOWED_TYPES = new Set([
   "image/jpeg",
+  "image/jpg",
+  "image/pjpeg",
   "image/png",
+  "image/svg+xml",
+  "image/svg",
+  "text/xml",
+  "application/xml",
   "image/webp",
   "image/gif",
   "image/x-icon",
   "image/vnd.microsoft.icon",
-  "image/svg+xml",
   "video/mp4",
   "video/webm",
 ]);
+
+/** Normalizes the MIME type based on file extension and provided type */
+function getNormalizedMimeType(filename: string, rawMime: string): string {
+  const ext = path.extname(filename).toLowerCase();
+  if (ext === ".svg") return "image/svg+xml";
+  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+  if (ext === ".png") return "image/png";
+  if (ext === ".webp") return "image/webp";
+  if (ext === ".gif") return "image/gif";
+  if (ext === ".ico") return "image/x-icon";
+  if (ext === ".mp4") return "video/mp4";
+  if (ext === ".webm") return "video/webm";
+  return rawMime || "application/octet-stream";
+}
 
 /** Sanitize filename: strip path separators, limit length, add random prefix */
 function sanitizeFilename(name: string): string {
@@ -32,16 +64,28 @@ function sanitizeFilename(name: string): string {
   return `${prefix}_${clean || "upload"}`;
 }
 
-async function getAuthenticatedUserId(): Promise<string | null> {
+async function getAuthenticatedUserId(
+  req?: NextRequest,
+): Promise<string | null> {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("admin_session")?.value;
-  if (!sessionCookie) return null;
-  const result = await resolveSession(sessionCookie);
-  return result.valid && result.payload ? result.payload.userId : null;
+  if (sessionCookie) {
+    const result = await resolveSession(sessionCookie);
+    if (result.valid && result.payload) return result.payload.userId;
+  }
+  if (req) {
+    const authHeader = req.headers.get("authorization");
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.substring(7).trim();
+      const result = await resolveSession(token);
+      if (result.valid && result.payload) return result.payload.userId;
+    }
+  }
+  return null;
 }
 
-export async function GET() {
-  const userId = await getAuthenticatedUserId();
+export async function GET(req: NextRequest) {
+  const userId = await getAuthenticatedUserId(req);
   if (!userId) {
     return NextResponse.json(
       { success: false, message: "Unauthorized" },
@@ -53,7 +97,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const userId = await getAuthenticatedUserId();
+  const userId = await getAuthenticatedUserId(req);
   if (!userId) {
     return NextResponse.json(
       { success: false, message: "Unauthorized" },
@@ -100,20 +144,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!ALLOWED_TYPES.has(file.type)) {
+    const fileExt = path.extname(file.name).toLowerCase();
+    const isExtensionAllowed = ALLOWED_EXTENSIONS.has(fileExt);
+    const isMimeAllowed = Boolean(
+      file.type && ALLOWED_TYPES.has(file.type.toLowerCase()),
+    );
+
+    if (!isExtensionAllowed && !isMimeAllowed) {
       return NextResponse.json(
         {
           success: false,
-          message: `Unsupported file type for "${file.name}". Allowed: JPEG, PNG, WebP, GIF, SVG, MP4, WebM.`,
+          message: `Unsupported file type for "${file.name}". Supported formats: JPG, JPEG, PNG, SVG (and WebP, GIF).`,
         },
         { status: 400 },
       );
     }
 
+    const normalizedMimeType = getNormalizedMimeType(file.name, file.type);
+
     try {
-      // Create a new File with a sanitized name
+      // Create a new File with a sanitized name and normalized MIME type
       const safeName = sanitizeFilename(file.name);
-      const safeFile = new File([file], safeName, { type: file.type });
+      const safeFile = new File([file], safeName, { type: normalizedMimeType });
 
       const fileBuffer = Buffer.from(await file.arrayBuffer());
       const ext = path.extname(safeName);
@@ -158,7 +210,7 @@ export async function POST(req: NextRequest) {
             fsErr,
           );
           const base64 = fileBuffer.toString("base64");
-          blobUrl = `data:${file.type};base64,${base64}`;
+          blobUrl = `data:${normalizedMimeType};base64,${base64}`;
           pathname = safeName;
         }
       }
@@ -168,7 +220,7 @@ export async function POST(req: NextRequest) {
         blobUrl,
         pathname,
         name: safeName,
-        type: file.type,
+        type: normalizedMimeType,
         size: file.size,
         uploadedBy: userId,
       });
@@ -197,7 +249,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const userId = await getAuthenticatedUserId();
+  const userId = await getAuthenticatedUserId(req);
   if (!userId) {
     return NextResponse.json(
       { success: false, message: "Unauthorized" },

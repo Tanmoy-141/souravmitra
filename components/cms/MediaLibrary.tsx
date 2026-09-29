@@ -34,6 +34,12 @@ export default function MediaLibrary({ onSelect, onClose }: MediaLibraryProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (ext && !["jpg", "jpeg", "png", "svg", "webp", "gif"].includes(ext)) {
+      alert("Please upload a valid image file (JPG, JPEG, PNG, or SVG).");
+      return;
+    }
+
     setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
@@ -46,11 +52,16 @@ export default function MediaLibrary({ onSelect, onClose }: MediaLibraryProps) {
       const data = await res.json();
       if (data.success) {
         setAssets([data.asset, ...assets]);
+      } else {
+        alert(data.message || "Upload failed");
       }
     } catch (err) {
       console.error("Upload failed", err);
+      alert("An error occurred during upload.");
     } finally {
       setUploading(false);
+      // Reset input value so re-selecting the same file works
+      e.target.value = "";
     }
   };
 
@@ -67,9 +78,10 @@ export default function MediaLibrary({ onSelect, onClose }: MediaLibraryProps) {
         </div>
 
         <div className="p-6 overflow-y-auto grid grid-cols-2 md:grid-cols-4 gap-4">
-          <label className="aspect-square border-2 border-dashed border-[#333333] hover:border-[#C5A059] flex flex-col items-center justify-center gap-2 text-gray-500 transition-colors cursor-pointer">
+          <label className="aspect-square border-2 border-dashed border-[#333333] hover:border-[#C5A059] flex flex-col items-center justify-center gap-2 text-gray-500 transition-colors cursor-pointer text-center p-2">
             <input
               type="file"
+              accept=".jpg,.jpeg,.png,.svg,image/jpeg,image/png,image/svg+xml"
               className="hidden"
               onChange={handleUpload}
               disabled={uploading}
@@ -77,6 +89,9 @@ export default function MediaLibrary({ onSelect, onClose }: MediaLibraryProps) {
             <span className="text-2xl">{uploading ? "..." : "+"}</span>
             <span className="text-[10px] uppercase font-bold tracking-widest">
               {uploading ? "Uploading" : "Upload Image"}
+            </span>
+            <span className="text-[9px] text-gray-600">
+              JPG, JPEG, PNG, SVG
             </span>
           </label>
 

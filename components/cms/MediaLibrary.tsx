@@ -109,6 +109,7 @@ export default function MediaLibrary({ onSelect, onClose }: MediaLibraryProps) {
                   src={asset.blobUrl}
                   alt={asset.name}
                   fill
+                  unoptimized
                   sizes="(min-width: 768px) 25vw, 50vw"
                   className="object-cover opacity-60 group-hover:opacity-100 transition-opacity"
                 />

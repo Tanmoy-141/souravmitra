@@ -14,6 +14,7 @@ interface ProjectDetailProps {
   likes: number;
   views: number;
   tags: string[];
+  coverImage?: string;
   publisher?: string;
   dimensions?: string;
   availability?: string;
@@ -35,6 +36,7 @@ export default function ProjectDetailView({
   type,
   genreOrMedium,
   year,
+  coverImage,
   publisher,
   dimensions,
   availability,
@@ -194,7 +196,16 @@ export default function ProjectDetailView({
                 transform: "translateZ(14px)",
                 backfaceVisibility: "hidden",
               }}>
-              <ProceduralPlaceholder id={id} type="book-cover" title={title} />
+              {coverImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={coverImage}
+                  alt={title}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <ProceduralPlaceholder id={id} type="book-cover" title={title} />
+              )}
             </div>
 
             {/* Book Spine */}
@@ -274,7 +285,16 @@ export default function ProjectDetailView({
             <div className="p-10 bg-[#faf8f5] shadow-inner border border-gray-200 flex items-center justify-center">
               {/* Painting Artwork */}
               <div className="w-72 h-72 shadow-md relative overflow-hidden bg-linear-to-br border border-black/10">
-                <ProceduralPlaceholder id={id} type="fine-art" title={title} />
+                {coverImage ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={coverImage}
+                    alt={title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <ProceduralPlaceholder id={id} type="fine-art" title={title} />
+                )}
               </div>
             </div>
           </div>
@@ -351,7 +371,16 @@ export default function ProjectDetailView({
           <div className="w-56 h-56 rounded-full overflow-hidden shadow-2xl relative border-4 border-[#C5A059]/20 flex items-center justify-center">
             <div className="absolute inset-0 scale-150 transform">
               {/* Highly zoomed visual crop */}
-              <ProceduralPlaceholder id={id} type={type} title="" />
+              {coverImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={coverImage}
+                  alt={title}
+                  className="w-full h-full object-cover scale-150 transform"
+                />
+              ) : (
+                <ProceduralPlaceholder id={id} type={type} title="" />
+              )}
             </div>
             {/* Magnifying lens effect reflection */}
             <div className="absolute inset-0 bg-linear-to-tr from-transparent via-white/10 to-transparent pointer-events-none" />
@@ -554,7 +583,16 @@ export default function ProjectDetailView({
                     ? "aspect-2/3 max-w-md mx-auto my-6 shadow-2xl"
                     : "aspect-square max-w-2xl mx-auto my-6 shadow-2xl"
                 }>
-                <ProceduralPlaceholder id={id} type={type} title={title} />
+                {coverImage ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={coverImage}
+                    alt={title}
+                    className="w-full h-auto object-cover max-h-[750px] mx-auto rounded shadow-2xl"
+                  />
+                ) : (
+                  <ProceduralPlaceholder id={id} type={type} title={title} />
+                )}
               </div>
             </div>
           </div>

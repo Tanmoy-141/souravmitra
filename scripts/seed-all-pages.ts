@@ -446,6 +446,24 @@ async function seedAllPages() {
             <h2 class="text-3xl font-serif text-white text-center">What Publishers &amp; Clients Say</h2>
           </div>
 
+          <!-- Animated Counters Section (Fully Editable in Visual Editor) -->
+          <section class="bg-[#111111] py-12 border-t border-[#333333]" data-cms-section="counters">
+            <div class="container mx-auto px-6 sm:px-10 max-w-6xl grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
+              <div class="counter-item text-center p-4" data-counter="item">
+                <div class="counter-number text-4xl sm:text-5xl font-bold text-[#C5A059] font-mono tracking-tight" data-counter-target="150" data-counter-suffix="+">150+</div>
+                <div class="counter-label text-xs sm:text-sm uppercase tracking-widest text-[#D4D4D4] mt-2 font-medium">Projects Completed</div>
+              </div>
+              <div class="counter-item text-center p-4" data-counter="item">
+                <div class="counter-number text-4xl sm:text-5xl font-bold text-[#C5A059] font-mono tracking-tight" data-counter-target="50" data-counter-suffix="+">50+</div>
+                <div class="counter-label text-xs sm:text-sm uppercase tracking-widest text-[#D4D4D4] mt-2 font-medium">Happy Clients</div>
+              </div>
+              <div class="counter-item text-center p-4" data-counter="item">
+                <div class="counter-number text-4xl sm:text-5xl font-bold text-[#C5A059] font-mono tracking-tight" data-counter-target="10" data-counter-suffix="+">10+</div>
+                <div class="counter-label text-xs sm:text-sm uppercase tracking-widest text-[#D4D4D4] mt-2 font-medium">Years Experience</div>
+              </div>
+            </div>
+          </section>
+
           <section class="px-10 py-20 text-center">
             <h2 class="text-4xl font-serif mb-8 text-[#FFFFFF]">Let's Create Something Extraordinary Together</h2>
             <a href="/contact" class="inline-block px-8 py-3 bg-[#C5A059] text-black font-bold uppercase tracking-widest text-xs">Start a Project</a>

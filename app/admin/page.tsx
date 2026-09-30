@@ -9,6 +9,8 @@ import GrapesEditor, {
   type GrapesEditorHandle,
 } from "@/components/cms/GrapesEditor";
 import { CustomPage, Block } from "@/data/cms";
+import { generateProjectDetailHtml } from "@/lib/project-detail-template";
+import type { Project } from "@/db/schema";
 
 type CmsPage = CustomPage & {
   htmlCache?: string;
@@ -37,19 +39,128 @@ const SOCIAL_LINK_FIELDS = [
   ["x", "X"],
 ] as const;
 
+const DEFAULT_CATEGORY_TEMPLATES = [
+  {
+    slug: "template/fine-art",
+    title: "Fine Art Inside Page (Template)",
+    category: "fine-art" as const,
+    sample: {
+      id: "sample-fine-art",
+      slug: "sample-fine-art",
+      title: "Fine Art Presentation (Template)",
+      category: "fine-art" as const,
+      status: "published" as const,
+      medium: "Oil on Canvas",
+      dimensions: '24" x 36"',
+      year: "2024",
+      description:
+        "Classical exhibition study focusing on atmospheric lighting, oil brushwork texture, and narrative depth.",
+      details:
+        "Rendered using multi-layered glazing and tactile pigment impasto on custom linen canvas.",
+      coverImage:
+        "https://static.wixstatic.com/media/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg/v1/fill/w_1920,h_1080,al_c,q_90,enc_avif,quality_auto/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg",
+      images: [],
+      tags: ["Fine Art", "Oil on Canvas", "Gallery"],
+      isFeatured: false,
+      likes: 124,
+      views: 1450,
+      sortOrder: 0,
+      publisher: null,
+      createdBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  },
+  {
+    slug: "template/book-covers",
+    title: "Book Cover Inside Page (Template)",
+    category: "book-covers" as const,
+    sample: {
+      id: "sample-book-cover",
+      slug: "sample-book-cover",
+      title: "Book Cover Presentation (Template)",
+      category: "book-covers" as const,
+      status: "published" as const,
+      medium: "Digital Cover Illustration",
+      dimensions: "6 x 9 inches",
+      year: "2024",
+      publisher: "Penguin Random House",
+      description:
+        "Literary fiction book cover design balancing bold focal hierarchy, bespoke typography, and evocative mood.",
+      details:
+        "Created with high-impact color palettes designed for maximum bookshelf impact and digital thumbnail clarity.",
+      coverImage:
+        "https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=800",
+      images: [],
+      tags: ["Book Cover", "Typography", "Fiction"],
+      isFeatured: false,
+      likes: 98,
+      views: 1120,
+      sortOrder: 0,
+      createdBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  },
+  {
+    slug: "template/illustration",
+    title: "Illustration Inside Page (Template)",
+    category: "illustration" as const,
+    sample: {
+      id: "sample-illustration",
+      slug: "sample-illustration",
+      title: "Illustration Presentation (Template)",
+      category: "illustration" as const,
+      status: "published" as const,
+      medium: "Digital Painting / Concept Art",
+      dimensions: "300 DPI High-Res",
+      year: "2024",
+      description:
+        "Concept illustration exploring cinematic focal gradients, volumetric lights, and detailed narrative staging.",
+      details:
+        "Developed from initial thumbnail value studies through to detailed texture finish and cinematic color grading.",
+      coverImage:
+        "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?q=80&w=1920",
+      images: [],
+      tags: ["Illustration", "Concept Art", "Digital Painting"],
+      isFeatured: false,
+      likes: 165,
+      views: 1890,
+      sortOrder: 0,
+      publisher: null,
+      createdBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  },
+];
+
 function normalizePages(value: unknown): CustomPage[] {
-  if (!Array.isArray(value)) {
-    return [];
+  let list: CustomPage[] = [];
+  if (Array.isArray(value)) {
+    list = value.map((item) => {
+      const page = item as Partial<CmsPage>;
+      return {
+        ...page,
+        blocks: Array.isArray(page.blocks) ? page.blocks : [],
+      } as CustomPage;
+    });
   }
 
-  return value.map((item) => {
-    const page = item as Partial<CmsPage>;
+  // Ensure default category templates are available in the editor list
+  for (const t of DEFAULT_CATEGORY_TEMPLATES) {
+    if (!list.some((p) => p.slug === t.slug)) {
+      list.push({
+        slug: t.slug,
+        title: t.title,
+        status: "published",
+        blocks: [],
+        htmlCache: generateProjectDetailHtml(t.sample),
+      } as CustomPage);
+    }
+  }
 
-    return {
-      ...page,
-      blocks: Array.isArray(page.blocks) ? page.blocks : [],
-    } as CustomPage;
-  });
+  return list;
 }
 
 function isSamePage(page: CustomPage, target: CustomPage): boolean {
@@ -61,8 +172,8 @@ function isSamePage(page: CustomPage, target: CustomPage): boolean {
 function getPublishSlug(page: CustomPage): string {
   const slug = typeof page.slug === "string" ? page.slug.trim() : "";
 
-  if (slug) {
-    return slug;
+  if (slug === "" || slug === "/") {
+    return "/";
   }
 
   const title =
@@ -72,7 +183,7 @@ function getPublishSlug(page: CustomPage): string {
     return "/";
   }
 
-  return "";
+  return slug;
 }
 
 async function getApiError(
@@ -135,6 +246,63 @@ export default function AdminDashboard() {
   const [viewTrash, setViewTrash] = useState(false);
 
   const [trashPages, setTrashPages] = useState<CustomPage[]>([]);
+
+  // Project Inside Page Picker states
+  const [showProjectPicker, setShowProjectPicker] = useState(false);
+  const [pickerProjects, setPickerProjects] = useState<Project[]>([]);
+  const [pickerSearch, setPickerSearch] = useState("");
+  const [pickerCategory, setPickerCategory] = useState<string>("all");
+  const [loadingProjects, setLoadingProjects] = useState(false);
+
+  const handleOpenProjectPicker = async () => {
+    setShowProjectPicker(true);
+    if (pickerProjects.length === 0) {
+      setLoadingProjects(true);
+      try {
+        const res = await fetch("/api/projects");
+        const data = await res.json();
+        if (Array.isArray(data.projects)) {
+          setPickerProjects(data.projects);
+        }
+      } catch (err) {
+        console.error("Failed to load projects for picker:", err);
+      } finally {
+        setLoadingProjects(false);
+      }
+    }
+  };
+
+  const handleEditProjectInside = (project: Project) => {
+    const slug = `${project.category}/${project.id}`;
+    const slugByTitle = `${project.category}/${project.slug}`;
+
+    // 1. Check if page already exists in state
+    const existing = pages.find((p) => p.slug === slug || p.slug === slugByTitle);
+    if (existing) {
+      setActivePage(existing);
+      setActiveTab("pages");
+      setViewTrash(false);
+      setShowProjectPicker(false);
+      return;
+    }
+
+    // 2. Generate initial HTML tailored to this project's category & data
+    const initialHtml = generateProjectDetailHtml(project);
+    const newProjectPage: CustomPage = {
+      slug,
+      title: `${project.title} (${project.category.replace("-", " ")})`,
+      status: "published",
+      blocks: [],
+      // @ts-expect-error adding htmlCache to CustomPage
+      htmlCache: initialHtml,
+    };
+
+    setPages((prev) => [newProjectPage, ...prev]);
+    setActivePage(newProjectPage);
+    setActiveTab("pages");
+    setViewTrash(false);
+    setShowProjectPicker(false);
+  };
 
   useEffect(() => {
     fetch("/api/cms/settings", { cache: "no-store" })
@@ -433,7 +601,9 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           slug,
           title: page.title || "Untitled Page",
-          status: "draft",
+          status: page.status || "published",
+          htmlCache: (page as CmsPage).htmlCache || "",
+          cssCache: (page as CmsPage).cssCache || "",
         }),
       });
 
@@ -474,87 +644,13 @@ export default function AdminDashboard() {
       return;
     }
 
-    const publishablePages = pages.map((page) => {
-      const isActivePage = isSamePage(page, activePage);
-      const pageWithEditorContent =
-        isActivePage && editorContent
-          ? {
-              ...page,
-              ...activePage,
-              id: page.id ?? activePage.id,
-              gjsData: editorContent.projectData,
-              htmlCache: editorContent.html,
-              cssCache: editorContent.css,
-            }
-          : page;
-      const slug = getPublishSlug(pageWithEditorContent);
-
-      return slug
-        ? {
-            ...pageWithEditorContent,
-            slug,
-            status: "published" as const,
-          }
-        : pageWithEditorContent;
-    });
-
-    const invalidPage = publishablePages.find((page) => !getPublishSlug(page));
-
-    if (invalidPage) {
-      setSaveStatus(
-        `Cannot publish: "${invalidPage.title}" has no valid slug.`,
-      );
-      return;
-    }
-
-    setSaving(true);
-    setSaveStatus(null);
-
-    try {
-      const res = await fetch("/api/cms", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          pages: publishablePages,
-        }),
-      });
-
-      const result = (await res.json()) as CmsApiResponse;
-      if (res.ok && result.success) {
-        const normalizedFresh = await refreshPages();
-        const activeSlug = getPublishSlug(activePage);
-        const updatedActive = normalizedFresh.find(
-          (page) =>
-            (activePage.id && page.id === activePage.id) ||
-            page.slug === activeSlug,
-        );
-
-        if (!updatedActive) {
-          setSaveStatus(
-            `Publish request succeeded, but "${activePage.title}" was not returned by the CMS refresh.`,
-          );
-          return;
-        }
-
-        setActivePage(updatedActive);
-        setSaveStatus(
-          updatedActive.status === "published"
-            ? "Site published successfully!"
-            : `Site saved, but "${updatedActive.title}" is still a draft and is not publicly visible.`,
-        );
-        setTimeout(() => setSaveStatus(null), 3000);
-      } else {
-        setSaveStatus(
-          `Failed to publish: ${result.error || "The server rejected the update."}`,
-        );
-      }
-    } catch {
-      setSaveStatus("Network error occurred while saving.");
-    } finally {
-      setSaving(false);
-    }
+    // Safely publish ONLY the currently active page.
+    // Never bulk-overwrite other pages to prevent data loss and misalignment.
+    await handlePublishPage(
+      editorContent.projectData,
+      editorContent.html,
+      editorContent.css,
+    );
   };
 
   const createNewPage = () => {
@@ -714,7 +810,7 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           id: pageWithId.id,
           slug,
-          title: pageWithId.title,
+          title: activePage.title || pageWithId.title,
           gjsData: projectData,
           ...(html !== undefined && { htmlCache: html }),
           ...(css !== undefined && { cssCache: css }),
@@ -789,7 +885,7 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           id: pageWithId.id,
           slug,
-          title: pageWithId.title,
+          title: activePage.title || pageWithId.title,
           gjsData: projectData,
           htmlCache: html,
           cssCache: css,
@@ -839,6 +935,40 @@ export default function AdminDashboard() {
   }
 
   const activePageWithCache = activePage as CmsPage | null;
+
+  // Group pages for the select dropdown
+  const corePages = pages.filter((p) =>
+    ["/", "", "about", "contact"].includes(p.slug),
+  );
+  const collectionPages = pages.filter((p) =>
+    ["book-covers", "illustration", "fine-art"].includes(p.slug),
+  );
+  const templatePages = pages.filter((p) => p.slug.startsWith("template/"));
+  const projectPages = pages.filter(
+    (p) =>
+      p.slug.startsWith("book-covers/") ||
+      p.slug.startsWith("illustration/") ||
+      p.slug.startsWith("fine-art/"),
+  );
+  const otherPages = pages.filter(
+    (p) =>
+      !corePages.includes(p) &&
+      !collectionPages.includes(p) &&
+      !templatePages.includes(p) &&
+      !projectPages.includes(p),
+  );
+
+  const filteredPickerProjects = pickerProjects.filter((p) => {
+    if (pickerCategory !== "all" && p.category !== pickerCategory) return false;
+    if (!pickerSearch.trim()) return true;
+    const q = pickerSearch.toLowerCase();
+    return (
+      p.title.toLowerCase().includes(q) ||
+      (p.medium && p.medium.toLowerCase().includes(q)) ||
+      (p.year && String(p.year).includes(q)) ||
+      p.category.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col font-sans">
@@ -892,14 +1022,63 @@ export default function AdminDashboard() {
                     pages.find((page) => page.slug === e.target.value) || null,
                   );
                 }}
-                className="bg-[#111111] border border-[#333333] px-3 py-1 text-sm focus:outline-none min-w-0 flex-1 md:flex-none"
+                className="bg-[#111111] border border-[#333333] px-3 py-1.5 text-xs font-medium focus:outline-none min-w-50 max-w-85"
                 disabled={viewTrash}>
-                {pages.map((page) => (
-                  <option key={page.id ?? page.slug} value={page.slug}>
-                    {page.title} ({page.status})
-                  </option>
-                ))}
+                {corePages.length > 0 && (
+                  <optgroup label="Core Site Pages">
+                    {corePages.map((page) => (
+                      <option key={page.id ?? page.slug} value={page.slug}>
+                        {page.title} ({page.status})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {collectionPages.length > 0 && (
+                  <optgroup label="Portfolio Archives">
+                    {collectionPages.map((page) => (
+                      <option key={page.id ?? page.slug} value={page.slug}>
+                        {page.title} Collection ({page.status})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {templatePages.length > 0 && (
+                  <optgroup label="Project Inside Templates (By Type)">
+                    {templatePages.map((page) => (
+                      <option key={page.id ?? page.slug} value={page.slug}>
+                        🎨 {page.title}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {projectPages.length > 0 && (
+                  <optgroup label="Customized Project Insides">
+                    {projectPages.map((page) => (
+                      <option key={page.id ?? page.slug} value={page.slug}>
+                        🖼️ {page.title}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {otherPages.length > 0 && (
+                  <optgroup label="Other Custom Pages">
+                    {otherPages.map((page) => (
+                      <option key={page.id ?? page.slug} value={page.slug}>
+                        {page.title} ({page.status})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
+
+              <button
+                type="button"
+                onClick={handleOpenProjectPicker}
+                className="text-xs px-2.5 py-1 uppercase tracking-widest font-bold border border-[#C5A059] text-[#C5A059] hover:bg-[#C5A059] hover:text-black transition-colors shrink-0 flex items-center gap-1.5"
+                title="Select any portfolio project to visually edit its inside page"
+                disabled={viewTrash}>
+                <span>🎨 Edit Project Inside...</span>
+              </button>
 
               <button
                 onClick={() => {
@@ -944,6 +1123,21 @@ export default function AdminDashboard() {
             </span>
           )}
 
+          {activeTab === "pages" && activePage && (
+            <a
+              href={
+                activePage.slug === "/" || activePage.slug === ""
+                  ? "/"
+                  : `/${activePage.slug}`
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              className="border border-[#333] hover:border-[#C5A059] text-gray-300 hover:text-white px-3 py-2 text-xs uppercase tracking-widest font-semibold transition-colors flex items-center gap-1.5 shrink-0"
+              title="View live page in a new tab">
+              <span>🔗 View Live</span>
+            </a>
+          )}
+
           {activeTab === "pages" && (
             <button
               onClick={handleSave}
@@ -963,7 +1157,7 @@ export default function AdminDashboard() {
 
       {activeTab === "projects" ? (
         <div className="flex-1 overflow-y-auto p-6 md:p-12 bg-[#000000]">
-          <ProjectsAdmin />
+          <ProjectsAdmin onEditInsidePage={handleEditProjectInside} />
         </div>
       ) : activeTab === "messages" ? (
         <div className="flex-1 overflow-y-auto bg-[#000000]">
@@ -1427,6 +1621,7 @@ export default function AdminDashboard() {
               key={activePage?.id || activePage?.slug}
               initialData={activePage?.gjsData}
               initialHtml={activePageWithCache?.htmlCache}
+              initialCss={activePageWithCache?.cssCache}
               onSave={handleSaveDraft}
               onPublish={handlePublishPage}
             />
@@ -1523,6 +1718,110 @@ export default function AdminDashboard() {
           }}
         />
       ) : null}
+
+      {/* Project Inside Page Picker Modal */}
+      {showProjectPicker && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0c0c0c] border border-[#2a2a2a] rounded-xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-[#222] flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-[#C5A059] uppercase tracking-widest font-bold block">
+                  Visual Editor &bull; Portfolio Project Insides
+                </span>
+                <h3 className="text-lg font-serif text-white font-bold mt-0.5">
+                  Select a Project to Edit Inside Page
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowProjectPicker(false)}
+                className="w-8 h-8 rounded-full border border-[#333] text-gray-400 hover:text-white flex items-center justify-center text-sm hover:border-[#555] transition-colors">
+                ✕
+              </button>
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div className="p-4 border-b border-[#222] bg-[#111] flex flex-col sm:flex-row gap-3 items-center justify-between">
+              <input
+                type="text"
+                value={pickerSearch}
+                onChange={(e) => setPickerSearch(e.target.value)}
+                placeholder="Search projects by title, medium, year..."
+                className="w-full sm:flex-1 bg-black border border-[#333] rounded px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#C5A059]"
+              />
+              <div className="flex gap-1 shrink-0">
+                {["all", "book-covers", "illustration", "fine-art"].map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setPickerCategory(cat)}
+                    className={`px-2.5 py-1 text-[10px] uppercase font-bold tracking-wider rounded transition-colors ${
+                      pickerCategory === cat
+                        ? "bg-[#C5A059] text-black"
+                        : "bg-[#181818] text-gray-400 hover:text-white"
+                    }`}>
+                    {cat === "all" ? "All" : cat.replace("-", " ")}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Project List */}
+            <div className="p-4 flex-1 overflow-y-auto flex flex-col gap-2">
+              {loadingProjects ? (
+                <div className="py-12 text-center text-gray-500 text-xs uppercase tracking-widest">
+                  Loading projects...
+                </div>
+              ) : filteredPickerProjects.length === 0 ? (
+                <div className="py-12 text-center text-gray-500 text-xs uppercase tracking-widest">
+                  No matching projects found.
+                </div>
+              ) : (
+                filteredPickerProjects.map((proj) => (
+                  <div
+                    key={proj.id}
+                    className="p-3 bg-[#111] hover:bg-[#161616] border border-[#222] hover:border-[#C5A059]/40 rounded flex items-center justify-between gap-4 transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-12 h-12 bg-black rounded overflow-hidden shrink-0 border border-[#333] flex items-center justify-center">
+                        {proj.coverImage ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={proj.coverImage}
+                            alt={proj.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-[9px] text-[#C5A059] font-bold">Art</span>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-serif font-bold text-white truncate">
+                          {proj.title}
+                        </h4>
+                        <p className="text-[11px] text-gray-400 truncate">
+                          <span className="text-[#C5A059] uppercase tracking-wider font-semibold">
+                            {proj.category.replace("-", " ")}
+                          </span>
+                          {proj.year ? ` • ${proj.year}` : ""}
+                          {proj.medium ? ` • ${proj.medium}` : ""}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleEditProjectInside(proj)}
+                      className="px-3.5 py-1.5 bg-[#C5A059] hover:bg-white text-black font-bold uppercase tracking-wider text-[11px] rounded transition-colors shrink-0">
+                      Open in Visual Editor &rarr;
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

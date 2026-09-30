@@ -1,8 +1,8 @@
+/* eslint-disable @next/next/no-page-custom-font */
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { Counter } from "@/components/Counter";
 import { db } from "@/db";
 import { siteSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -111,16 +111,6 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col font-sans">
         <Header />
         <main className="grow">{children}</main>
-
-        {/* Animated Counters Section */}
-        <section className="bg-[#111111] py-12 border-t border-[#333333]">
-          <div className="container mx-auto px-10 grid grid-cols-2 md:grid-cols-3 gap-8">
-            <Counter target={150} label="Projects Completed" />
-            <Counter target={50} label="Happy Clients" />
-            <Counter target={10} label="Years Experience" />
-          </div>
-        </section>
-
         <Footer />
       </body>
     </html>

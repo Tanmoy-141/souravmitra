@@ -38,7 +38,7 @@ export default function BlockRenderer({ block }: { block: Block }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {content.images?.map((url, i) => (
               <div key={i} className="relative aspect-4/5 bg-gray-900 border border-[#333333]">
-                <Image src={url} alt={`Gallery item ${i}`} fill sizes="(max-width: 768px) 100vw, 33vw" className="object-cover grayscale hover:grayscale-0 transition-all duration-500" />
+                <Image src={url} alt={`Gallery item ${i}`} fill unoptimized sizes="(max-width: 768px) 100vw, 33vw" className="object-cover grayscale hover:grayscale-0 transition-all duration-500" />
               </div>
             ))}
           </div>

@@ -6,7 +6,7 @@ import { eq, desc, isNull, isNotNull, and } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { resolveSession } from "@/lib/auth";
 import type { Block } from "@/data/cms";
-import { sanitizeHtml, sanitizeCss, sanitizeSlug } from "@/lib/sanitize";
+import { sanitizeHtml, sanitizeCss, sanitizePathSlug } from "@/lib/sanitize";
 import { CmsPageSchema, CmsBulkPageSchema } from "@/lib/schemas";
 
 /**
@@ -41,7 +41,7 @@ async function isAuthorized(req?: NextRequest): Promise<boolean> {
 }
 
 function sanitizePageSlug(slug: string): string {
-  return slug.trim() === "/" ? "/" : sanitizeSlug(slug);
+  return sanitizePathSlug(slug);
 }
 
 function revalidateCmsPaths(slug?: string) {
@@ -178,35 +178,66 @@ export async function POST(req: NextRequest) {
       const results = [];
       for (const page of pagesToSave) {
         const cleanSlug = sanitizePageSlug(page.slug);
+        if (cleanSlug.startsWith("template/")) {
+          continue;
+        }
 
-        const [upserted] = await db
-          .insert(pages)
-          .values({
-            ...(page.id && { id: page.id }),
-            slug: cleanSlug,
-            title: page.title,
-            status: page.status || "draft",
-            gjsData: page.gjsData ?? { blocks: page.blocks || [] },
-            ...(page.htmlCache !== undefined && { htmlCache: page.htmlCache }),
-            ...(page.cssCache !== undefined && { cssCache: page.cssCache }),
-            updatedAt: new Date(),
-          })
-          .onConflictDoUpdate({
-            target: [pages.id],
-            set: {
+        let targetId = page.id;
+        let existingRecord = null;
+        if (targetId) {
+          const [found] = await db
+            .select({ id: pages.id, cssCache: pages.cssCache, htmlCache: pages.htmlCache })
+            .from(pages)
+            .where(eq(pages.id, targetId))
+            .limit(1);
+          existingRecord = found;
+        } else {
+          const [found] = await db
+            .select({ id: pages.id, cssCache: pages.cssCache, htmlCache: pages.htmlCache })
+            .from(pages)
+            .where(eq(pages.slug, cleanSlug))
+            .limit(1);
+          existingRecord = found;
+          if (found) targetId = found.id;
+        }
+
+        let cssToSave = page.cssCache;
+        if (existingRecord?.cssCache && existingRecord.cssCache.trim().length > 50) {
+          if (!cssToSave || cssToSave.trim().length <= 50) {
+            cssToSave = existingRecord.cssCache;
+          }
+        }
+
+        if (targetId) {
+          const [updated] = await db
+            .update(pages)
+            .set({
               slug: cleanSlug,
               title: page.title,
               status: page.status || "draft",
               gjsData: page.gjsData ?? { blocks: page.blocks || [] },
-              ...(page.htmlCache !== undefined && {
-                htmlCache: page.htmlCache,
-              }),
-              ...(page.cssCache !== undefined && { cssCache: page.cssCache }),
+              ...(page.htmlCache !== undefined && { htmlCache: page.htmlCache }),
+              ...(cssToSave !== undefined && { cssCache: cssToSave }),
               updatedAt: new Date(),
-            },
-          })
-          .returning();
-        results.push(upserted);
+            })
+            .where(eq(pages.id, targetId))
+            .returning();
+          results.push(updated);
+        } else {
+          const [inserted] = await db
+            .insert(pages)
+            .values({
+              slug: cleanSlug,
+              title: page.title,
+              status: page.status || "draft",
+              gjsData: page.gjsData ?? { blocks: page.blocks || [] },
+              ...(page.htmlCache !== undefined && { htmlCache: page.htmlCache }),
+              ...(cssToSave !== undefined && { cssCache: cssToSave }),
+              updatedAt: new Date(),
+            })
+            .returning();
+          results.push(inserted);
+        }
       }
 
       for (const page of pagesToSave) {
@@ -343,6 +374,36 @@ export async function PUT(req: NextRequest) {
         sanitizedCss = cssCache ? sanitizeCss(cssCache) : "";
       } catch {
         return NextResponse.json({ error: "Invalid CSS" }, { status: 400 });
+      }
+
+      if (
+        sanitizedCss !== undefined &&
+        sanitizedCss.trim().length <= 50 &&
+        existing.cssCache &&
+        existing.cssCache.trim().length > 50
+      ) {
+        sanitizedCss = existing.cssCache;
+      } else if (
+        sanitizedCss !== undefined &&
+        existing.cssCache &&
+        existing.cssCache.trim().length > 50
+      ) {
+        const existingBlocks = existing.cssCache.split("}");
+        for (const block of existingBlocks) {
+          const trimmed = block.trim();
+          if (!trimmed) continue;
+          const openBrace = trimmed.indexOf("{");
+          if (openBrace === -1) continue;
+          const selector = trimmed.substring(0, openBrace).trim();
+          if (
+            selector &&
+            !sanitizedCss.includes(selector) &&
+            !selector.startsWith("*") &&
+            !selector.startsWith("body")
+          ) {
+            sanitizedCss += `\n${trimmed}}`;
+          }
+        }
       }
     }
 

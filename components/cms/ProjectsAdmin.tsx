@@ -27,7 +27,11 @@ const EMPTY_FORM = {
   isFeatured: false,
 };
 
-export default function ProjectsAdmin() {
+interface ProjectsAdminProps {
+  onEditInsidePage?: (project: Project) => void;
+}
+
+export default function ProjectsAdmin({ onEditInsidePage }: ProjectsAdminProps = {}) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState<Category | "all">("all");
@@ -254,7 +258,7 @@ export default function ProjectsAdmin() {
               {/* Cover thumbnail */}
               <div className="w-14 h-14 shrink-0 bg-[#111] relative overflow-hidden">
                 {p.coverImage ? (
-                  <Image src={p.coverImage} alt={p.title} fill className="object-cover" sizes="56px" />
+                  <Image src={p.coverImage} alt={p.title} fill unoptimized className="object-cover" sizes="56px" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-700 text-[10px] uppercase">
                     No img
@@ -314,9 +318,25 @@ export default function ProjectsAdmin() {
                 </button>
                 <button
                   onClick={() => openEdit(p)}
-                  className="text-[10px] px-2 py-1 border border-[#333] text-gray-500 hover:text-white transition-colors">
-                  Edit
+                  className="text-[10px] px-2 py-1 border border-[#333] text-gray-400 hover:text-white transition-colors">
+                  Edit Info
                 </button>
+                {onEditInsidePage && (
+                  <button
+                    onClick={() => onEditInsidePage(p)}
+                    className="text-[10px] px-2.5 py-1 bg-[#1a170f] border border-[#C5A059] text-[#C5A059] hover:bg-[#C5A059] hover:text-black font-semibold transition-colors flex items-center gap-1"
+                    title="Edit the layout, text, artwork, and design of this project's inside page in the Visual Editor">
+                    <span>🎨 Edit Inside Page</span>
+                  </button>
+                )}
+                <a
+                  href={`/${p.category}/${p.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] px-2 py-1 border border-[#333] text-gray-500 hover:text-white transition-colors"
+                  title="View live page in a new tab">
+                  🔗 View
+                </a>
                 <button
                   onClick={() => handleDelete(p.id, p.title)}
                   className="text-[10px] px-2 py-1 border border-[#333] text-red-800 hover:text-red-500 transition-colors">
@@ -489,7 +509,7 @@ export default function ProjectsAdmin() {
                 </div>
                 {form.coverImage && (
                   <div className="relative w-24 h-24 bg-[#0d0d0d] overflow-hidden">
-                    <Image src={form.coverImage} alt="Cover preview" fill className="object-cover" sizes="96px" />
+                    <Image src={form.coverImage} alt="Cover preview" fill unoptimized className="object-cover" sizes="96px" />
                   </div>
                 )}
               </div>

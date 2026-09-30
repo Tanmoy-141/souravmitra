@@ -83,3 +83,22 @@ export function sanitizeSlug(input: string): string {
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+/**
+ * Creates a URL-friendly path slug supporting nested route segments (e.g. fine-art/04624c3f or template/fine-art).
+ */
+export function sanitizePathSlug(input: string): string {
+  const trimmed = input.trim();
+  if (trimmed === "/") return "/";
+  return trimmed
+    .toLowerCase()
+    .split("/")
+    .map((segment) =>
+      segment
+        .replace(/[^a-z0-9_-]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+    )
+    .filter(Boolean)
+    .join("/");
+}
+

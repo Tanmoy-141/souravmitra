@@ -12,11 +12,13 @@ import type { Editor, ToolbarButtonProps, Component } from "grapesjs";
 import "grapesjs/dist/css/grapes.min.css";
 import CustomFontModal from "./CustomFontModal";
 import { CustomFont, formatFontFaceCss } from "@/lib/fonts";
+import { initCountersInContainer } from "@/lib/counter-animation";
 type GrapesProjectData = ReturnType<Editor["getProjectData"]>;
 
 interface GrapesEditorProps {
   initialData?: unknown;
   initialHtml?: string;
+  initialCss?: string;
   onSave?: (projectData: GrapesProjectData, html: string, css: string) => void;
   onPublish?: (
     projectData: GrapesProjectData,
@@ -121,10 +123,273 @@ function registerCmsDynamicBlockTypes(editorInstance: Editor) {
       },
     },
   });
+
+  editorInstance.Components.addType("counter-item", {
+    isComponent: (el: HTMLElement) =>
+      el.getAttribute?.("data-counter") === "item" ||
+      el.classList?.contains?.("counter-item")
+        ? { type: "counter-item" }
+        : undefined,
+    model: {
+      defaults: {
+        selectable: true,
+        hoverable: true,
+        draggable: true,
+        droppable: true,
+        removable: true,
+        copyable: true,
+        traits: [
+          {
+            type: "text",
+            name: "counter_item_num_val",
+            label: "Counter Number",
+            placeholder: "e.g. 150+",
+          },
+          {
+            type: "text",
+            name: "counter_item_lbl_val",
+            label: "Counter Label",
+            placeholder: "e.g. Projects Completed",
+          },
+          {
+            type: "button",
+            name: "play_counter_anim",
+            label: "Animation Test",
+            text: "▶ Play Counter Animation",
+            command: "preview-counter-animation",
+          },
+        ],
+      },
+      init() {
+        const syncTraitsFromChildren = () => {
+          const numComp =
+            this.find?.(".counter-number")?.[0] ||
+            this.find?.("[data-counter-target]")?.[0];
+          const lblComp = this.find?.(".counter-label")?.[0];
+          if (numComp) {
+            const numText =
+              numComp.get("content") ||
+              (numComp.components?.()?.models?.[0] as unknown as { get?: (k: string) => string })?.get?.("content") ||
+              numComp.getAttributes()["data-counter-target"] ||
+              "";
+            if (numText && typeof numText === "string") {
+              this.set("counter_item_num_val", numText);
+            }
+          }
+          if (lblComp) {
+            const lblText =
+              lblComp.get("content") ||
+              (lblComp.components?.()?.models?.[0] as unknown as { get?: (k: string) => string })?.get?.("content") ||
+              "";
+            if (lblText && typeof lblText === "string") {
+              this.set("counter_item_lbl_val", lblText);
+            }
+          }
+        };
+
+        syncTraitsFromChildren();
+        this.on("change:selected", (_comp: unknown, isSelected: boolean) => {
+          if (isSelected) syncTraitsFromChildren();
+        });
+
+        this.on("change:counter_item_num_val", () => {
+          const val = this.get("counter_item_num_val");
+          if (typeof val === "string" && val.trim() !== "") {
+            const numComp =
+              this.find?.(".counter-number")?.[0] ||
+              this.find?.("[data-counter-target]")?.[0];
+            if (numComp) {
+              numComp.components(val);
+              numComp.set("counter_display_val", val);
+              const match = val.match(/^([^\d]*)([\d,.]+)([^\d]*)$/);
+              if (match) {
+                const num = parseFloat(match[2].replace(/,/g, ""));
+                if (!Number.isNaN(num)) {
+                  numComp.addAttributes({
+                    "data-counter-target": String(num),
+                    "data-counter-prefix": match[1] || "",
+                    "data-counter-suffix": match[3] || "",
+                  });
+                }
+              }
+            }
+          }
+        });
+
+        this.on("change:counter_item_lbl_val", () => {
+          const val = this.get("counter_item_lbl_val");
+          if (typeof val === "string") {
+            const lblComp = this.find?.(".counter-label")?.[0];
+            if (lblComp) {
+              lblComp.components(val);
+            }
+          }
+        });
+      },
+    },
+  });
+
+  editorInstance.Components.addType("counter-number", {
+    extend: "text",
+    isComponent: (el: HTMLElement) =>
+      el.classList?.contains?.("counter-number") ||
+      el.hasAttribute?.("data-counter-target")
+        ? { type: "counter-number" }
+        : undefined,
+    model: {
+      defaults: {
+        type: "text",
+        tagName: "div",
+        editable: true,
+        selectable: true,
+        hoverable: true,
+        draggable: true,
+        droppable: false,
+        traits: [
+          {
+            type: "text",
+            name: "counter_display_val",
+            label: "Display Value",
+            placeholder: "e.g. 150+",
+          },
+          {
+            type: "number",
+            name: "data-counter-target",
+            label: "Target Value",
+            placeholder: "150",
+          },
+          {
+            type: "text",
+            name: "data-counter-suffix",
+            label: "Suffix",
+            placeholder: "e.g. +",
+          },
+          {
+            type: "text",
+            name: "data-counter-prefix",
+            label: "Prefix",
+            placeholder: "e.g. $",
+          },
+          {
+            type: "number",
+            name: "data-counter-duration",
+            label: "Duration (ms)",
+            placeholder: "2000",
+          },
+          {
+            type: "button",
+            name: "play_counter_anim",
+            label: "Animation Test",
+            text: "▶ Play Counter Animation",
+            command: "preview-counter-animation",
+          },
+        ],
+      },
+      init() {
+        const getCurrText = () => {
+          const content = this.get("content");
+          if (content && typeof content === "string") return content;
+          const firstChild = this.components?.()?.models?.[0] as unknown as { get?: (k: string) => string };
+          const childContent = firstChild?.get?.("content");
+          if (childContent && typeof childContent === "string") return childContent;
+          const target = this.getAttributes()["data-counter-target"];
+          const suffix = this.getAttributes()["data-counter-suffix"] || "+";
+          if (target) return `${target}${suffix}`;
+          return "";
+        };
+
+        const initialVal = getCurrText();
+        if (initialVal) {
+          this.set("counter_display_val", initialVal);
+        }
+
+        this.on("change:selected", (_comp: unknown, isSelected: boolean) => {
+          if (isSelected) {
+            const curr = getCurrText();
+            if (curr) this.set("counter_display_val", curr);
+          }
+        });
+
+        const syncFromText = (raw: string) => {
+          if (!raw) return;
+          this.set("counter_display_val", raw);
+          const match = raw.match(/^([^\d]*)([\d,.]+)([^\d]*)$/);
+          if (match) {
+            const num = parseFloat(match[2].replace(/,/g, ""));
+            if (!Number.isNaN(num)) {
+              this.addAttributes({
+                "data-counter-target": String(num),
+                "data-counter-prefix": match[1] || "",
+                "data-counter-suffix": match[3] || "",
+              });
+            }
+          }
+        };
+
+        // When trait 'Display Value' is modified
+        this.on("change:counter_display_val", () => {
+          const val = this.get("counter_display_val");
+          if (typeof val === "string" && val.trim() !== "") {
+            this.components(val);
+            syncFromText(val);
+          }
+        });
+
+        // When data-counter-target, suffix, or prefix traits change
+        const updateFromAttributes = () => {
+          const target = this.getAttributes()["data-counter-target"];
+          const suffix = this.getAttributes()["data-counter-suffix"] ?? "+";
+          const prefix = this.getAttributes()["data-counter-prefix"] ?? "";
+          if (target !== undefined && target !== null && String(target) !== "") {
+            const formatted = `${prefix}${target}${suffix}`;
+            this.components(formatted);
+            this.set("counter_display_val", formatted);
+          }
+        };
+
+        this.on("change:attributes:data-counter-target", updateFromAttributes);
+        this.on("change:attributes:data-counter-suffix", updateFromAttributes);
+        this.on("change:attributes:data-counter-prefix", updateFromAttributes);
+
+        // When content is directly typed/edited on the canvas
+        this.on("change:content", () => {
+          const raw = this.get("content");
+          if (typeof raw === "string") syncFromText(raw);
+        });
+
+        this.on("change:components", () => {
+          const text = getCurrText();
+          if (text) syncFromText(text);
+        });
+      },
+    },
+  });
+
+  editorInstance.Components.addType("counter-label", {
+    extend: "text",
+    isComponent: (el: HTMLElement) =>
+      el.classList?.contains?.("counter-label")
+        ? { type: "counter-label" }
+        : undefined,
+    model: {
+      defaults: {
+        type: "text",
+        tagName: "div",
+        editable: true,
+        selectable: true,
+        hoverable: true,
+        draggable: true,
+        droppable: false,
+      },
+    },
+  });
 }
 
 const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
-  function GrapesEditor({ initialData, initialHtml, onSave, onPublish }, ref) {
+  function GrapesEditor(
+    { initialData, initialHtml, initialCss, onSave, onPublish },
+    ref,
+  ) {
     const editorRef = useRef<Editor | null>(null);
 
     const containerRef = useRef<HTMLDivElement | null>(null);
@@ -133,6 +398,9 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
 
     const onSaveRef = useRef(onSave);
     onSaveRef.current = onSave;
+
+    const initialCssRef = useRef<string>(initialCss || "");
+    initialCssRef.current = initialCss || "";
 
     const [activeRightTab, setActiveRightTab] = useState<
       "styles" | "traits" | "layers"
@@ -144,6 +412,125 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
     const customFontsRef = useRef<CustomFont[]>([]);
     customFontsRef.current = customFonts;
 
+    const exportCleanCss = (editor: Editor): string => {
+      let css = editor.getCss() ?? "";
+      if (initialCssRef.current && initialCssRef.current.trim()) {
+        const initial = initialCssRef.current.trim();
+        if (!css || css.trim().length <= 50) {
+          return initial;
+        }
+        // Extract all rules from initialCss and preserve any that are not already present in css
+        const initialBlocks = initial.split("}");
+        for (const block of initialBlocks) {
+          const trimmedBlock = block.trim();
+          if (!trimmedBlock) continue;
+          const openBrace = trimmedBlock.indexOf("{");
+          if (openBrace === -1) continue;
+          const selector = trimmedBlock.substring(0, openBrace).trim();
+          if (
+            selector &&
+            !css.includes(selector) &&
+            !selector.startsWith("*") &&
+            !selector.startsWith("body")
+          ) {
+            css += `\n${trimmedBlock}}`;
+          }
+        }
+      }
+      return css;
+    };
+
+    const syncAllCounters = (editor: Editor) => {
+      try {
+        const wrapper = editor.getWrapper();
+        if (!wrapper) return;
+
+        const counterComps = wrapper.find(
+          ".counter-number, [data-counter-target], .counter-item, [data-counter='item']",
+        );
+
+        const canvasDoc = editor.Canvas?.getDocument();
+
+        const processComp = (comp: Component) => {
+          const el = comp.getEl();
+          let rawText = "";
+
+          if (el && typeof el.textContent === "string" && el.textContent.trim()) {
+            rawText = el.textContent.trim();
+          } else {
+            const content = comp.get("content");
+            if (typeof content === "string" && content.trim()) {
+              rawText = content.trim();
+            } else {
+              const children = comp.components?.();
+              if (children && children.models) {
+                for (const child of children.models) {
+                  const cContent = (
+                    child as unknown as { get?: (k: string) => string }
+                  ).get?.("content");
+                  if (typeof cContent === "string" && cContent.trim()) {
+                    rawText = cContent.trim();
+                    break;
+                  }
+                }
+              }
+            }
+          }
+
+          if (rawText) {
+            const match = rawText.match(/^([^\d]*)([\d,.]+)([^\d]*)$/);
+            if (match) {
+              const num = parseFloat(match[2].replace(/,/g, ""));
+              if (!Number.isNaN(num)) {
+                comp.addAttributes({
+                  "data-counter-target": String(num),
+                  "data-counter-prefix": match[1] || "",
+                  "data-counter-suffix": match[3] || "+",
+                });
+                comp.set("counter_display_val", rawText);
+              }
+            }
+          }
+        };
+
+        counterComps.forEach((comp) => {
+          if (
+            comp.getClasses?.().includes("counter-number") ||
+            comp.getAttributes?.()["data-counter-target"] !== undefined
+          ) {
+            processComp(comp);
+          } else {
+            const childNum =
+              comp.find?.(".counter-number")?.[0] ||
+              comp.find?.("[data-counter-target]")?.[0];
+            if (childNum) {
+              processComp(childNum);
+            }
+          }
+        });
+
+        if (canvasDoc) {
+          const domCounters = canvasDoc.querySelectorAll<HTMLElement>(
+            ".counter-number, [data-counter-target]",
+          );
+          domCounters.forEach((el) => {
+            const raw = el.textContent?.trim() || "";
+            const m = raw.match(/^([^\d]*)([\d,.]+)([^\d]*)$/);
+            if (m) {
+              const num = parseFloat(m[2].replace(/,/g, ""));
+              if (!Number.isNaN(num)) {
+                el.setAttribute("data-counter-target", String(num));
+                el.setAttribute("data-counter-prefix", m[1] || "");
+                el.setAttribute("data-counter-suffix", m[3] || "+");
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to sync counter components:", err);
+      }
+    };
+
     useImperativeHandle(
       ref,
       () => ({
@@ -151,10 +538,12 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           const editor = editorRef.current;
           if (!editor) return null;
 
+          syncAllCounters(editor);
+
           return {
             projectData: editor.getProjectData(),
             html: editor.getHtml() ?? "",
-            css: editor.getCss() ?? "",
+            css: exportCleanCss(editor),
           };
         },
       }),
@@ -202,11 +591,21 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
 
       // 3. Add to StyleManager 'font-family' property options
       try {
-        const sm = ed.StyleManager;
+        interface StyleManagerProperty {
+          getOptions?: () => Array<{ id?: string; label?: string } | string>;
+          get?: (propName: string) => Array<{ id?: string; label?: string } | string> | undefined;
+          addOption?: (opt: { id: string; label: string }) => void;
+          set?: (propName: string, value: unknown) => void;
+        }
+
+        interface StyleManagerLike {
+          getProperty: (sectorOrName: string, prop?: string) => unknown;
+        }
+
+        const sm = ed.StyleManager as unknown as StyleManagerLike | undefined;
         if (sm) {
-          const fontProp =
-            sm.getProperty("Typography", "font-family") ||
-            (sm as any).getProperty("font-family");
+          const fontProp = (sm.getProperty("Typography", "font-family") ||
+            sm.getProperty("font-family")) as StyleManagerProperty | null | undefined;
           if (fontProp) {
             const fontId = `'${font.family}', sans-serif`;
             const fontLabel = `✨ ${font.family} (${
@@ -217,11 +616,11 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   : "Custom"
             })`;
             const currentOpts =
-              (typeof (fontProp as any).getOptions === "function"
-                ? (fontProp as any).getOptions()
-                : (fontProp as any).get?.("options")) || [];
+              (typeof fontProp.getOptions === "function"
+                ? fontProp.getOptions()
+                : fontProp.get?.("options")) || [];
 
-            const exists = currentOpts.some((opt: any) => {
+            const exists = currentOpts.some((opt: { id?: string } | string | null | undefined) => {
               const optId = typeof opt === "string" ? opt : opt?.id;
               return (
                 optId &&
@@ -231,10 +630,10 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             });
 
             if (!exists) {
-              if (typeof (fontProp as any).addOption === "function") {
-                (fontProp as any).addOption({ id: fontId, label: fontLabel });
-              } else if (typeof (fontProp as any).set === "function") {
-                (fontProp as any).set("options", [
+              if (typeof fontProp.addOption === "function") {
+                fontProp.addOption({ id: fontId, label: fontLabel });
+              } else if (typeof fontProp.set === "function") {
+                fontProp.set("options", [
                   ...currentOpts,
                   { id: fontId, label: fontLabel },
                 ]);
@@ -371,6 +770,10 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             }
           : {
               components: fallbackHtml,
+              style:
+                typeof initialCss === "string" && initialCss.trim() !== ""
+                  ? initialCss
+                  : undefined,
             }),
 
         canvas: {
@@ -1170,6 +1573,14 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
 
       editorRef.current = editor;
 
+      if (initialCss && typeof initialCss === "string" && initialCss.trim()) {
+        try {
+          editor.setStyle(initialCss);
+        } catch (e) {
+          console.warn("Could not set initialCss in editor.setStyle:", e);
+        }
+      }
+
       let lastSelectedImageComponent: Component | null = null;
 
       /*
@@ -1274,8 +1685,13 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         }
       });
 
+      editor.on("rte:disable", () => {
+        syncAllCounters(editor);
+      });
+
       editor.on("component:deselected", () => {
         setHasSelectedElement(Boolean(editor.getSelected()));
+        syncAllCounters(editor);
       });
 
       editor.on("component:dblclick", (component) => {
@@ -1879,17 +2295,51 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       /*
        * Inject custom fonts and setup typography studio trigger when canvas loads
        */
+      const injectEditorResetStyles = () => {
+        try {
+          const doc = editor.Canvas.getDocument();
+          if (doc?.head) {
+            if (!doc.head.querySelector("#cms-counter-reset-style")) {
+              const style = doc.createElement("style");
+              style.id = "cms-counter-reset-style";
+              style.textContent = `
+                .counter-item {
+                  background: transparent !important;
+                  border: none !important;
+                  box-shadow: none !important;
+                }
+              `;
+              doc.head.appendChild(style);
+            }
+            if (
+              initialCssRef.current &&
+              initialCssRef.current.trim() &&
+              !doc.head.querySelector("#cms-page-initial-styles")
+            ) {
+              const pageStyle = doc.createElement("style");
+              pageStyle.id = "cms-page-initial-styles";
+              pageStyle.textContent = initialCssRef.current;
+              doc.head.appendChild(pageStyle);
+            }
+          }
+        } catch {
+          // ignore
+        }
+      };
+
       editor.on("load", () => {
         customFontsRef.current.forEach((font) => {
           injectFontIntoDocumentAndCanvas(font, editor);
         });
         setTimeout(setupTypographyCustomFontButton, 250);
+        injectEditorResetStyles();
       });
 
       editor.on("canvas:frame:load", () => {
         customFontsRef.current.forEach((font) => {
           injectFontIntoDocumentAndCanvas(font, editor);
         });
+        injectEditorResetStyles();
       });
 
       /*
@@ -1900,6 +2350,22 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       });
       editor.on("run:preview", () => {
         setIsPreviewActive(true);
+        const doc = editor.Canvas.getDocument();
+        if (doc?.body) {
+          initCountersInContainer(doc.body);
+        }
+      });
+
+      /*
+       * Counter animation preview command
+       */
+      editor.Commands.add("preview-counter-animation", {
+        run: () => {
+          const doc = editor.Canvas.getDocument();
+          if (doc?.body) {
+            initCountersInContainer(doc.body);
+          }
+        },
       });
 
       /*
@@ -2342,11 +2808,47 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
 
             const safeHeading = escapeStr(updatedHeading);
             const html = `
-              <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #C5A059; margin-bottom: 0.5rem; font-weight: bold;">
-                🖼️ Projects Carousel &bull; Double-click to Edit Heading
+              <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #222; padding-bottom: 12px; margin-bottom: 16px;">
+                <div>
+                  <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em; color: #C5A059; font-weight: bold;">
+                    ★ FEATURED WORKS CAROUSEL (Animated Tiles)
+                  </div>
+                  <h3 class="text-2xl font-serif text-white mt-1">${safeHeading}</h3>
+                </div>
+                <div style="font-size: 11px; color: #C5A059; border: 1px solid rgba(197,160,89,0.4); padding: 4px 10px; border-radius: 4px; background: rgba(197,160,89,0.1);">
+                  Double-click to Edit Heading
+                </div>
               </div>
-              <h3 class="mb-2 text-2xl font-serif text-[#C5A059]">${safeHeading}</h3>
-              <p class="text-xs uppercase tracking-widest text-gray-400">Featured artwork projects rotate here dynamically on the live site</p>
+              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                <div style="aspect-ratio: 3/4; background: #141414; border: 1px solid #333; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; background-image: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.3));">
+                  <span style="font-size: 9px; color: #C5A059; font-weight: bold; text-transform: uppercase; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 2px; align-self: flex-start; border: 1px solid rgba(197,160,89,0.4);">Book Covers</span>
+                  <div>
+                    <p style="font-size: 13px; font-weight: bold; color: #fff; margin: 0;">Literary Fiction</p>
+                    <p style="font-size: 10px; color: #C5A059; margin: 2px 0 0 0;">View Artwork →</p>
+                  </div>
+                </div>
+                <div style="aspect-ratio: 3/4; background: #141414; border: 1px solid #333; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; background-image: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.3));">
+                  <span style="font-size: 9px; color: #C5A059; font-weight: bold; text-transform: uppercase; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 2px; align-self: flex-start; border: 1px solid rgba(197,160,89,0.4);">Illustration</span>
+                  <div>
+                    <p style="font-size: 13px; font-weight: bold; color: #fff; margin: 0;">Conceptual Piece</p>
+                    <p style="font-size: 10px; color: #C5A059; margin: 2px 0 0 0;">View Artwork →</p>
+                  </div>
+                </div>
+                <div style="aspect-ratio: 3/4; background: #141414; border: 1px solid #333; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; background-image: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.3));">
+                  <span style="font-size: 9px; color: #C5A059; font-weight: bold; text-transform: uppercase; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 2px; align-self: flex-start; border: 1px solid rgba(197,160,89,0.4);">Fine Art</span>
+                  <div>
+                    <p style="font-size: 13px; font-weight: bold; color: #fff; margin: 0;">Oil on Canvas</p>
+                    <p style="font-size: 10px; color: #C5A059; margin: 2px 0 0 0;">View Artwork →</p>
+                  </div>
+                </div>
+                <div style="aspect-ratio: 3/4; background: #141414; border: 1px solid #333; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; background-image: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.3));">
+                  <span style="font-size: 9px; color: #C5A059; font-weight: bold; text-transform: uppercase; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 2px; align-self: flex-start; border: 1px solid rgba(197,160,89,0.4);">Dark Fantasy</span>
+                  <div>
+                    <p style="font-size: 13px; font-weight: bold; color: #fff; margin: 0;">Myth &amp; Legend</p>
+                    <p style="font-size: 10px; color: #C5A059; margin: 2px 0 0 0;">View Artwork →</p>
+                  </div>
+                </div>
+              </div>
             `;
             target.components(html);
             editor.trigger("change:canvas");
@@ -2613,13 +3115,49 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         content: `
         <div
           data-cms-block="project-carousel"
-          class="min-h-72 border border-dashed border-[#C5A059] bg-[#0a0a0a] p-12 text-center text-white"
+          class="my-8 p-8 bg-[#0a0a0a] border border-dashed border-[#C5A059] rounded-xl text-white"
         >
-          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #C5A059; margin-bottom: 0.5rem; font-weight: bold;">
-            🖼️ Projects Carousel &bull; Double-click to Edit Heading
+          <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #222; padding-bottom: 12px; margin-bottom: 16px;">
+            <div>
+              <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em; color: #C5A059; font-weight: bold;">
+                ★ FEATURED WORKS CAROUSEL (Animated Tiles)
+              </div>
+              <h3 class="text-2xl font-serif text-white mt-1">Featured Projects Carousel</h3>
+            </div>
+            <div style="font-size: 11px; color: #C5A059; border: 1px solid rgba(197,160,89,0.4); padding: 4px 10px; border-radius: 4px; background: rgba(197,160,89,0.1);">
+              Double-click to Edit Heading
+            </div>
           </div>
-          <h3 class="mb-2 text-2xl font-serif text-[#C5A059]">Featured Projects Carousel</h3>
-          <p class="text-xs uppercase tracking-widest text-gray-400">Featured artwork projects rotate here dynamically on the live site</p>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+            <div style="aspect-ratio: 3/4; background: #141414; border: 1px solid #333; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; background-image: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.3));">
+              <span style="font-size: 9px; color: #C5A059; font-weight: bold; text-transform: uppercase; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 2px; align-self: flex-start; border: 1px solid rgba(197,160,89,0.4);">Book Covers</span>
+              <div>
+                <p style="font-size: 13px; font-weight: bold; color: #fff; margin: 0;">Literary Fiction</p>
+                <p style="font-size: 10px; color: #C5A059; margin: 2px 0 0 0;">View Artwork →</p>
+              </div>
+            </div>
+            <div style="aspect-ratio: 3/4; background: #141414; border: 1px solid #333; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; background-image: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.3));">
+              <span style="font-size: 9px; color: #C5A059; font-weight: bold; text-transform: uppercase; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 2px; align-self: flex-start; border: 1px solid rgba(197,160,89,0.4);">Illustration</span>
+              <div>
+                <p style="font-size: 13px; font-weight: bold; color: #fff; margin: 0;">Conceptual Piece</p>
+                <p style="font-size: 10px; color: #C5A059; margin: 2px 0 0 0;">View Artwork →</p>
+              </div>
+            </div>
+            <div style="aspect-ratio: 3/4; background: #141414; border: 1px solid #333; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; background-image: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.3));">
+              <span style="font-size: 9px; color: #C5A059; font-weight: bold; text-transform: uppercase; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 2px; align-self: flex-start; border: 1px solid rgba(197,160,89,0.4);">Fine Art</span>
+              <div>
+                <p style="font-size: 13px; font-weight: bold; color: #fff; margin: 0;">Oil on Canvas</p>
+                <p style="font-size: 10px; color: #C5A059; margin: 2px 0 0 0;">View Artwork →</p>
+              </div>
+            </div>
+            <div style="aspect-ratio: 3/4; background: #141414; border: 1px solid #333; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; background-image: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.3));">
+              <span style="font-size: 9px; color: #C5A059; font-weight: bold; text-transform: uppercase; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 2px; align-self: flex-start; border: 1px solid rgba(197,160,89,0.4);">Dark Fantasy</span>
+              <div>
+                <p style="font-size: 13px; font-weight: bold; color: #fff; margin: 0;">Myth &amp; Legend</p>
+                <p style="font-size: 10px; color: #C5A059; margin: 2px 0 0 0;">View Artwork →</p>
+              </div>
+            </div>
+          </div>
         </div>
       `,
       });
@@ -2643,6 +3181,180 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           <p class="text-xs text-gray-400 uppercase tracking-widest">
             Shows a placeholder here — the real, published portfolio items appear on the live site
           </p>
+        </div>
+      `,
+      });
+
+      /*
+       * Project Inside category blocks: Customization for project detail pages
+       */
+      bm.add("project-header-block", {
+        label: "Project Header",
+        category: "Project Inside",
+        content: `
+        <div class="bg-[#0c0c0c] rounded-xl border border-[#1e1e1e] p-8 shadow-2xl flex flex-col gap-6 my-6 text-white" style="background-color: #0c0c0c; border: 1px solid #1e1e1e; border-radius: 12px; padding: 2rem;">
+          <div>
+            <span class="text-[10px] tracking-widest uppercase text-[#C5A059] font-bold block mb-1" style="font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: #C5A059; font-weight: 700; display: block; margin-bottom: 0.5rem;">
+              FINE ART &bull; EDITABLE CATEGORY
+            </span>
+            <h1 class="text-4xl sm:text-5xl font-serif font-black text-white leading-tight" style="font-size: 2.5rem; font-family: serif; font-weight: 900; color: #ffffff; line-height: 1.15; margin: 0 0 0.5rem 0;">
+              PROJECT TITLE HEADING
+            </h1>
+            <p class="text-sm text-gray-400 mt-2" style="font-size: 14px; color: #9ca3af; margin: 0.5rem 0 0 0;">
+              By <span class="text-white font-medium" style="color: #ffffff; font-weight: 600;">Sourav Mitra</span>
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-4 text-sm text-gray-400 pt-4 border-t border-[#1a1a1a]" style="display: flex; flex-wrap: wrap; gap: 1rem; font-size: 13px; color: #9ca3af; padding-top: 1rem; border-top: 1px solid #1a1a1a;">
+            <span style="background: #141414; padding: 4px 10px; border-radius: 4px; border: 1px solid #282828; color: #fff;">2024</span>
+            <span style="background: #141414; padding: 4px 10px; border-radius: 4px; border: 1px solid #282828; color: #fff;">Oil on Canvas</span>
+            <span style="background: #141414; padding: 4px 10px; border-radius: 4px; border: 1px solid #282828; color: #fff;">24" x 36"</span>
+            <span style="background: #141414; padding: 4px 10px; border-radius: 4px; border: 1px solid #282828; color: #4ade80;">Available for Licensing</span>
+          </div>
+        </div>
+      `,
+      });
+
+      bm.add("project-gallery-frame-block", {
+        label: "Gallery Exhibition Frame",
+        category: "Project Inside",
+        content: `
+        <div class="bg-[#0c0c0c] rounded-xl border border-[#1e1e1e] p-8 shadow-2xl my-6 text-center" style="background-color: #0c0c0c; border: 1px solid #1e1e1e; border-radius: 12px; padding: 2.5rem; text-align: center;">
+          <span style="font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; color: #C5A059; font-weight: 700; display: block; margin-bottom: 2rem;">
+            Exhibition Wall View (Gallery Lighting)
+          </span>
+          <div style="padding: 4rem 2rem; background: #eae7df; border-radius: 8px; border: 1px solid #ccc; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);">
+            <div style="padding: 16px; background: linear-gradient(to bottom, #2e1d11, #1d1109, #0d0703); border: 6px solid #3e291b; border-radius: 2px; box-shadow: 0 25px 50px rgba(0,0,0,0.35); position: relative; max-width: 480px; width: 100%;">
+              <div style="position: absolute; inset: 4px; border: 1px solid rgba(197, 160, 89, 0.6); pointer-events: none;"></div>
+              <div style="padding: 24px; background: #faf8f5; border: 1px solid #ddd;">
+                <img src="https://static.wixstatic.com/media/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg/v1/fill/w_1920,h_1080,al_c,q_90,enc_avif,quality_auto/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg" alt="Artwork Exhibition" style="width: 100%; height: auto; display: block; border: 1px solid rgba(0,0,0,0.2);" />
+              </div>
+            </div>
+            <div style="margin-top: 2rem; padding: 12px 20px; background: #ffffff; border: 1px solid #ddd; text-align: left; width: 220px;">
+              <p style="font-family: serif; font-size: 13px; font-weight: 700; color: #111; margin: 0;">Artwork Title</p>
+              <p style="font-size: 10px; color: #666; text-transform: uppercase; margin: 4px 0 0 0;">Oil on Canvas</p>
+              <p style="font-size: 9px; color: #999; margin: 6px 0 0 0;">Sourav Mitra &bull; 2024</p>
+            </div>
+          </div>
+        </div>
+      `,
+      });
+
+      bm.add("project-3d-book-block", {
+        label: "3D Book Presentation Mockup",
+        category: "Project Inside",
+        content: `
+        <div class="bg-[#0c0c0c] rounded-xl border border-[#1e1e1e] p-8 shadow-2xl my-6 text-center" style="background-color: #0c0c0c; border: 1px solid #1e1e1e; border-radius: 12px; padding: 2.5rem; text-align: center;">
+          <span style="font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; color: #C5A059; font-weight: 700; display: block; margin-bottom: 2rem;">
+            3D Book Presentation Mockup
+          </span>
+          <div style="display: flex; justify-content: center; align-items: center; padding: 3rem 1rem; background: #080808; border-radius: 8px; border: 1px solid #1a1a1a;">
+            <div style="position: relative; width: 260px; height: 380px; box-shadow: -15px 20px 40px rgba(0,0,0,0.9); border-radius: 4px; overflow: hidden; border: 1px solid #444; background: #111;">
+              <img src="https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=800" alt="Book Cover" style="width: 100%; height: 100%; object-fit: cover;" />
+              <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 14px; background: linear-gradient(to right, rgba(0,0,0,0.8), rgba(255,255,255,0.1), rgba(0,0,0,0.6)); pointer-events: none;"></div>
+            </div>
+          </div>
+        </div>
+      `,
+      });
+
+      bm.add("project-process-studies-block", {
+        label: "Blueprint & Macro Studies",
+        category: "Project Inside",
+        content: `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin: 2rem 0;">
+          <div style="background: #0c121c; border: 1px solid rgba(30, 58, 138, 0.4); border-radius: 12px; padding: 2rem; text-align: center; color: #fff;">
+            <span style="font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: #60a5fa; font-weight: 700; font-family: monospace; display: block; margin-bottom: 1.5rem;">
+              Blueprint &amp; Grid Study
+            </span>
+            <div style="width: 140px; height: 140px; margin: 0 auto 1.5rem auto; border: 1px dashed #3b82f6; display: flex; align-items: center; justify-content: center; position: relative;">
+              <div style="position: absolute; inset: 0; background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%);"></div>
+              <span style="font-family: monospace; font-size: 11px; color: #93c5fd;">Proportion Matrix</span>
+            </div>
+            <p style="font-size: 12px; color: #93c5fd; font-family: monospace; font-style: italic; margin: 0;">
+              Geometric proportions, golden ratio guides &amp; composition vectors
+            </p>
+          </div>
+          <div style="background: #141414; border: 1px solid #252525; border-radius: 12px; padding: 2rem; text-align: center; color: #fff;">
+            <span style="font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: #C5A059; font-weight: 700; display: block; margin-bottom: 1.5rem;">
+              Detail Crop &amp; Macro Texture
+            </span>
+            <div style="width: 140px; height: 140px; margin: 0 auto 1.5rem auto; border-radius: 50%; border: 3px solid rgba(197, 160, 89, 0.4); overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(0,0,0,0.6);">
+              <img src="https://static.wixstatic.com/media/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg/v1/fill/w_1920,h_1080,al_c,q_90,enc_avif,quality_auto/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg" alt="Texture Zoom" style="width: 180%; height: 180%; object-fit: cover; transform: scale(1.4);" />
+            </div>
+            <p style="font-size: 12px; color: #9ca3af; font-style: italic; margin: 0;">
+              Macro surface magnification showing fine brushwork &amp; tactile grain
+            </p>
+          </div>
+        </div>
+      `,
+      });
+
+      bm.add("project-creative-process-block", {
+        label: "Creative Process & Insight",
+        category: "Project Inside",
+        content: `
+        <div class="bg-[#0c0c0c] rounded-xl border border-[#1d1d1d] p-8 flex flex-col gap-4 shadow-xl my-6" style="background-color: #0c0c0c; border: 1px solid #1d1d1d; border-radius: 12px; padding: 2rem;">
+          <h3 class="text-xl font-serif text-white font-bold border-b border-[#222] pb-3 mb-2" style="font-size: 1.35rem; font-family: serif; color: #ffffff; font-weight: 700; border-bottom: 1px solid #222; padding-bottom: 0.75rem; margin-top: 0; margin-bottom: 0.75rem;">
+            The Creative Process &amp; Insight
+          </h3>
+          <p class="text-sm leading-relaxed text-gray-300" style="font-size: 14px; line-height: 1.7; color: #d1d5db; margin: 0 0 1rem 0;">
+            This project is built around the harmonious combination of visual weight and structural balance. Every visual element has been carefully structured using geometric guides and organic focal points to create a compelling, immediate narrative.
+          </p>
+          <p class="text-sm leading-relaxed text-gray-300" style="font-size: 14px; line-height: 1.7; color: #d1d5db; margin: 0;">
+            Crafted with attention to traditional techniques, depth, and atmospheric lighting that draws the eye across the canvas.
+          </p>
+        </div>
+      `,
+      });
+
+      bm.add("project-interactive-share-comments", {
+        label: "Interactive Share & Comments",
+        category: "Project Inside",
+        content: `
+        <div class="my-6 flex flex-col gap-6">
+          <div data-cms-block="project-share" class="w-full">
+            <button type="button" class="w-full py-3 rounded-lg bg-black text-gray-300 border border-[#2a2a2a] font-bold tracking-wider text-xs uppercase flex items-center justify-center gap-2">
+              Share Project
+            </button>
+          </div>
+          <div data-cms-block="project-comments" class="bg-[#0a0a0a] rounded-xl border border-[#1e1e1e] p-6 shadow-xl">
+            <h4 class="text-base font-bold text-white uppercase tracking-wider mb-4" style="color: #fff;">Visitor Comments</h4>
+            <p class="text-xs text-gray-500">Interactive comments input and discussion will render live on this published page.</p>
+          </div>
+        </div>
+      `,
+      });
+
+      bm.add("animated-counters-section", {
+        label: "Animated Counters",
+        category: "Portfolio",
+        content: `
+        <section class="bg-[#111111] py-12 border-t border-[#333333] my-8" data-cms-section="counters">
+          <div class="container mx-auto px-6 sm:px-10 max-w-6xl grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
+            <div class="counter-item text-center p-4" data-counter="item">
+              <div class="counter-number text-4xl sm:text-5xl font-bold text-[#C5A059] font-mono tracking-tight" data-counter-target="150" data-counter-suffix="+">150+</div>
+              <div class="counter-label text-xs sm:text-sm uppercase tracking-widest text-[#D4D4D4] mt-2 font-medium">Projects Completed</div>
+            </div>
+            <div class="counter-item text-center p-4" data-counter="item">
+              <div class="counter-number text-4xl sm:text-5xl font-bold text-[#C5A059] font-mono tracking-tight" data-counter-target="50" data-counter-suffix="+">50+</div>
+              <div class="counter-label text-xs sm:text-sm uppercase tracking-widest text-[#D4D4D4] mt-2 font-medium">Happy Clients</div>
+            </div>
+            <div class="counter-item text-center p-4" data-counter="item">
+              <div class="counter-number text-4xl sm:text-5xl font-bold text-[#C5A059] font-mono tracking-tight" data-counter-target="10" data-counter-suffix="+">10+</div>
+              <div class="counter-label text-xs sm:text-sm uppercase tracking-widest text-[#D4D4D4] mt-2 font-medium">Years Experience</div>
+            </div>
+          </div>
+        </section>
+      `,
+      });
+
+      bm.add("single-counter-stat", {
+        label: "Single Stat Counter",
+        category: "Portfolio",
+        content: `
+        <div class="counter-item text-center p-4 my-3" data-counter="item">
+          <div class="counter-number text-4xl sm:text-5xl font-bold text-[#C5A059] font-mono tracking-tight" data-counter-target="100" data-counter-suffix="+">100+</div>
+          <div class="counter-label text-xs sm:text-sm uppercase tracking-widest text-[#D4D4D4] mt-2 font-medium">Creative Works</div>
         </div>
       `,
       });
@@ -3092,7 +3804,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           destroyTimerRef.current = null;
         }, 0);
       };
-    }, [initialData, initialHtml]);
+    }, [initialData, initialHtml, initialCss]);
 
     // Fetch installed custom fonts from DB on mount
     useEffect(() => {
@@ -3182,6 +3894,8 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         return;
       }
 
+      syncAllCounters(editor);
+
       const projectData = editor.getProjectData();
 
       /*
@@ -3193,7 +3907,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
        */
       const html = editor.getHtml() ?? "";
 
-      const css = editor.getCss() ?? "";
+      const css = exportCleanCss(editor);
 
       if (isPublish && onPublish) {
         onPublish(projectData, html, css);

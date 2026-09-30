@@ -9,6 +9,12 @@ import ProjectGridSection from "@/components/cms/ProjectGridSection";
 import PortfolioCollection from "@/components/PortfolioCollection";
 import ClientsSection from "@/components/ClientsSection";
 import { parseTestimonialBlock } from "@/lib/dynamic-blocks";
+import {
+  ProjectShareBlock,
+  ProjectCommentsBlock,
+} from "./ProjectDetailInteractiveBlocks";
+import Counter from "@/components/Counter";
+import { initCountersInContainer } from "@/lib/counter-animation";
 
 type PortfolioCategory = "book-covers" | "illustration" | "fine-art";
 
@@ -184,10 +190,48 @@ export function CmsDynamicBlockPortal({
           key: `portal-clients-${index}`,
           node: <ClientsSection />,
         });
+      } else if (block === "project-share") {
+        element.replaceChildren();
+        newTargets.push({
+          element,
+          key: `portal-project-share-${index}`,
+          node: <ProjectShareBlock />,
+        });
+      } else if (block === "project-comments") {
+        element.replaceChildren();
+        newTargets.push({
+          element,
+          key: `portal-project-comments-${index}`,
+          node: <ProjectCommentsBlock />,
+        });
+      } else if (block === "counters" || block === "counter-section") {
+        const hasCounterItems = element.querySelector(
+          ".counter-number, .counter-item, [data-counter-target]",
+        );
+        if (!hasCounterItems) {
+          element.replaceChildren();
+          newTargets.push({
+            element,
+            key: `portal-counters-${index}`,
+            node: (
+              <div className="container mx-auto px-6 sm:px-10 max-w-6xl grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
+                <Counter target={150} label="Projects Completed" />
+                <Counter target={50} label="Happy Clients" />
+                <Counter target={10} label="Years Experience" />
+              </div>
+            ),
+          });
+        }
       }
     });
 
     setTargets(newTargets);
+
+    // Initialize intersection-observer counter animations for all counters in container
+    const cleanupCounters = initCountersInContainer(containerRef.current);
+    return () => {
+      cleanupCounters();
+    };
   }, [html, category]);
 
   return (
@@ -195,6 +239,11 @@ export function CmsDynamicBlockPortal({
       <style>{`
         [data-cms-block] {
           border: none !important;
+        }
+        .counter-item {
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
         }
       `}</style>
       <div

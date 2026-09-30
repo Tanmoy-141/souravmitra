@@ -1,11 +1,12 @@
 import { db } from "@/db";
 import { pages } from "@/db/schema";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, or } from "drizzle-orm";
 import { sanitizeHtml, safeCssForStyleTag } from "@/lib/sanitize";
 import { Button } from "@/components/Button";
 import Image from "next/image";
 import Link from "next/link";
 import TestimonialsSection from "@/components/TestimonialsSection";
+import Counter from "@/components/Counter";
 import CmsDynamicBlockPortal from "@/components/cms/CmsDynamicBlockPortal";
 
 // Always read the latest published content from the DB — this route has no
@@ -19,7 +20,7 @@ export default async function Home() {
     .from(pages)
     .where(
       and(
-        eq(pages.slug, "/"),
+        or(eq(pages.slug, "/"), eq(pages.slug, "")),
         eq(pages.status, "published"),
         isNull(pages.deletedAt),
       ),
@@ -92,6 +93,15 @@ export default async function Home() {
       </section>
 
       <TestimonialsSection />
+
+      {/* Animated Counters Section */}
+      <section className="bg-[#111111] py-14 border-t border-b border-[#222222]">
+        <div className="container mx-auto px-6 sm:px-10 max-w-6xl grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
+          <Counter target={150} label="Projects Completed" />
+          <Counter target={50} label="Happy Clients" />
+          <Counter target={10} label="Years Experience" />
+        </div>
+      </section>
 
       {/* Final CTA */}
       <section className="px-10 py-20 text-center">

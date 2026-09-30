@@ -53,7 +53,10 @@ export const Header = () => {
     customPages.find((page) => page.slug === slug)?.title || fallback;
 
   const customNavPages = customPages.filter(
-    (page) => !CORE_PAGE_SLUGS.has(page.slug),
+    (page) =>
+      !CORE_PAGE_SLUGS.has(page.slug) &&
+      !page.slug.startsWith("template/") &&
+      !page.slug.includes("/"),
   );
 
   // Close the mobile menu whenever the viewport grows past the mobile

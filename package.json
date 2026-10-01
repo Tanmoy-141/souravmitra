@@ -15,7 +15,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:seed-pages": "tsx scripts/seed-all-pages.ts",
-    "db:seed-projects": "tsx scripts/seed-projects.ts"
+    "db:seed-projects": "tsx scripts/seed-projects.ts",
+    "blob:list": "tsx scripts/blob-list.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

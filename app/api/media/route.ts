@@ -181,10 +181,7 @@ export async function POST(req: NextRequest) {
     const normalizedMimeType = getNormalizedMimeType(file.name, file.type);
 
     try {
-      // Create a new File with a sanitized name and normalized MIME type
       const safeName = sanitizeFilename(file.name);
-      const safeFile = new File([file], safeName, { type: normalizedMimeType });
-
       const fileBuffer = Buffer.from(await file.arrayBuffer());
       const ext = path.extname(safeName);
       const base = path.basename(safeName, ext);
@@ -195,9 +192,11 @@ export async function POST(req: NextRequest) {
 
       if (process.env.BLOB_READ_WRITE_TOKEN) {
         try {
-          const blob = await put(safeFile.name, safeFile, {
+          const blob = await put(safeName, fileBuffer, {
             access: "public",
             addRandomSuffix: true,
+            contentType: normalizedMimeType,
+            token: process.env.BLOB_READ_WRITE_TOKEN,
           });
           blobUrl = blob.url;
           pathname = blob.pathname;

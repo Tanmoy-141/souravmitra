@@ -6,22 +6,56 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import type { Project } from "@/db/schema";
 import { ProceduralPlaceholder } from "@/components/BehanceCard";
 
+export interface HeadingStyleProps {
+  id?: string;
+  className?: string;
+  style?: React.CSSProperties;
+  fontFamily?: string;
+  fontWeight?: string;
+  fontSize?: string;
+  fontStyle?: string;
+  letterSpacing?: string;
+  textTransform?: React.CSSProperties["textTransform"];
+  textAlign?: React.CSSProperties["textAlign"];
+  color?: string;
+  marginLeft?: string;
+  marginRight?: string;
+  marginTop?: string;
+  marginBottom?: string;
+  paddingLeft?: string;
+  paddingRight?: string;
+  paddingTop?: string;
+  paddingBottom?: string;
+  width?: string;
+  height?: string;
+  maxWidth?: string;
+  position?: React.CSSProperties["position"];
+  top?: string;
+  bottom?: string;
+  left?: string;
+  right?: string;
+  transform?: string;
+}
+
 interface ProjectCarouselProps {
   heading?: string;
   category?: "all" | "book-covers" | "illustration" | "fine-art";
   limit?: number;
+  headingProps?: HeadingStyleProps;
+  eyebrow?: string | null;
 }
 
 export default function ProjectCarousel({
   heading = "Featured Portfolio Projects",
   category: defaultCategory = "all",
   limit = 24,
+  headingProps,
+  eyebrow,
 }: ProjectCarouselProps = {}) {
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>(defaultCategory);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
   const [visibleCount, setVisibleCount] = useState(4);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [touchEndX, setTouchEndX] = useState<number | null>(null);
@@ -91,33 +125,47 @@ export default function ProjectCarousel({
   const maxIndex = Math.max(0, filteredProjects.length - visibleCount);
   const safeActiveIndex = Math.min(activeIndex, maxIndex);
 
+  const resetAutoPlay = useCallback(() => {
+    if (autoPlayTimerRef.current) {
+      clearInterval(autoPlayTimerRef.current);
+    }
+    if (filteredProjects.length > visibleCount) {
+      autoPlayTimerRef.current = setInterval(() => {
+        setActiveIndex((prev) => (prev >= maxIndex ? 0 : prev + 1));
+      }, 3600);
+    }
+  }, [filteredProjects.length, visibleCount, maxIndex]);
+
   const handleSelectCategory = (category: string) => {
     setSelectedCategory(category);
     setActiveIndex(0);
+    resetAutoPlay();
   };
 
   // Navigation handlers
   const handlePrev = useCallback(() => {
     setActiveIndex((prev) => (prev <= 0 ? maxIndex : prev - 1));
-  }, [maxIndex]);
+    resetAutoPlay();
+  }, [maxIndex, resetAutoPlay]);
 
   const handleNext = useCallback(() => {
     setActiveIndex((prev) => (prev >= maxIndex ? 0 : prev + 1));
-  }, [maxIndex]);
+    resetAutoPlay();
+  }, [maxIndex, resetAutoPlay]);
 
-  // 4. Smooth automatic animated sliding
+  // 4. Smooth continuous animated sliding (always active)
   useEffect(() => {
-    if (isPaused || filteredProjects.length <= visibleCount) return;
+    if (filteredProjects.length <= visibleCount) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     autoPlayTimerRef.current = setInterval(() => {
       setActiveIndex((prev) => (prev >= maxIndex ? 0 : prev + 1));
-    }, 3800);
+    }, 3600);
 
     return () => {
       if (autoPlayTimerRef.current) clearInterval(autoPlayTimerRef.current);
     };
-  }, [isPaused, filteredProjects.length, visibleCount, maxIndex]);
+  }, [filteredProjects.length, visibleCount, maxIndex]);
 
   // 5. Touch swipe handlers for mobile
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -166,39 +214,62 @@ export default function ProjectCarousel({
   return (
     <section
       aria-label="Featured Portfolio Projects Carousel"
-      className="relative w-full py-16 px-4 sm:px-8 lg:px-12 bg-black text-white border-y border-[#222] overflow-hidden select-none"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-      onFocus={() => setIsPaused(true)}
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget)) {
-          setIsPaused(false);
-        }
-      }}>
+      className="relative w-full py-16 sm:py-20 px-6 sm:px-10 lg:px-14 bg-black text-white border-y border-[#222] overflow-hidden select-none">
       {/* Background atmospheric glow */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#C5A059]/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#C5A059]/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#C5A059]/6 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#C5A059]/6 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-7xl mx-auto relative z-10">
         {/* Header Bar */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 border-b border-[#222] pb-6">
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-[#C5A059] text-xs font-bold uppercase tracking-[0.25em] flex items-center gap-1.5">
-                <span className="inline-block w-2 h-2 rounded-full bg-[#C5A059] animate-pulse" />
-                Featured Portfolio Works
-              </span>
-            </div>
+            {eyebrow !== null && eyebrow !== "" && (
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[#C5A059] text-xs font-bold uppercase tracking-[0.25em] flex items-center gap-1.5">
+                  <span className="inline-block w-2 h-2 rounded-full bg-[#C5A059] animate-pulse" />
+                  {eyebrow || "Featured Portfolio Works"}
+                </span>
+              </div>
+            )}
 
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif text-white tracking-tight leading-tight">
+            <h2
+              id={headingProps?.id}
+              className={`text-3xl sm:text-4xl md:text-5xl tracking-tight leading-tight text-white ${
+                headingProps?.className || ""
+              } ${!headingProps?.fontFamily ? "font-serif" : ""}`}
+              style={{
+                ...(headingProps?.fontFamily ? { fontFamily: headingProps.fontFamily } : {}),
+                ...(headingProps?.fontWeight ? { fontWeight: headingProps.fontWeight } : {}),
+                ...(headingProps?.fontSize ? { fontSize: headingProps.fontSize } : {}),
+                ...(headingProps?.fontStyle ? { fontStyle: headingProps.fontStyle } : {}),
+                ...(headingProps?.letterSpacing ? { letterSpacing: headingProps.letterSpacing } : {}),
+                ...(headingProps?.textTransform ? { textTransform: headingProps.textTransform } : {}),
+                ...(headingProps?.textAlign ? { textAlign: headingProps.textAlign } : {}),
+                ...(headingProps?.color ? { color: headingProps.color } : {}),
+                ...(headingProps?.position ? { position: headingProps.position } : {}),
+                ...(headingProps?.top ? { top: headingProps.top } : {}),
+                ...(headingProps?.bottom ? { bottom: headingProps.bottom } : {}),
+                ...(headingProps?.left ? { left: headingProps.left } : {}),
+                ...(headingProps?.right ? { right: headingProps.right } : {}),
+                ...(headingProps?.transform ? { transform: headingProps.transform } : {}),
+                ...(headingProps?.marginLeft && headingProps.marginLeft !== "0px" ? { marginLeft: headingProps.marginLeft } : {}),
+                ...(headingProps?.marginRight && headingProps.marginRight !== "0px" ? { marginRight: headingProps.marginRight } : {}),
+                ...(headingProps?.marginTop ? { marginTop: headingProps.marginTop } : {}),
+                ...(headingProps?.marginBottom ? { marginBottom: headingProps.marginBottom } : {}),
+                ...(headingProps?.paddingLeft ? { paddingLeft: headingProps.paddingLeft } : {}),
+                ...(headingProps?.paddingRight ? { paddingRight: headingProps.paddingRight } : {}),
+                ...(headingProps?.width ? { width: headingProps.width } : {}),
+                ...(headingProps?.height ? { height: headingProps.height } : {}),
+                ...(headingProps?.maxWidth ? { maxWidth: headingProps.maxWidth } : {}),
+                ...headingProps?.style,
+              }}>
               {heading}
             </h2>
           </div>
 
-          {/* Category Tabs & Navigation Arrow Controls */}
-          <div className="flex flex-wrap items-center gap-4">
-            {/* Category Filter Pills */}
-            <div className="flex items-center gap-1.5 p-1 bg-[#111] border border-[#2a2a2a] rounded-full text-xs">
+          {/* Category Filter Pills */}
+          <div className="flex items-center">
+            <div className="flex flex-wrap items-center gap-1.5 p-1 bg-[#111111]/90 border border-white/10 rounded-full text-xs backdrop-blur-md shadow-lg">
               {[
                 { id: "all", label: "All Works" },
                 { id: "book-covers", label: "Book Covers" },
@@ -209,161 +280,164 @@ export default function ProjectCarousel({
                   key={tab.id}
                   type="button"
                   onClick={() => handleSelectCategory(tab.id)}
-                  className={`px-3 py-1.5 rounded-full font-semibold transition-all duration-300 text-[11px] uppercase tracking-wider ${
+                  className={`px-3.5 py-1.5 rounded-full font-semibold transition-all duration-300 text-[11px] uppercase tracking-wider ${
                     selectedCategory === tab.id
-                      ? "bg-[#C5A059] text-black shadow-md shadow-[#C5A059]/25"
-                      : "text-gray-400 hover:text-white hover:bg-[#1a1a1a]"
+                      ? "bg-linear-to-r from-[#C5A059] to-[#dfba73] text-black shadow-md shadow-[#C5A059]/30 font-bold"
+                      : "text-gray-400 hover:text-white hover:bg-white/5"
                   }`}>
                   {tab.label}
                   {categoryCounts[tab.id as keyof typeof categoryCounts] > 0 && (
-                    <span className="ml-1 opacity-70 text-[9px]">
+                    <span className="ml-1 opacity-75 text-[9px] font-mono">
                       ({categoryCounts[tab.id as keyof typeof categoryCounts]})
                     </span>
                   )}
                 </button>
               ))}
             </div>
-
-            {/* Prev / Next & Auto-Play Buttons */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handlePrev}
-                aria-label="Previous project slide"
-                className="w-10 h-10 rounded-full border border-[#333] hover:border-[#C5A059] bg-[#121212] hover:bg-[#C5A059] hover:text-black text-white flex items-center justify-center transition-all duration-300 shadow-md">
-                <span className="text-lg">←</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleNext}
-                aria-label="Next project slide"
-                className="w-10 h-10 rounded-full border border-[#333] hover:border-[#C5A059] bg-[#121212] hover:bg-[#C5A059] hover:text-black text-white flex items-center justify-center transition-all duration-300 shadow-md">
-                <span className="text-lg">→</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsPaused((prev) => !prev)}
-                title={isPaused ? "Resume Auto-Play" : "Pause Auto-Play"}
-                aria-label={isPaused ? "Resume Auto-Play" : "Pause Auto-Play"}
-                className={`w-10 h-10 rounded-full border text-xs font-bold transition-all duration-300 flex items-center justify-center ${
-                  isPaused
-                    ? "border-[#C5A059] bg-[#C5A059]/20 text-[#C5A059]"
-                    : "border-[#333] bg-[#121212] text-gray-400 hover:text-white hover:border-[#555]"
-                }`}>
-                {isPaused ? "▶" : "⏸"}
-              </button>
-            </div>
           </div>
         </div>
 
-        {/* Carousel Viewport Container */}
-        <div
-          ref={containerRef}
-          className="relative overflow-hidden w-full cursor-grab active:cursor-grabbing"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}>
-          {/* Animated Sliding Track */}
+        {/* Carousel Area with Side Navigation Arrows */}
+        <div className="relative group/carousel">
+          {/* Left Side Navigation Arrow */}
+          <button
+            type="button"
+            onClick={handlePrev}
+            aria-label="Previous project slide"
+            className="absolute -left-3 sm:-left-5 lg:-left-6 top-1/2 -translate-y-1/2 z-20 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/85 hover:bg-[#C5A059] text-[#C5A059] hover:text-black border border-[#C5A059]/40 hover:border-[#C5A059] backdrop-blur-md shadow-[0_4px_25px_rgba(0,0,0,0.85)] hover:shadow-[0_0_30px_rgba(197,160,89,0.55)] flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 group focus:outline-none focus:ring-2 focus:ring-[#C5A059]/50">
+            <svg
+              className="w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-300 group-hover:-translate-x-0.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.4}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          {/* Right Side Navigation Arrow */}
+          <button
+            type="button"
+            onClick={handleNext}
+            aria-label="Next project slide"
+            className="absolute -right-3 sm:-right-5 lg:-right-6 top-1/2 -translate-y-1/2 z-20 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/85 hover:bg-[#C5A059] text-[#C5A059] hover:text-black border border-[#C5A059]/40 hover:border-[#C5A059] backdrop-blur-md shadow-[0_4px_25px_rgba(0,0,0,0.85)] hover:shadow-[0_0_30px_rgba(197,160,89,0.55)] flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 group focus:outline-none focus:ring-2 focus:ring-[#C5A059]/50">
+            <svg
+              className="w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-300 group-hover:translate-x-0.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.4}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+
+          {/* Carousel Viewport Container */}
           <div
-            className="flex transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)]"
-            style={{
-              transform: `translateX(-${safeActiveIndex * (100 / visibleCount)}%)`,
-            }}>
-            {filteredProjects.map((project, idx) => {
-              const imageUrl = project.coverImage || project.images?.[0];
-              const categoryLabel = project.category.replace("-", " ");
-              const placeholderType =
-                project.category === "book-covers"
-                  ? "book-cover"
-                  : project.category;
+            ref={containerRef}
+            className="relative overflow-hidden w-full cursor-grab active:cursor-grabbing rounded-2xl"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}>
+            {/* Animated Sliding Track */}
+            <div
+              className="flex transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)]"
+              style={{
+                transform: `translateX(-${safeActiveIndex * (100 / visibleCount)}%)`,
+              }}>
+              {filteredProjects.map((project, idx) => {
+                const imageUrl = project.coverImage || project.images?.[0];
+                const categoryLabel = project.category.replace("-", " ");
+                const placeholderType =
+                  project.category === "book-covers"
+                    ? "book-cover"
+                    : project.category;
 
-              return (
-                <div
-                  key={project.id}
-                  style={{
-                    flex: `0 0 ${100 / visibleCount}%`,
-                    maxWidth: `${100 / visibleCount}%`,
-                  }}
-                  className="px-2.5 sm:px-3">
-                  <Link
-                    href={`/${project.category}/${project.id}`}
-                    className="group relative w-full aspect-3/4 rounded-xl overflow-hidden bg-[#0d0d0d] border border-[#242424] hover:border-[#C5A059] transition-all duration-500 shadow-xl hover:shadow-[0_15px_35px_rgba(197,160,89,0.3)] flex flex-col justify-between">
-                    {/* Artwork Image or Procedural Visual Placeholder */}
-                    {imageUrl ? (
-                      <div className="absolute inset-0 w-full h-full overflow-hidden bg-[#111]">
-                        <Image
-                          src={imageUrl}
-                          alt={project.title}
-                          fill
-                          unoptimized
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
-                          className="object-cover object-center transition-transform duration-700 ease-out group-hover:scale-108"
-                        />
-                      </div>
-                    ) : (
-                      <div className="absolute inset-0 w-full h-full overflow-hidden">
-                        <ProceduralPlaceholder
-                          id={project.id}
-                          type={placeholderType}
-                          title={project.title}
-                        />
-                      </div>
-                    )}
+                return (
+                  <div
+                    key={project.id}
+                    style={{
+                      flex: `0 0 ${100 / visibleCount}%`,
+                      maxWidth: `${100 / visibleCount}%`,
+                    }}
+                    className="px-2.5 sm:px-3">
+                    <Link
+                      href={`/${project.category}/${project.id}`}
+                      className="group relative w-full aspect-3/4 rounded-2xl overflow-hidden bg-[#0c0c0c] border border-white/10 hover:border-[#C5A059] transition-all duration-500 shadow-xl hover:shadow-[0_20px_45px_rgba(197,160,89,0.25)] flex flex-col justify-between">
+                      {/* Artwork Image or Procedural Visual Placeholder */}
+                      {imageUrl ? (
+                        <div className="absolute inset-0 w-full h-full overflow-hidden bg-[#111]">
+                          <Image
+                            src={imageUrl}
+                            alt={project.title}
+                            fill
+                            unoptimized
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                            className="object-cover object-center transition-transform duration-700 ease-out group-hover:scale-106"
+                          />
+                        </div>
+                      ) : (
+                        <div className="absolute inset-0 w-full h-full overflow-hidden">
+                          <ProceduralPlaceholder
+                            id={project.id}
+                            type={placeholderType}
+                            title={project.title}
+                          />
+                        </div>
+                      )}
 
-                    {/* Gradient overlays for contrast & luxury tone */}
-                    <div className="absolute inset-0 bg-linear-to-t from-black/95 via-black/35 to-black/20 pointer-events-none transition-opacity duration-300 group-hover:from-black/90 group-hover:via-black/20" />
-                    <div className="absolute inset-0 bg-linear-to-b from-black/70 via-transparent to-transparent pointer-events-none" />
+                      {/* Gradient overlays for contrast & luxury tone */}
+                      <div className="absolute inset-0 bg-linear-to-t from-black/95 via-black/35 to-black/20 pointer-events-none transition-opacity duration-300 group-hover:from-black/90 group-hover:via-black/20" />
+                      <div className="absolute inset-0 bg-linear-to-b from-black/70 via-transparent to-transparent pointer-events-none" />
 
-                    {/* Top Badges (Category & Year) */}
-                    <div className="relative z-10 p-4 flex items-center justify-between">
-                      <span className="px-2.5 py-1 rounded bg-black/75 backdrop-blur-md border border-[#C5A059]/40 text-[#C5A059] text-[9px] font-bold uppercase tracking-widest shadow-sm">
-                        {categoryLabel}
-                      </span>
-
-                      {project.year && (
-                        <span className="px-2 py-0.5 rounded bg-black/60 backdrop-blur-sm text-gray-300 text-[10px] font-mono border border-white/10">
-                          {project.year}
+                      {/* Top Badges (Category & Year) */}
+                      <div className="relative z-10 p-4 flex items-center justify-between">
+                        <span className="px-2.5 py-1 rounded bg-black/80 backdrop-blur-md border border-[#C5A059]/40 text-[#C5A059] text-[9px] font-bold uppercase tracking-widest shadow-md">
+                          {categoryLabel}
                         </span>
-                      )}
-                    </div>
 
-                    {/* Bottom Project Details & Animated CTA */}
-                    <div className="relative z-10 p-5 space-y-2 transform transition-transform duration-300 group-hover:-translate-y-1">
-                      {project.medium && (
-                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#C5A059] line-clamp-1">
-                          {project.medium}
-                        </p>
-                      )}
-
-                      <h3 className="text-lg md:text-xl font-serif text-white font-bold leading-snug line-clamp-2 group-hover:text-[#C5A059] transition-colors">
-                        {project.title}
-                      </h3>
-
-                      {project.description && (
-                        <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed opacity-0 max-h-0 group-hover:opacity-100 group-hover:max-h-16 transition-all duration-300">
-                          {project.description}
-                        </p>
-                      )}
-
-                      <div className="pt-2 flex items-center justify-between text-xs font-bold uppercase tracking-wider text-gray-300 group-hover:text-white">
-                        <span className="flex items-center gap-1.5 text-[#C5A059]">
-                          <span>View Artwork</span>
-                          <span className="transform transition-transform duration-300 group-hover:translate-x-1.5">
-                            →
+                        {project.year && (
+                          <span className="px-2 py-0.5 rounded bg-black/60 backdrop-blur-sm text-gray-300 text-[10px] font-mono border border-white/10">
+                            {project.year}
                           </span>
-                        </span>
-
-                        <span className="text-[11px] text-gray-400 font-normal">
-                          #{idx + 1}
-                        </span>
+                        )}
                       </div>
-                    </div>
-                  </Link>
-                </div>
-              );
-            })}
+
+                      {/* Bottom Project Details & Animated CTA */}
+                      <div className="relative z-10 p-5 space-y-2 transform transition-transform duration-300 group-hover:-translate-y-1">
+                        {project.medium && (
+                          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#C5A059] line-clamp-1">
+                            {project.medium}
+                          </p>
+                        )}
+
+                        <h3 className="text-lg md:text-xl font-serif text-white font-bold leading-snug line-clamp-2 group-hover:text-[#C5A059] transition-colors">
+                          {project.title}
+                        </h3>
+
+                        {project.description && (
+                          <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed opacity-0 max-h-0 group-hover:opacity-100 group-hover:max-h-16 transition-all duration-300">
+                            {project.description}
+                          </p>
+                        )}
+
+                        <div className="pt-2 flex items-center justify-between text-xs font-bold uppercase tracking-wider text-gray-300 group-hover:text-white">
+                          <span className="flex items-center gap-1.5 text-[#C5A059]">
+                            <span>View Artwork</span>
+                            <span className="transform transition-transform duration-300 group-hover:translate-x-1.5">
+                              →
+                            </span>
+                          </span>
+
+                          <span className="text-[11px] text-gray-400 font-normal">
+                            #{idx + 1}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 

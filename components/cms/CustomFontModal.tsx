@@ -33,14 +33,18 @@ export default function CustomFontModal({
 
   // Tab 1: Google Font state
   const [googleFontName, setGoogleFontName] = useState("");
-  const [googlePreviewLoaded, setGooglePreviewLoaded] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState("");
 
   // Tab 2: URL state
   const [urlFamily, setUrlFamily] = useState("");
   const [urlStylesheet, setUrlStylesheet] = useState("");
-  const [urlPreviewLoaded, setUrlPreviewLoaded] = useState(false);
+  const [urlLoadedHref, setUrlLoadedHref] = useState("");
+  const urlPreviewLoaded = Boolean(
+    urlLoadedHref &&
+      urlStylesheet.trim() === urlLoadedHref &&
+      urlFamily.trim(),
+  );
   const [urlLoading, setUrlLoading] = useState(false);
   const [urlError, setUrlError] = useState("");
 
@@ -65,24 +69,27 @@ export default function CustomFontModal({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Update applyImmediately when selection changes
-  useEffect(() => {
+  // Sync applyImmediately when selection prop changes
+  const [prevHasSelected, setPrevHasSelected] = useState(hasSelectedElement);
+  if (hasSelectedElement !== prevHasSelected) {
+    setPrevHasSelected(hasSelectedElement);
     if (hasSelectedElement) {
       setApplyImmediately(true);
     }
-  }, [hasSelectedElement]);
+  }
 
   // Dynamically load Google Font into document head for live modal preview
   useEffect(() => {
     if (!googleFontName.trim()) {
-      setGooglePreviewLoaded(false);
       return;
     }
     const clean = sanitizeFontFamily(googleFontName);
     if (!clean) return;
 
-    setGoogleError("");
-    setGoogleLoading(true);
+    queueMicrotask(() => {
+      setGoogleError("");
+      setGoogleLoading(true);
+    });
 
     const testUrl = buildGoogleFontUrl(clean);
     const linkId = `preview-google-font-${clean.replace(/\s+/g, "-")}`;
@@ -94,11 +101,9 @@ export default function CustomFontModal({
       link.rel = "stylesheet";
       link.href = testUrl;
       link.onload = () => {
-        setGooglePreviewLoaded(true);
         setGoogleLoading(false);
       };
       link.onerror = () => {
-        setGooglePreviewLoaded(false);
         setGoogleLoading(false);
         setGoogleError(
           `Could not find "${clean}" on Google Fonts. Check spelling.`,
@@ -106,19 +111,22 @@ export default function CustomFontModal({
       };
       document.head.appendChild(link);
     } else {
-      setGooglePreviewLoaded(true);
-      setGoogleLoading(false);
+      queueMicrotask(() => {
+        setGoogleLoading(false);
+      });
     }
   }, [googleFontName]);
 
   // Dynamically load Custom URL into document head for live preview
   useEffect(() => {
     if (!urlStylesheet.trim() || !urlFamily.trim()) {
-      setUrlPreviewLoaded(false);
       return;
     }
-    setUrlError("");
-    setUrlLoading(true);
+
+    queueMicrotask(() => {
+      setUrlError("");
+      setUrlLoading(true);
+    });
 
     const linkId = `preview-url-font-${sanitizeFontFamily(urlFamily).replace(/\s+/g, "-")}`;
     let link = document.getElementById(linkId) as HTMLLinkElement | null;
@@ -128,11 +136,11 @@ export default function CustomFontModal({
       link.rel = "stylesheet";
       link.href = urlStylesheet.trim();
       link.onload = () => {
-        setUrlPreviewLoaded(true);
+        setUrlLoadedHref(urlStylesheet.trim());
         setUrlLoading(false);
       };
       link.onerror = () => {
-        setUrlPreviewLoaded(false);
+        setUrlLoadedHref("");
         setUrlLoading(false);
         setUrlError(
           "Failed to load stylesheet URL. Ensure URL is valid and allows CORS.",
@@ -141,8 +149,10 @@ export default function CustomFontModal({
       document.head.appendChild(link);
     } else {
       link.href = urlStylesheet.trim();
-      setUrlPreviewLoaded(true);
-      setUrlLoading(false);
+      queueMicrotask(() => {
+        setUrlLoadedHref(urlStylesheet.trim());
+        setUrlLoading(false);
+      });
     }
   }, [urlFamily, urlStylesheet]);
 
@@ -392,7 +402,7 @@ export default function CustomFontModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="font-modal-title"
-      className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 overflow-y-auto">
+      className="fixed inset-0 z-999999 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="relative w-full max-w-4xl bg-[#0e0e0e] border border-[#2a2a2a] rounded-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#222] bg-[#141414]">
@@ -575,7 +585,7 @@ export default function CustomFontModal({
                       fontSize: `${previewFontSize}px`,
                       lineHeight: "1.4",
                     }}
-                    className="p-4 bg-[#0a0a0a] rounded border border-[#202020] text-gray-100 min-h-[90px] outline-none focus:border-[#C5A059]/60 transition-colors">
+                    className="p-4 bg-[#0a0a0a] rounded border border-[#202020] text-gray-100 min-h-22.5 outline-none focus:border-[#C5A059]/60 transition-colors">
                     {previewText}
                   </div>
                   <p className="text-[10px] text-gray-500 italic">
@@ -628,7 +638,6 @@ export default function CustomFontModal({
                             type="button"
                             onClick={() => {
                               setGoogleFontName(font.name);
-                              setGooglePreviewLoaded(false);
                             }}
                             className="flex-1 py-1.5 px-2 bg-[#202020] hover:bg-[#2b2b2b] text-gray-300 text-[11px] rounded transition-colors text-center">
                             Preview
@@ -696,7 +705,7 @@ export default function CustomFontModal({
                       value={urlStylesheet}
                       onChange={(e) => setUrlStylesheet(e.target.value)}
                       placeholder="e.g. https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,500,400&display=swap"
-                      className="w-full bg-[#090909] border border-[#333] focus:border-[#C5A059] text-white px-3.5 py-2.5 rounded text-sm outline-none transition-colors font-mono text-xs"
+                      className="w-full bg-[#090909] border border-[#333] focus:border-[#C5A059] text-white px-3.5 py-2.5 rounded outline-none transition-colors font-mono text-xs"
                     />
                   </div>
                 </div>
@@ -754,7 +763,7 @@ export default function CustomFontModal({
                       fontSize: `${previewFontSize}px`,
                       lineHeight: "1.4",
                     }}
-                    className="p-4 bg-[#0a0a0a] rounded border border-[#202020] text-gray-100 min-h-[90px] outline-none">
+                    className="p-4 bg-[#0a0a0a] rounded border border-[#202020] text-gray-100 min-h-22.5 outline-none">
                     {previewText}
                   </div>
                 </div>
@@ -872,7 +881,7 @@ export default function CustomFontModal({
                       fontSize: `${previewFontSize}px`,
                       lineHeight: "1.4",
                     }}
-                    className="p-4 bg-[#0a0a0a] rounded border border-[#202020] text-gray-100 min-h-[90px] outline-none">
+                    className="p-4 bg-[#0a0a0a] rounded border border-[#202020] text-gray-100 min-h-22.5 outline-none">
                     {previewText}
                   </div>
                 </div>

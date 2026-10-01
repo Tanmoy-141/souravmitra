@@ -215,6 +215,17 @@ export default function AdminDashboard() {
   const [activePage, setActivePage] = useState<CustomPage | null>(null);
 
   const editorRef = useRef<GrapesEditorHandle>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const toggleSidebar = () => {
+    setSidebarOpen((prev) => {
+      const next = !prev;
+      setTimeout(() => {
+        editorRef.current?.refresh?.();
+      }, 200);
+      return next;
+    });
+  };
   const faviconInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFavicon, setUploadingFavicon] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -671,6 +682,16 @@ export default function AdminDashboard() {
       return;
     }
 
+    const cleanSlug = activePage.slug.replace(/^\/+|\/+$/g, "");
+    if (
+      ["", "about", "contact", "book-covers", "illustration", "fine-art"].includes(
+        cleanSlug,
+      )
+    ) {
+      alert(`"${activePage.title}" is a core website page and cannot be deleted.`);
+      return;
+    }
+
     if (
       !confirm(`Are you sure you want to delete page "${activePage.title}"?`)
     ) {
@@ -937,19 +958,24 @@ export default function AdminDashboard() {
   const activePageWithCache = activePage as CmsPage | null;
 
   // Group pages for the select dropdown
+  const normalizeSlug = (s: string) => s.replace(/^\/+|\/+$/g, "");
   const corePages = pages.filter((p) =>
-    ["/", "", "about", "contact"].includes(p.slug),
+    ["", "about", "contact"].includes(normalizeSlug(p.slug)),
   );
   const collectionPages = pages.filter((p) =>
-    ["book-covers", "illustration", "fine-art"].includes(p.slug),
+    ["book-covers", "illustration", "fine-art"].includes(normalizeSlug(p.slug)),
   );
-  const templatePages = pages.filter((p) => p.slug.startsWith("template/"));
-  const projectPages = pages.filter(
-    (p) =>
-      p.slug.startsWith("book-covers/") ||
-      p.slug.startsWith("illustration/") ||
-      p.slug.startsWith("fine-art/"),
+  const templatePages = pages.filter((p) =>
+    normalizeSlug(p.slug).startsWith("template/"),
   );
+  const projectPages = pages.filter((p) => {
+    const s = normalizeSlug(p.slug);
+    return (
+      s.startsWith("book-covers/") ||
+      s.startsWith("illustration/") ||
+      s.startsWith("fine-art/")
+    );
+  });
   const otherPages = pages.filter(
     (p) =>
       !corePages.includes(p) &&
@@ -957,6 +983,11 @@ export default function AdminDashboard() {
       !templatePages.includes(p) &&
       !projectPages.includes(p),
   );
+  const isProtectedPage = activePage
+    ? ["", "about", "contact", "book-covers", "illustration", "fine-art"].includes(
+        normalizeSlug(activePage.slug),
+      )
+    : false;
 
   const filteredPickerProjects = pickerProjects.filter((p) => {
     if (pickerCategory !== "all" && p.category !== pickerCategory) return false;
@@ -974,7 +1005,37 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-black text-white flex flex-col font-sans">
       {/* Top Bar */}
       <div className="border-b border-[#333333] px-4 md:px-8 py-3 md:h-16 flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 sticky top-0 bg-black/80 backdrop-blur-md z-50">
-        <div className="flex flex-wrap items-center gap-3 md:gap-6">
+        <div className="flex flex-wrap items-center gap-3 md:gap-4">
+          {activeTab === "pages" && (
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className={`p-2 rounded border transition-all duration-300 flex items-center justify-center shrink-0 cursor-pointer ${
+                sidebarOpen
+                  ? "border-[#333] hover:border-[#C5A059] bg-[#111] hover:bg-[#1a1a1a] text-gray-300 hover:text-[#C5A059]"
+                  : "border-[#C5A059] bg-[#C5A059] text-black shadow-[0_0_15px_rgba(197,160,89,0.35)]"
+              }`}
+              title={
+                sidebarOpen
+                  ? "Maximize Visual Editor (Hide Sidebar)"
+                  : "Restore Sidebar Controls"
+              }
+              aria-label="Toggle visual editor maximized view">
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.4}>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
+              </svg>
+            </button>
+          )}
+
           <span className="text-[#C5A059] font-bold uppercase tracking-widest text-xs shrink-0">
             Admin Dashboard
           </span>
@@ -1214,7 +1275,10 @@ export default function AdminDashboard() {
       ) : (
         <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">
           {/* Sidebar Controls */}
-          <aside className="w-full md:w-80 border-b md:border-b-0 md:border-r border-[#333333] p-6 max-h-[50vh] md:max-h-none overflow-y-auto flex flex-col gap-8 bg-[#050505]">
+          <aside
+            className={`${
+              sidebarOpen ? "w-full md:w-80" : "hidden"
+            } border-b md:border-b-0 md:border-r border-[#333333] p-6 max-h-[50vh] md:max-h-none overflow-y-auto flex flex-col gap-8 bg-[#050505] transition-all`}>
             <div>
               <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
                 Page Settings
@@ -1335,7 +1399,7 @@ export default function AdminDashboard() {
                   </div>
                 ) : null}
 
-                {activePage && pages.length > 1 ? (
+                {activePage && pages.length > 1 && !isProtectedPage ? (
                   <button
                     onClick={deletePage}
                     className="mt-2 w-full py-2 bg-red-950/40 hover:bg-red-900/60 border border-red-900 text-red-400 text-[10px] uppercase font-bold tracking-widest transition-colors">
@@ -1615,7 +1679,28 @@ export default function AdminDashboard() {
           </aside>
 
           {/* GrapesJS Visual Builder Canvas */}
-          <main className="flex-1 flex flex-col overflow-hidden bg-black">
+          <main className="flex-1 flex flex-col overflow-hidden bg-black relative">
+            {!sidebarOpen && (
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="absolute top-3 left-3 z-40 px-3 py-1.5 bg-black/90 hover:bg-[#C5A059] text-[#C5A059] hover:text-black border border-[#C5A059]/60 hover:border-[#C5A059] rounded shadow-2xl backdrop-blur-md transition-all duration-300 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider cursor-pointer active:scale-95"
+                title="Restore Sidebar Controls">
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.4}>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+                <span>Show Sidebar</span>
+              </button>
+            )}
             <GrapesEditor
               ref={editorRef}
               key={activePage?.id || activePage?.slug}

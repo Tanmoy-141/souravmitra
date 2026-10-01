@@ -5,7 +5,7 @@ dotenv.config();
 async function run() {
   const { db } = await import("../db");
   const { projects } = await import("../db/schema");
-  const { eq, and } = await import("drizzle-orm");
+  const { eq } = await import("drizzle-orm");
 
   const GENRE_IMAGES: Record<string, string[]> = {
     // Book Genres

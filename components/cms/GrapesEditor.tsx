@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import grapesjs from "grapesjs";
-import type { Editor, ToolbarButtonProps, Component } from "grapesjs";
+import type { Editor, ToolbarButtonProps, Component, ResizerOptions } from "grapesjs";
 import "grapesjs/dist/css/grapes.min.css";
 import CustomFontModal from "./CustomFontModal";
 import { CustomFont, formatFontFaceCss } from "@/lib/fonts";
@@ -35,6 +35,7 @@ export interface GrapesEditorContent {
 
 export interface GrapesEditorHandle {
   getCurrentContent: () => GrapesEditorContent | null;
+  refresh?: () => void;
 }
 
 function isProjectData(value: unknown): value is GrapesProjectData {
@@ -46,13 +47,50 @@ function isProjectData(value: unknown): value is GrapesProjectData {
 }
 
 function registerCmsDynamicBlockTypes(editorInstance: Editor) {
-  const lockedDynamicBlockDefaults = {
-    droppable: false,
-    editable: false,
+  const dynamicBlockDefaults = {
+    droppable: true,
+    editable: true,
     draggable: true,
     removable: true,
     copyable: true,
+    resizable: {
+      tl: true,
+      tc: true,
+      tr: true,
+      cl: true,
+      cr: true,
+      bl: true,
+      bc: true,
+      br: true,
+      step: 1,
+      minDim: 10,
+      currentUnit: true,
+      keyWidth: "width",
+      keyHeight: "height",
+    },
   };
+
+  editorInstance.Components.addType("default", {
+    model: {
+      defaults: {
+        resizable: {
+          tl: true,
+          tc: true,
+          tr: true,
+          cl: true,
+          cr: true,
+          bl: true,
+          bc: true,
+          br: true,
+          step: 1,
+          minDim: 10,
+          currentUnit: true,
+          keyWidth: "width",
+          keyHeight: "height",
+        },
+      },
+    },
+  });
 
   editorInstance.Components.addType("project-grid", {
     isComponent: (el: HTMLElement) =>
@@ -61,7 +99,7 @@ function registerCmsDynamicBlockTypes(editorInstance: Editor) {
         : undefined,
     model: {
       defaults: {
-        ...lockedDynamicBlockDefaults,
+        ...dynamicBlockDefaults,
         attributes: { "data-cms-block": "project-grid" },
       },
     },
@@ -74,7 +112,7 @@ function registerCmsDynamicBlockTypes(editorInstance: Editor) {
         : undefined,
     model: {
       defaults: {
-        ...lockedDynamicBlockDefaults,
+        ...dynamicBlockDefaults,
         attributes: { "data-cms-block": "testimonials-carousel" },
         traits: [
           {
@@ -96,7 +134,7 @@ function registerCmsDynamicBlockTypes(editorInstance: Editor) {
         : undefined,
     model: {
       defaults: {
-        ...lockedDynamicBlockDefaults,
+        ...dynamicBlockDefaults,
         attributes: { "data-cms-block": "project-carousel" },
         traits: [
           {
@@ -118,7 +156,7 @@ function registerCmsDynamicBlockTypes(editorInstance: Editor) {
         : undefined,
     model: {
       defaults: {
-        ...lockedDynamicBlockDefaults,
+        ...dynamicBlockDefaults,
         attributes: { "data-cms-block": "contact-form" },
       },
     },
@@ -546,6 +584,9 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             css: exportCleanCss(editor),
           };
         },
+        refresh: () => {
+          editorRef.current?.refresh();
+        },
       }),
       [],
     );
@@ -742,6 +783,12 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         width: "auto",
 
         storageManager: false,
+        avoidInlineStyle: false,
+
+        selectorManager: {
+          appendTo: ".gjs-clm-tags",
+          componentFirst: true,
+        },
 
         plugins: [registerCmsDynamicBlockTypes],
 
@@ -792,23 +839,139 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             {
               name: "Size & Spacing",
               open: true,
-
-              buildProps: [
-                "width",
-                "height",
-                "min-width",
-                "max-width",
-                "min-height",
-                "max-height",
-                "box-sizing",
-                "margin-top",
-                "margin-right",
-                "margin-bottom",
-                "margin-left",
-                "padding-top",
-                "padding-right",
-                "padding-bottom",
-                "padding-left",
+              properties: [
+                {
+                  name: "Width",
+                  property: "width",
+                  type: "integer",
+                  units: ["px", "%", "vw", "rem", "em", "auto"],
+                  defaults: "auto",
+                  min: 0,
+                  step: 1,
+                },
+                {
+                  name: "Height",
+                  property: "height",
+                  type: "integer",
+                  units: ["px", "%", "vh", "rem", "em", "auto"],
+                  defaults: "auto",
+                  min: 0,
+                  step: 1,
+                },
+                {
+                  name: "Min Width",
+                  property: "min-width",
+                  type: "integer",
+                  units: ["px", "%", "vw", "rem", "auto"],
+                  defaults: "auto",
+                  min: 0,
+                  step: 1,
+                },
+                {
+                  name: "Max Width",
+                  property: "max-width",
+                  type: "integer",
+                  units: ["px", "%", "vw", "rem", "none", "auto"],
+                  defaults: "none",
+                  min: 0,
+                  step: 1,
+                },
+                {
+                  name: "Min Height",
+                  property: "min-height",
+                  type: "integer",
+                  units: ["px", "%", "vh", "rem", "auto"],
+                  defaults: "auto",
+                  min: 0,
+                  step: 1,
+                },
+                {
+                  name: "Max Height",
+                  property: "max-height",
+                  type: "integer",
+                  units: ["px", "%", "vh", "rem", "none", "auto"],
+                  defaults: "none",
+                  min: 0,
+                  step: 1,
+                },
+                {
+                  name: "Box Sizing",
+                  property: "box-sizing",
+                  type: "select",
+                  defaults: "border-box",
+                  options: [
+                    { id: "border-box", label: "Border Box" },
+                    { id: "content-box", label: "Content Box" },
+                  ],
+                },
+                {
+                  name: "Margin Top",
+                  property: "margin-top",
+                  type: "integer",
+                  units: ["px", "%", "rem", "auto"],
+                  defaults: "0px",
+                  step: 1,
+                },
+                {
+                  name: "Margin Right",
+                  property: "margin-right",
+                  type: "integer",
+                  units: ["px", "%", "rem", "auto"],
+                  defaults: "0px",
+                  step: 1,
+                },
+                {
+                  name: "Margin Bottom",
+                  property: "margin-bottom",
+                  type: "integer",
+                  units: ["px", "%", "rem", "auto"],
+                  defaults: "0px",
+                  step: 1,
+                },
+                {
+                  name: "Margin Left",
+                  property: "margin-left",
+                  type: "integer",
+                  units: ["px", "%", "rem", "auto"],
+                  defaults: "0px",
+                  step: 1,
+                },
+                {
+                  name: "Padding Top",
+                  property: "padding-top",
+                  type: "integer",
+                  units: ["px", "%", "rem"],
+                  defaults: "0px",
+                  min: 0,
+                  step: 1,
+                },
+                {
+                  name: "Padding Right",
+                  property: "padding-right",
+                  type: "integer",
+                  units: ["px", "%", "rem"],
+                  defaults: "0px",
+                  min: 0,
+                  step: 1,
+                },
+                {
+                  name: "Padding Bottom",
+                  property: "padding-bottom",
+                  type: "integer",
+                  units: ["px", "%", "rem"],
+                  defaults: "0px",
+                  min: 0,
+                  step: 1,
+                },
+                {
+                  name: "Padding Left",
+                  property: "padding-left",
+                  type: "integer",
+                  units: ["px", "%", "rem"],
+                  defaults: "0px",
+                  min: 0,
+                  step: 1,
+                },
               ],
             },
 
@@ -1573,6 +1736,38 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
 
       editorRef.current = editor;
 
+      // Safe patch for GrapesJS ClassTagsView.syncStyle / CssComposer.getIdRule TypeError:
+      // When tags or styles are synced on an element without an explicit ID rule, GrapesJS calls
+      // `ruleComponent = cssC.getIdRule(target.getId(), ...)` followed immediately by `ruleComponent.getStyle()`.
+      // If getIdRule returns undefined, GrapesJS crashes with: Cannot read properties of undefined (reading 'getStyle').
+      // We wrap getIdRule so it safely creates or returns a valid rule object, preventing the crash.
+      if (editor.Css && typeof editor.Css.getIdRule === "function") {
+        const originalGetIdRule = editor.Css.getIdRule.bind(editor.Css);
+        editor.Css.getIdRule = function (
+          name: string,
+          opts: Record<string, unknown> = {},
+        ) {
+          let rule = originalGetIdRule(name, opts);
+          if (!rule) {
+            if (name) {
+              try {
+                rule = editor.Css.setIdRule(name, {}, opts);
+              } catch {
+                // ignore
+              }
+            }
+            if (!rule) {
+              rule = {
+                getStyle: () => ({}),
+                setStyle: () => {},
+                addStyle: () => {},
+              } as unknown as ReturnType<typeof originalGetIdRule>;
+            }
+          }
+          return rule;
+        };
+      }
+
       if (initialCss && typeof initialCss === "string" && initialCss.trim()) {
         try {
           editor.setStyle(initialCss);
@@ -1589,6 +1784,26 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
        */
       editor.on("component:selected", (component) => {
         setHasSelectedElement(true);
+
+        // Enable on-canvas interactive resize handles (tl, tc, tr, cl, cr, bl, bc, br) on selected element
+        if (component && !component.get("resizable")) {
+          component.set("resizable", {
+            tl: true,
+            tc: true,
+            tr: true,
+            cl: true,
+            cr: true,
+            bl: true,
+            bc: true,
+            br: true,
+            step: 1,
+            minDim: 10,
+            currentUnit: true,
+            keyWidth: "width",
+            keyHeight: "height",
+          });
+        }
+
         if (
           component.is("image") ||
           component.get("tagName")?.toLowerCase() === "img" ||
@@ -1682,6 +1897,84 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               ...defaultToolbar,
             ]);
           }
+        }
+      });
+
+      // Dynamically attach resizer handles to all components
+      editor.on(
+        "component:resize:init",
+        (opts: { resizable?: ResizerOptions | boolean; component?: Component }) => {
+          opts.resizable = {
+            tl: true,
+            tc: true,
+            tr: true,
+            cl: true,
+            cr: true,
+            bl: true,
+            bc: true,
+            br: true,
+            step: 1,
+            minDim: 10,
+            currentUnit: true,
+            keyWidth: "width",
+            keyHeight: "height",
+          };
+        },
+      );
+
+      // When resizing ends, ensure Tailwind max-w classes don't constrain custom width
+      editor.on(
+        "component:resize:end",
+        (data?: { component?: Component }) => {
+          const component = data?.component || editor.getSelected();
+          if (component) {
+            const curStyle = component.getStyle() || {};
+            if (curStyle.width && curStyle.width !== "auto") {
+              component.addStyle({ "max-width": "none" });
+            }
+          }
+        },
+      );
+
+      // When width style is changed via Style Manager, clear max-width constraint
+      editor.on("styleable:change:width", () => {
+        const selected = editor.getSelected();
+        if (selected) {
+          const curStyle = selected.getStyle() || {};
+          if (curStyle.width && curStyle.width !== "auto" && !curStyle["max-width"]) {
+            selected.addStyle({ "max-width": "none" });
+          }
+        }
+      });
+
+      // When height style is changed via Style Manager, clear max-height constraint
+      editor.on("styleable:change:height", () => {
+        const selected = editor.getSelected();
+        if (selected) {
+          const curStyle = selected.getStyle() || {};
+          if (curStyle.height && curStyle.height !== "auto" && !curStyle["max-height"]) {
+            selected.addStyle({ "max-height": "none" });
+          }
+        }
+      });
+
+      editor.on("component:create", (component: Component) => {
+        if (component && !component.get("resizable")) {
+          component.set("resizable", {
+            tl: true,
+            tc: true,
+            tr: true,
+            cl: true,
+            cr: true,
+            bl: true,
+            bc: true,
+            br: true,
+            step: 1,
+            minDim: 10,
+            currentUnit: true,
+            keyWidth: "width",
+            keyHeight: "height",
+          });
         }
       });
 
@@ -3162,6 +3455,25 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       `,
       });
 
+      bm.add("portfolio-spotlight-block", {
+        label: "Portfolio Spotlight Carousel",
+        category: "Portfolio",
+        content: `
+        <div
+          data-cms-block="portfolio-spotlight"
+          class="my-8 p-8 bg-[#0a0a0a] border border-dashed border-[#C5A059] rounded-xl text-white text-center"
+        >
+          <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.25em; color: #C5A059; font-weight: bold; margin-bottom: 8px;">
+            ★ PORTFOLIO SPOTLIGHT CAROUSEL
+          </div>
+          <h3 class="text-2xl font-serif text-white mb-2">Explore Portfolios &amp; Artwork Spotlight</h3>
+          <p class="text-xs text-gray-400 uppercase tracking-widest">
+            Renders interactive portfolio categories synced with animated artwork spotlight on the live site
+          </p>
+        </div>
+      `,
+      });
+
       /*
        * Project grid block
        */
@@ -4270,8 +4582,42 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             border: 1px solid #141414 !important;
             background-color: #C5A059 !important;
             border-radius: 2px !important;
-            width: 8px !important;
-            height: 8px !important;
+            width: 9px !important;
+            height: 9px !important;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.9) !important;
+            z-index: 100 !important;
+          }
+          .gjs-resizer-h:hover {
+            background-color: #ffffff !important;
+            transform: scale(1.3) !important;
+          }
+
+          /* Selector / Class Manager styling */
+          .gjs-clm-tags {
+            padding: 8px 12px !important;
+            background: #111111 !important;
+            border-bottom: 1px solid #222222 !important;
+          }
+          .gjs-clm-tag {
+            background-color: #222222 !important;
+            color: #C5A059 !important;
+            border: 1px solid rgba(197, 160, 89, 0.35) !important;
+            border-radius: 3px !important;
+            padding: 3px 6px !important;
+            font-size: 11px !important;
+            margin: 2px !important;
+          }
+          .gjs-clm-tag-close {
+            color: #ff5252 !important;
+            margin-left: 4px !important;
+          }
+          .gjs-clm-new {
+            background: #161616 !important;
+            color: #ffffff !important;
+            border: 1px solid #333333 !important;
+            border-radius: 3px !important;
+            padding: 4px 8px !important;
+            font-size: 11px !important;
           }
         `}</style>
         <div className="flex items-center justify-between px-4 py-2.5 bg-[#0c0c0c] border-b border-[#222] text-xs text-gray-400 shrink-0">
@@ -4437,6 +4783,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   <span>+ Custom Font</span>
                 </button>
               </div>
+              <div className="gjs-clm-tags border-b border-[#222] p-2 bg-[#0c0c0c]" />
               <div className="gjs-sm-container" />
             </div>
 

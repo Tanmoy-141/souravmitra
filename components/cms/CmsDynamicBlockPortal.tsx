@@ -862,6 +862,19 @@ export function CmsDynamicBlockPortal({
           border: none !important;
           box-shadow: none !important;
         }
+        @media (max-width: 768px) {
+          [data-cms-block],
+          [data-gjs-type],
+          .gjs-row,
+          .gjs-cell {
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          [data-cms-block] img {
+            max-width: 100% !important;
+            height: auto !important;
+          }
+        }
       `}</style>
       <div
         ref={containerRef}

@@ -447,8 +447,19 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
     const [showFontModal, setShowFontModal] = useState(false);
     const [customFonts, setCustomFonts] = useState<CustomFont[]>([]);
     const [hasSelectedElement, setHasSelectedElement] = useState(false);
+    const [isFreeformDrag, setIsFreeformDrag] = useState(false);
     const customFontsRef = useRef<CustomFont[]>([]);
     customFontsRef.current = customFonts;
+
+    const toggleFreeformDrag = () => {
+      setIsFreeformDrag((prev) => {
+        const next = !prev;
+        if (editorRef.current) {
+          editorRef.current.setDragMode(next ? "absolute" : "translate");
+        }
+        return next;
+      });
+    };
 
     const exportCleanCss = (editor: Editor): string => {
       let css = editor.getCss() ?? "";
@@ -836,6 +847,79 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           appendTo: ".gjs-sm-container",
 
           sectors: [
+            {
+              name: "Block Alignment & Anchoring",
+              open: true,
+              properties: [
+                {
+                  name: "Horizontal Alignment",
+                  property: "text-align",
+                  type: "radio",
+                  defaults: "left",
+                  options: [
+                    { id: "left", label: "⬅ Left" },
+                    { id: "center", label: "↔ Center" },
+                    { id: "right", label: "➡ Right" },
+                    { id: "justify", label: "☰ Justify" },
+                  ],
+                },
+                {
+                  name: "Position Mode",
+                  property: "position",
+                  type: "select",
+                  defaults: "static",
+                  options: [
+                    { id: "static", label: "Normal Flow (Default Grid/Document Order)" },
+                    { id: "relative", label: "Relative (Free Offset without Breaking Flow)" },
+                    { id: "absolute", label: "Absolute (Free Floating Anywhere)" },
+                    { id: "fixed", label: "Fixed (Screen Locked)" },
+                  ],
+                },
+                {
+                  name: "Left / X Position",
+                  property: "left",
+                  type: "integer",
+                  units: ["px", "%", "vw", "auto"],
+                  defaults: "auto",
+                  step: 1,
+                },
+                {
+                  name: "Top / Y Position",
+                  property: "top",
+                  type: "integer",
+                  units: ["px", "%", "vh", "auto"],
+                  defaults: "auto",
+                  step: 1,
+                },
+                {
+                  name: "Right Position",
+                  property: "right",
+                  type: "integer",
+                  units: ["px", "%", "vw", "auto"],
+                  defaults: "auto",
+                  step: 1,
+                },
+                {
+                  name: "Bottom Position",
+                  property: "bottom",
+                  type: "integer",
+                  units: ["px", "%", "vh", "auto"],
+                  defaults: "auto",
+                  step: 1,
+                },
+                {
+                  name: "Float Side",
+                  property: "float",
+                  type: "radio",
+                  defaults: "none",
+                  options: [
+                    { id: "none", label: "None" },
+                    { id: "left", label: "Float Left" },
+                    { id: "right", label: "Float Right" },
+                  ],
+                },
+              ],
+            },
             {
               name: "Size & Spacing",
               open: true,
@@ -1898,6 +1982,44 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             ]);
           }
         }
+
+        // Attach on-canvas Alignment & Anchoring buttons to EVERY selected component
+        const curToolbar = (component.get("toolbar") || []) as ToolbarButtonProps[];
+        if (!curToolbar.some((item) => item.command === "anchor-center")) {
+          const isAbsolute = component.getDragMode() === "absolute";
+          const alignTools: ToolbarButtonProps[] = [
+            {
+              id: "anchor-left",
+              attributes: { title: "Anchor Left (Align block to left side)" },
+              command: "anchor-left",
+              label: "⬅ Left",
+            },
+            {
+              id: "anchor-center",
+              attributes: { title: "Anchor Center (Horizontally Center block on page)" },
+              command: "anchor-center",
+              label: "↔ Center",
+            },
+            {
+              id: "anchor-right",
+              attributes: { title: "Anchor Right (Align block to right side)" },
+              command: "anchor-right",
+              label: "➡ Right",
+            },
+            {
+              id: "anchor-free",
+              attributes: {
+                title: isAbsolute
+                  ? "Switch to Flow Grid Mode"
+                  : "Free Move Mode (Drag anywhere without left/grid lock)",
+              },
+              command: "anchor-free",
+              label: isAbsolute ? "⚓ Flow" : "🚀 Free",
+            },
+          ];
+
+          component.set("toolbar", [...alignTools, ...curToolbar]);
+        }
       });
 
       // Dynamically attach resizer handles to all components
@@ -1957,6 +2079,21 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           }
         }
       });
+
+      // When left, top, right, or bottom style is changed via Style Manager, promote static elements to relative
+      editor.on(
+        "styleable:change:left styleable:change:top styleable:change:right styleable:change:bottom",
+        () => {
+          const selected = editor.getSelected();
+          if (selected) {
+            const curStyle = selected.getStyle() || {};
+            const pos = curStyle.position;
+            if (!pos || pos === "static") {
+              selected.addStyle({ position: "relative" });
+            }
+          }
+        },
+      );
 
       editor.on("component:create", (component: Component) => {
         if (component && !component.get("resizable")) {
@@ -2018,6 +2155,85 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         } catch (err) {
           console.error("Failed to delete asset from server:", err);
         }
+      });
+
+      /*
+       * Commands for Block Alignment & Anchoring (Left, Center, Right, Free Floating)
+       */
+      editor.Commands.add("anchor-left", {
+        run: (ed) => {
+          const selected = ed.getSelected();
+          if (!selected) return;
+          selected.addStyle({
+            "margin-left": "0px",
+            "margin-right": "auto",
+            "text-align": "left",
+            "align-self": "flex-start",
+            position: "relative",
+            left: "0px",
+            transform: "none",
+          });
+          selected.setDragMode("");
+          ed.trigger("change:canvas");
+        },
+      });
+
+      editor.Commands.add("anchor-center", {
+        run: (ed) => {
+          const selected = ed.getSelected();
+          if (!selected) return;
+          selected.addStyle({
+            "margin-left": "auto",
+            "margin-right": "auto",
+            "text-align": "center",
+            "align-self": "center",
+            position: "relative",
+            left: "0px",
+            transform: "none",
+          });
+          selected.setDragMode("");
+          ed.trigger("change:canvas");
+        },
+      });
+
+      editor.Commands.add("anchor-right", {
+        run: (ed) => {
+          const selected = ed.getSelected();
+          if (!selected) return;
+          selected.addStyle({
+            "margin-left": "auto",
+            "margin-right": "0px",
+            "text-align": "right",
+            "align-self": "flex-end",
+            position: "relative",
+            left: "0px",
+            transform: "none",
+          });
+          selected.setDragMode("");
+          ed.trigger("change:canvas");
+        },
+      });
+
+      editor.Commands.add("anchor-free", {
+        run: (ed) => {
+          const selected = ed.getSelected();
+          if (!selected) return;
+          const isAbsolute = selected.getDragMode() === "absolute";
+          if (isAbsolute) {
+            selected.setDragMode("");
+            selected.addStyle({
+              position: "relative",
+            });
+          } else {
+            selected.setDragMode("absolute");
+            selected.addStyle({
+              position: "absolute",
+              "margin-left": "0px",
+              "margin-right": "0px",
+            });
+          }
+          ed.trigger("change:canvas");
+        },
       });
 
       /*
@@ -4526,6 +4742,32 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             box-shadow: 0 2px 8px rgba(197, 160, 89, 0.35) !important;
           }
 
+          /* Alignment & Anchoring Action Buttons */
+          .gjs-toolbar-item__anchor-left,
+          .gjs-toolbar-item__anchor-center,
+          .gjs-toolbar-item__anchor-right,
+          .gjs-toolbar-item__anchor-free,
+          .gjs-toolbar-item[title*="Anchor"],
+          .gjs-toolbar-item[title*="Free Floating"],
+          .gjs-toolbar-item[title*="Flow Grid"] {
+            background: #181818 !important;
+            color: #d1d5db !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            font-weight: 600 !important;
+          }
+          .gjs-toolbar-item__anchor-left:hover,
+          .gjs-toolbar-item__anchor-center:hover,
+          .gjs-toolbar-item__anchor-right:hover,
+          .gjs-toolbar-item__anchor-free:hover,
+          .gjs-toolbar-item[title*="Anchor"]:hover,
+          .gjs-toolbar-item[title*="Free Floating"]:hover,
+          .gjs-toolbar-item[title*="Flow Grid"]:hover {
+            background: #C5A059 !important;
+            color: #000000 !important;
+            border-color: #C5A059 !important;
+            box-shadow: 0 2px 8px rgba(197, 160, 89, 0.3) !important;
+          }
+
           /* Destructive / Remove Action Buttons */
           .gjs-toolbar-item__remove-image,
           .gjs-toolbar-item[title*="Remove"],
@@ -4657,6 +4899,24 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           </div>
 
           <div className="flex items-center gap-2.5">
+            {/* Freeform Drag Mode Toggle */}
+            <button
+              type="button"
+              onClick={toggleFreeformDrag}
+              title={
+                isFreeformDrag
+                  ? "Freeform Drag Mode Active: Drag blocks freely anywhere without left/grid snapping"
+                  : "Flow Grid Mode Active: Blocks snap to document order. Click to enable Freeform Drag Mode"
+              }
+              className={`px-3 py-1.5 rounded text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
+                isFreeformDrag
+                  ? "bg-[#C5A059] text-black shadow-md shadow-[#C5A059]/30 border border-[#C5A059]"
+                  : "border border-[#333] text-gray-300 hover:text-white hover:border-[#C5A059] bg-[#141414]"
+              }`}>
+              <span>{isFreeformDrag ? "🚀" : "⚓"}</span>
+              <span>{isFreeformDrag ? "Free Drag: ON" : "Free Drag: OFF"}</span>
+            </button>
+
             {/* Clean Preview Toggle */}
             <button
               type="button"

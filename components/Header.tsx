@@ -145,7 +145,7 @@ export const Header = () => {
           onClick={() => setIsMenuOpen((open) => !open)}
           aria-label={isMenuOpen ? "Close menu" : "Open menu"}
           aria-expanded={isMenuOpen}
-          className="md:hidden p-2 text-white">
+          className="md:hidden p-2 text-white min-w-[44px] min-h-[44px] flex items-center justify-center focus:outline-none focus:ring-1 focus:ring-[#C5A059] rounded-md transition-colors">
           <svg
             className="w-6 h-6"
             fill="none"
@@ -171,12 +171,46 @@ export const Header = () => {
 
       {/* Mobile nav panel */}
       {isMenuOpen && (
-        <nav className="absolute inset-x-0 top-full z-50 flex flex-col gap-6 border-t border-[#333333] bg-[#000000] px-6 pb-8 pt-5 text-sm font-medium uppercase tracking-widest text-[#D4D4D4] shadow-2xl md:hidden">
-          {navLinks}
+        <nav className="absolute inset-x-0 top-full z-50 flex flex-col gap-4 border-t border-[#333333] bg-[#000000] px-6 pb-8 pt-5 text-sm font-medium uppercase tracking-widest text-[#D4D4D4] shadow-2xl md:hidden">
+          <div className="flex flex-col divide-y divide-[#1e1e1e]">
+            <Link
+              href="/book-covers"
+              onClick={() => setIsMenuOpen(false)}
+              className="py-3 hover:text-white transition-colors flex items-center min-h-[44px]">
+              {getPageTitle("book-covers", "Book Covers")}
+            </Link>
+            <Link
+              href="/illustration"
+              onClick={() => setIsMenuOpen(false)}
+              className="py-3 hover:text-white transition-colors flex items-center min-h-[44px]">
+              {getPageTitle("illustration", "Illustration")}
+            </Link>
+            <Link
+              href="/fine-art"
+              onClick={() => setIsMenuOpen(false)}
+              className="py-3 hover:text-white transition-colors flex items-center min-h-[44px]">
+              {getPageTitle("fine-art", "Fine Art")}
+            </Link>
+            {customNavPages.map((page) => (
+              <Link
+                key={page.slug}
+                href={`/p/${page.slug}`}
+                onClick={() => setIsMenuOpen(false)}
+                className="py-3 hover:text-white transition-colors flex items-center min-h-[44px]">
+                {page.title}
+              </Link>
+            ))}
+            <Link
+              href="/about"
+              onClick={() => setIsMenuOpen(false)}
+              className="py-3 hover:text-white transition-colors flex items-center min-h-[44px]">
+              {getPageTitle("about", "About")}
+            </Link>
+          </div>
           <Link
             href="/contact"
             onClick={() => setIsMenuOpen(false)}
-            className="text-[#C5A059] hover:text-white transition-colors border border-[#C5A059] px-4 py-2 text-center w-fit">
+            className="text-[#C5A059] hover:text-white transition-colors border border-[#C5A059] px-4 py-3 text-center w-full min-h-[44px] flex items-center justify-center font-bold tracking-widest mt-2">
             {getPageTitle("contact", "Contact")}
           </Link>
         </nav>

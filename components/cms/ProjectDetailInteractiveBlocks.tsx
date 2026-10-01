@@ -195,13 +195,13 @@ export function ProjectCommentsBlock() {
           value={newText}
           onChange={(e) => setNewText(e.target.value)}
           placeholder="Share your thoughts on this artwork..."
-          className="w-full bg-[#111] border border-[#2a2a2a] rounded-lg p-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-[#C5A059] transition-colors resize-none"
+          className="w-full bg-[#111] border border-[#2a2a2a] rounded-lg p-3 text-base sm:text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-[#C5A059] transition-colors resize-none"
         />
         <div className="flex justify-end mt-2">
           <button
             type="submit"
             disabled={!newText.trim()}
-            className="px-5 py-2 bg-[#C5A059] hover:bg-white text-black font-bold uppercase tracking-wider text-xs rounded transition-colors disabled:opacity-40">
+            className="px-5 py-2.5 sm:py-2 min-h-10 bg-[#C5A059] hover:bg-white text-black font-bold uppercase tracking-wider text-xs rounded transition-colors disabled:opacity-40 cursor-pointer">
             Post Comment
           </button>
         </div>

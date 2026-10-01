@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/no-page-custom-font */
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -8,6 +8,13 @@ import { siteSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { CustomFont, formatFontFaceCss } from "@/lib/fonts";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: "#000000",
+};
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -108,9 +115,9 @@ export default async function RootLayout({
           );
         })}
       </head>
-      <body className="min-h-full flex flex-col font-sans">
+      <body className="min-h-full flex flex-col font-sans overflow-x-hidden w-full max-w-full">
         <Header />
-        <main className="grow">{children}</main>
+        <main className="grow w-full max-w-full overflow-x-hidden">{children}</main>
         <Footer />
       </body>
     </html>

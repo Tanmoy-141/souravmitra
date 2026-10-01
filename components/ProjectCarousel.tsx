@@ -245,8 +245,14 @@ export default function ProjectCarousel({
                 ...(headingProps?.letterSpacing ? { letterSpacing: headingProps.letterSpacing } : {}),
                 ...(headingProps?.textTransform ? { textTransform: headingProps.textTransform } : {}),
                 ...(headingProps?.textAlign ? { textAlign: headingProps.textAlign } : {}),
-                ...(headingProps?.color ? { color: headingProps.color } : {}),
-                ...(headingProps?.position ? { position: headingProps.position } : {}),
+                position:
+                  headingProps?.position ||
+                  (headingProps?.left ||
+                  headingProps?.right ||
+                  headingProps?.top ||
+                  headingProps?.bottom
+                    ? "relative"
+                    : undefined),
                 ...(headingProps?.top ? { top: headingProps.top } : {}),
                 ...(headingProps?.bottom ? { bottom: headingProps.bottom } : {}),
                 ...(headingProps?.left ? { left: headingProps.left } : {}),
@@ -268,8 +274,8 @@ export default function ProjectCarousel({
           </div>
 
           {/* Category Filter Pills */}
-          <div className="flex items-center">
-            <div className="flex flex-wrap items-center gap-1.5 p-1 bg-[#111111]/90 border border-white/10 rounded-full text-xs backdrop-blur-md shadow-lg">
+          <div className="flex items-center overflow-x-auto max-w-full pb-1 scrollbar-none">
+            <div className="flex flex-nowrap sm:flex-wrap items-center gap-1.5 p-1 bg-[#111111]/90 border border-white/10 rounded-full text-xs backdrop-blur-md shadow-lg shrink-0">
               {[
                 { id: "all", label: "All Works" },
                 { id: "book-covers", label: "Book Covers" },
@@ -280,7 +286,7 @@ export default function ProjectCarousel({
                   key={tab.id}
                   type="button"
                   onClick={() => handleSelectCategory(tab.id)}
-                  className={`px-3.5 py-1.5 rounded-full font-semibold transition-all duration-300 text-[11px] uppercase tracking-wider ${
+                  className={`px-3.5 py-1.5 rounded-full font-semibold transition-all duration-300 text-[11px] uppercase tracking-wider whitespace-nowrap ${
                     selectedCategory === tab.id
                       ? "bg-linear-to-r from-[#C5A059] to-[#dfba73] text-black shadow-md shadow-[#C5A059]/30 font-bold"
                       : "text-gray-400 hover:text-white hover:bg-white/5"
@@ -304,7 +310,7 @@ export default function ProjectCarousel({
             type="button"
             onClick={handlePrev}
             aria-label="Previous project slide"
-            className="absolute -left-3 sm:-left-5 lg:-left-6 top-1/2 -translate-y-1/2 z-20 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/85 hover:bg-[#C5A059] text-[#C5A059] hover:text-black border border-[#C5A059]/40 hover:border-[#C5A059] backdrop-blur-md shadow-[0_4px_25px_rgba(0,0,0,0.85)] hover:shadow-[0_0_30px_rgba(197,160,89,0.55)] flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 group focus:outline-none focus:ring-2 focus:ring-[#C5A059]/50">
+            className="absolute left-1 sm:-left-5 lg:-left-6 top-1/2 -translate-y-1/2 z-20 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/85 hover:bg-[#C5A059] text-[#C5A059] hover:text-black border border-[#C5A059]/40 hover:border-[#C5A059] backdrop-blur-md shadow-[0_4px_25px_rgba(0,0,0,0.85)] hover:shadow-[0_0_30px_rgba(197,160,89,0.55)] flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 group focus:outline-none focus:ring-2 focus:ring-[#C5A059]/50 cursor-pointer">
             <svg
               className="w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-300 group-hover:-translate-x-0.5"
               fill="none"
@@ -320,7 +326,7 @@ export default function ProjectCarousel({
             type="button"
             onClick={handleNext}
             aria-label="Next project slide"
-            className="absolute -right-3 sm:-right-5 lg:-right-6 top-1/2 -translate-y-1/2 z-20 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/85 hover:bg-[#C5A059] text-[#C5A059] hover:text-black border border-[#C5A059]/40 hover:border-[#C5A059] backdrop-blur-md shadow-[0_4px_25px_rgba(0,0,0,0.85)] hover:shadow-[0_0_30px_rgba(197,160,89,0.55)] flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 group focus:outline-none focus:ring-2 focus:ring-[#C5A059]/50">
+            className="absolute right-1 sm:-right-5 lg:-right-6 top-1/2 -translate-y-1/2 z-20 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/85 hover:bg-[#C5A059] text-[#C5A059] hover:text-black border border-[#C5A059]/40 hover:border-[#C5A059] backdrop-blur-md shadow-[0_4px_25px_rgba(0,0,0,0.85)] hover:shadow-[0_0_30px_rgba(197,160,89,0.55)] flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 group focus:outline-none focus:ring-2 focus:ring-[#C5A059]/50 cursor-pointer">
             <svg
               className="w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-300 group-hover:translate-x-0.5"
               fill="none"
@@ -444,24 +450,27 @@ export default function ProjectCarousel({
         {/* Bottom Pagination & Progress Bar */}
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-[#1a1a1a]">
           {/* Animated Dots Navigation */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-wrap justify-center">
             {Array.from({ length: maxIndex + 1 }).map((_, dotIndex) => (
               <button
                 key={dotIndex}
                 type="button"
                 aria-label={`Jump to slide position ${dotIndex + 1}`}
                 onClick={() => setActiveIndex(dotIndex)}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  dotIndex === safeActiveIndex
-                    ? "w-8 bg-[#C5A059]"
-                    : "w-2 bg-white/20 hover:bg-white/50"
-                }`}
-              />
+                className="p-2 -m-1 inline-flex items-center justify-center cursor-pointer">
+                <span
+                  className={`h-1.5 rounded-full transition-all duration-300 block ${
+                    dotIndex === safeActiveIndex
+                      ? "w-8 bg-[#C5A059]"
+                      : "w-2 bg-white/20 hover:bg-white/50"
+                  }`}
+                />
+              </button>
             ))}
           </div>
 
           {/* Position indicator & link to full portfolio */}
-          <div className="flex items-center gap-5 text-xs text-gray-400">
+          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-5 text-xs text-gray-400 text-center sm:text-left">
             <span className="font-mono">
               Showing{" "}
               <strong className="text-white">

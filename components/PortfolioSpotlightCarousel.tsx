@@ -34,7 +34,7 @@ interface PortfolioSpotlightCarouselProps {
 
 const DEFAULT_SUBTITLES: Record<string, string> = {
   "book-covers": "Literary Fiction",
-  "illustration": "Conceptual Piece",
+  illustration: "Conceptual Piece",
   "fine-art": "Oil on Canvas",
   "dark-fantasy": "Myth & Legend",
 };
@@ -42,7 +42,7 @@ const DEFAULT_SUBTITLES: Record<string, string> = {
 const RELIABLE_CATEGORY_FALLBACKS: Record<string, string> = {
   "book-covers":
     "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=800&auto=format&fit=crop",
-  "illustration":
+  illustration:
     "https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=800&auto=format&fit=crop",
   "fine-art":
     "https://nyj2ucc9ur7y9rzh.public.blob.vercel-storage.com/uploads/2f022a42_temptation-1790753130290-QOo7ARHtRNTMiuo2KLijGxzhG6hqfQ.jpeg",
@@ -217,8 +217,9 @@ export default function PortfolioSpotlightCarousel({
           r.ok ? r.json() : null,
         );
 
-        const rawProjects: Project[] =
-          Array.isArray(projectsRes?.projects) ? projectsRes.projects : [];
+        const rawProjects: Project[] = Array.isArray(projectsRes?.projects)
+          ? projectsRes.projects
+          : [];
 
         if (!isMounted) return;
 
@@ -281,7 +282,10 @@ export default function PortfolioSpotlightCarousel({
             );
 
             // Special mapping for Dark Fantasy if no direct category tag
-            if (matchedProjects.length === 0 && portfolio.id === "dark-fantasy") {
+            if (
+              matchedProjects.length === 0 &&
+              portfolio.id === "dark-fantasy"
+            ) {
               matchedProjects = rawProjects.filter(
                 (proj) =>
                   proj.tags?.some((t) => /fantasy|myth|dark/i.test(t)) ||
@@ -289,7 +293,9 @@ export default function PortfolioSpotlightCarousel({
               );
               if (matchedProjects.length === 0) {
                 matchedProjects = rawProjects.filter(
-                  (proj) => proj.category === "fine-art" || proj.category === "book-covers",
+                  (proj) =>
+                    proj.category === "fine-art" ||
+                    proj.category === "book-covers",
                 );
               }
             }
@@ -391,23 +397,34 @@ export default function PortfolioSpotlightCarousel({
     setTouchStartX(null);
   };
 
+  const isRightAligned =
+    headingProps?.textAlign === "right" ||
+    headingProps?.style?.textAlign === "right" ||
+    (headingProps?.marginLeft === "auto" && !headingProps?.marginRight);
+
   const isCentered =
     headingProps?.textAlign === "center" ||
     headingProps?.style?.textAlign === "center" ||
-    (headingProps?.marginLeft &&
-      headingProps.marginLeft !== "0px" &&
-      headingProps?.marginRight &&
-      headingProps.marginRight !== "0px") ||
-    headingProps?.marginLeft === "auto" ||
-    headingProps?.style?.marginLeft === "auto";
+    (headingProps?.marginLeft === "auto" &&
+      headingProps?.marginRight === "auto") ||
+    (headingProps?.style?.marginLeft === "auto" &&
+      headingProps?.style?.marginRight === "auto") ||
+    (Boolean(headingProps?.marginLeft) &&
+      Boolean(headingProps?.marginRight) &&
+      headingProps?.marginLeft === headingProps?.marginRight &&
+      headingProps?.marginLeft !== "0px");
 
   return (
     <div
       style={{
         ...(containerStyles?.width ? { width: containerStyles.width } : {}),
-        ...(containerStyles?.maxWidth ? { maxWidth: containerStyles.maxWidth } : {}),
+        ...(containerStyles?.maxWidth
+          ? { maxWidth: containerStyles.maxWidth }
+          : {}),
         ...(containerStyles?.height ? { height: containerStyles.height } : {}),
-        ...(containerStyles?.minHeight ? { minHeight: containerStyles.minHeight } : {}),
+        ...(containerStyles?.minHeight
+          ? { minHeight: containerStyles.minHeight }
+          : {}),
         ...containerStyles,
       }}
       className={`w-full py-8 px-4 sm:px-6 lg:px-8 mx-auto select-none ${
@@ -421,19 +438,27 @@ export default function PortfolioSpotlightCarousel({
       onTouchEnd={handleTouchEnd}>
       <div
         style={{
-          ...(containerStyles?.height ? { minHeight: "100%", height: "100%" } : {}),
+          ...(containerStyles?.height
+            ? { minHeight: "100%", height: "100%" }
+            : {}),
         }}
         className="bg-[#0a0a0a] border border-[#222222] rounded-2xl p-6 sm:p-8 text-white relative shadow-2xl overflow-visible flex flex-col justify-between">
         {/* Header Bar */}
         <div
           className={`w-full pb-6 border-b border-[#1f1f1f] mb-6 flex items-center ${
-            isCentered ? "justify-center text-center" : "justify-start text-left"
+            isCentered
+              ? "justify-center text-center"
+              : isRightAligned
+                ? "justify-end text-right"
+                : "justify-start text-left"
           }`}>
           <div
             className={`w-full ${
               isCentered
                 ? "flex flex-col items-center justify-center text-center mx-auto"
-                : "flex flex-col items-start"
+                : isRightAligned
+                  ? "flex flex-col items-end text-right ml-auto"
+                  : "flex flex-col items-start"
             }`}>
             <h2
               id={headingProps?.id}
@@ -463,12 +488,23 @@ export default function PortfolioSpotlightCarousel({
                   ? { textAlign: headingProps.textAlign }
                   : {}),
                 ...(headingProps?.color ? { color: headingProps.color } : {}),
-                ...(headingProps?.position ? { position: headingProps.position } : {}),
+                position:
+                  headingProps?.position ||
+                  (headingProps?.left ||
+                  headingProps?.right ||
+                  headingProps?.top ||
+                  headingProps?.bottom
+                    ? "relative"
+                    : undefined),
                 ...(headingProps?.top ? { top: headingProps.top } : {}),
-                ...(headingProps?.bottom ? { bottom: headingProps.bottom } : {}),
+                ...(headingProps?.bottom
+                  ? { bottom: headingProps.bottom }
+                  : {}),
                 ...(headingProps?.left ? { left: headingProps.left } : {}),
                 ...(headingProps?.right ? { right: headingProps.right } : {}),
-                ...(headingProps?.transform ? { transform: headingProps.transform } : {}),
+                ...(headingProps?.transform
+                  ? { transform: headingProps.transform }
+                  : {}),
                 ...(headingProps?.marginLeft &&
                 headingProps.marginLeft !== "0px"
                   ? { marginLeft: headingProps.marginLeft }
@@ -477,10 +513,18 @@ export default function PortfolioSpotlightCarousel({
                 headingProps.marginRight !== "0px"
                   ? { marginRight: headingProps.marginRight }
                   : {}),
-                ...(headingProps?.marginTop ? { marginTop: headingProps.marginTop } : {}),
-                ...(headingProps?.marginBottom ? { marginBottom: headingProps.marginBottom } : {}),
-                ...(headingProps?.paddingLeft ? { paddingLeft: headingProps.paddingLeft } : {}),
-                ...(headingProps?.paddingRight ? { paddingRight: headingProps.paddingRight } : {}),
+                ...(headingProps?.marginTop
+                  ? { marginTop: headingProps.marginTop }
+                  : {}),
+                ...(headingProps?.marginBottom
+                  ? { marginBottom: headingProps.marginBottom }
+                  : {}),
+                ...(headingProps?.paddingLeft
+                  ? { paddingLeft: headingProps.paddingLeft }
+                  : {}),
+                ...(headingProps?.paddingRight
+                  ? { paddingRight: headingProps.paddingRight }
+                  : {}),
                 ...(headingProps?.width ? { width: headingProps.width } : {}),
                 ...(headingProps?.height
                   ? { height: headingProps.height }
@@ -502,14 +546,18 @@ export default function PortfolioSpotlightCarousel({
             type="button"
             onClick={handlePrev}
             aria-label="Previous artwork"
-            className="absolute -left-3 sm:-left-5 lg:-left-6 top-1/2 -translate-y-1/2 z-30 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/85 hover:bg-[#C5A059] text-[#C5A059] hover:text-black border border-[#C5A059]/40 hover:border-[#C5A059] backdrop-blur-md shadow-[0_4px_25px_rgba(0,0,0,0.85)] hover:shadow-[0_0_30px_rgba(197,160,89,0.55)] flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 group focus:outline-none focus:ring-2 focus:ring-[#C5A059]/50 cursor-pointer">
+            className="absolute left-1 sm:-left-5 lg:-left-6 top-1/2 -translate-y-1/2 z-30 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/85 hover:bg-[#C5A059] text-[#C5A059] hover:text-black border border-[#C5A059]/40 hover:border-[#C5A059] backdrop-blur-md shadow-[0_4px_25px_rgba(0,0,0,0.85)] hover:shadow-[0_0_30px_rgba(197,160,89,0.55)] flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 group focus:outline-none focus:ring-2 focus:ring-[#C5A059]/50 cursor-pointer">
             <svg
               className="w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-300 group-hover:-translate-x-0.5"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
               strokeWidth={2.4}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 19l-7-7 7-7"
+              />
             </svg>
           </button>
 
@@ -518,14 +566,18 @@ export default function PortfolioSpotlightCarousel({
             type="button"
             onClick={handleNext}
             aria-label="Next artwork"
-            className="absolute -right-3 sm:-right-5 lg:-right-6 top-1/2 -translate-y-1/2 z-30 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/85 hover:bg-[#C5A059] text-[#C5A059] hover:text-black border border-[#C5A059]/40 hover:border-[#C5A059] backdrop-blur-md shadow-[0_4px_25px_rgba(0,0,0,0.85)] hover:shadow-[0_0_30px_rgba(197,160,89,0.55)] flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 group focus:outline-none focus:ring-2 focus:ring-[#C5A059]/50 cursor-pointer">
+            className="absolute right-1 sm:-right-5 lg:-right-6 top-1/2 -translate-y-1/2 z-30 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/85 hover:bg-[#C5A059] text-[#C5A059] hover:text-black border border-[#C5A059]/40 hover:border-[#C5A059] backdrop-blur-md shadow-[0_4px_25px_rgba(0,0,0,0.85)] hover:shadow-[0_0_30px_rgba(197,160,89,0.55)] flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 group focus:outline-none focus:ring-2 focus:ring-[#C5A059]/50 cursor-pointer">
             <svg
               className="w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-300 group-hover:translate-x-0.5"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
               strokeWidth={2.4}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 5l7 7-7 7"
+              />
             </svg>
           </button>
           <div
@@ -540,13 +592,14 @@ export default function PortfolioSpotlightCarousel({
             }`}>
             {categories.map((cat, idx) => {
               const activeProj =
-                cat.projects[cat.activeProjectIndex % Math.max(1, cat.projects.length)] ||
-                cat.projects[0];
+                cat.projects[
+                  cat.activeProjectIndex % Math.max(1, cat.projects.length)
+                ] || cat.projects[0];
               const fallbackUrl =
                 RELIABLE_CATEGORY_FALLBACKS[cat.id] ||
                 RELIABLE_CATEGORY_FALLBACKS[cat.slug] ||
-                DEFAULT_PORTFOLIO_ITEMS.find((d) => d.id === cat.id)?.projects[0]
-                  ?.coverImage ||
+                DEFAULT_PORTFOLIO_ITEMS.find((d) => d.id === cat.id)
+                  ?.projects[0]?.coverImage ||
                 "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=800&auto=format&fit=crop";
 
               const rawBgImage =
@@ -593,7 +646,7 @@ export default function PortfolioSpotlightCarousel({
                       : {}),
                     ...customCardStyle,
                   }}
-                  className="relative overflow-hidden rounded-xl border border-[#262626] hover:border-[#C5A059] bg-[#141414] aspect-3/4 min-h-105 sm:min-h-115 flex flex-col justify-between p-5 sm:p-6 transition-all duration-500 group shadow-lg hover:shadow-[0_10px_30px_rgba(197,160,89,0.22)] hover:-translate-y-1.5 cursor-pointer max-w-full">
+                  className="relative overflow-hidden rounded-xl border border-[#262626] hover:border-[#C5A059] bg-[#141414] aspect-3/4 min-h-87.5 sm:min-h-115 flex flex-col justify-between p-5 sm:p-6 transition-all duration-500 group shadow-lg hover:shadow-[0_10px_30px_rgba(197,160,89,0.22)] hover:-translate-y-1.5 cursor-pointer max-w-full">
                   {/* Artwork Background Image with Ken Burns animation */}
                   <div className="absolute inset-0 z-0 overflow-hidden bg-[#111]">
                     <Image
@@ -605,7 +658,10 @@ export default function PortfolioSpotlightCarousel({
                       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                       className="object-cover object-center transition-all duration-700 ease-out group-hover:scale-108 group-hover:brightness-105"
                       onError={() => {
-                        setBrokenImages((prev) => ({ ...prev, [cat.id]: true }));
+                        setBrokenImages((prev) => ({
+                          ...prev,
+                          [cat.id]: true,
+                        }));
                       }}
                     />
                     {/* Dark gradient lighting overlays to make text readable */}
@@ -638,6 +694,29 @@ export default function PortfolioSpotlightCarousel({
                 </Link>
               );
             })}
+          </div>
+
+          {/* Mobile Bottom Navigation Controls */}
+          <div className="flex sm:hidden items-center justify-between mt-5 px-1">
+            <button
+              type="button"
+              onClick={handlePrev}
+              aria-label="Previous artwork"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-black/90 border border-[#C5A059]/40 text-[#C5A059] hover:bg-[#C5A059] hover:text-black text-xs font-bold uppercase tracking-wider active:scale-95 transition-all shadow-md">
+              <span aria-hidden="true">←</span>
+              <span>Prev</span>
+            </button>
+            <span className="text-[10px] uppercase tracking-widest text-gray-500 font-medium">
+              Swipe or Tap
+            </span>
+            <button
+              type="button"
+              onClick={handleNext}
+              aria-label="Next artwork"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-black/90 border border-[#C5A059]/40 text-[#C5A059] hover:bg-[#C5A059] hover:text-black text-xs font-bold uppercase tracking-wider active:scale-95 transition-all shadow-md">
+              <span>Next</span>
+              <span aria-hidden="true">→</span>
+            </button>
           </div>
         </div>
       </div>

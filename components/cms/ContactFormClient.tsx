@@ -47,28 +47,30 @@ export default function ContactFormClient() {
 
   if (status === "success") {
     return (
-      <div className="px-10 py-12 max-w-2xl mx-auto text-[#D4D4D4] text-center">
-        <h1 className="text-4xl font-serif text-white mb-4">Message Sent</h1>
-        <p className="text-lg mb-8">
+      <div className="px-4 sm:px-6 md:px-10 py-8 sm:py-12 max-w-2xl mx-auto text-[#D4D4D4] text-center">
+        <h1 className="text-3xl sm:text-4xl font-serif text-white mb-4">Message Sent</h1>
+        <p className="text-base sm:text-lg mb-8 text-gray-300">
           Thanks for reaching out — I&apos;ll get back to you as soon as possible.
         </p>
-        <Button onClick={() => setStatus("idle")}>Send Another Message</Button>
+        <Button onClick={() => setStatus("idle")} className="min-h-11 w-full sm:w-auto">
+          Send Another Message
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="px-10 py-12 max-w-2xl mx-auto text-[#D4D4D4]">
-      <h1 className="text-4xl font-serif text-white mb-8">
+    <div className="px-4 sm:px-6 md:px-10 py-8 sm:py-12 max-w-2xl mx-auto text-[#D4D4D4]">
+      <h1 className="text-3xl sm:text-4xl font-serif text-white mb-6 sm:mb-8">
         Let&apos;s Connect!
       </h1>
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
         <input
           type="text"
           placeholder="Name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full p-3 bg-[#111111] border border-[#333333] text-white"
+          className="w-full p-3.5 bg-[#111111] border border-[#333333] text-white text-base rounded-none focus:outline-none focus:border-[#C5A059] transition-colors"
           required
         />
         <input
@@ -76,7 +78,7 @@ export default function ContactFormClient() {
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-3 bg-[#111111] border border-[#333333] text-white"
+          className="w-full p-3.5 bg-[#111111] border border-[#333333] text-white text-base rounded-none focus:outline-none focus:border-[#C5A059] transition-colors"
           required
         />
         <input
@@ -84,12 +86,12 @@ export default function ContactFormClient() {
           placeholder="Writer / Publisher / Company"
           value={company}
           onChange={(e) => setCompany(e.target.value)}
-          className="w-full p-3 bg-[#111111] border border-[#333333] text-white"
+          className="w-full p-3.5 bg-[#111111] border border-[#333333] text-white text-base rounded-none focus:outline-none focus:border-[#C5A059] transition-colors"
         />
         <select
           value={projectType}
           onChange={(e) => setProjectType(e.target.value)}
-          className="w-full p-3 bg-[#111111] border border-[#333333] text-white"
+          className="w-full p-3.5 bg-[#111111] border border-[#333333] text-white text-base rounded-none focus:outline-none focus:border-[#C5A059] transition-colors"
         >
           <option value="">Select Project Type</option>
           <option value="book-cover">Book Cover</option>
@@ -100,15 +102,20 @@ export default function ContactFormClient() {
           placeholder="Message"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          className="w-full p-3 bg-[#111111] border border-[#333333] text-white h-32"
+          className="w-full p-3.5 bg-[#111111] border border-[#333333] text-white text-base rounded-none focus:outline-none focus:border-[#C5A059] transition-colors h-32"
           required
         />
         {status === "error" && (
           <p className="text-red-500 text-sm font-medium">{errorMessage}</p>
         )}
-        <Button type="submit" disabled={status === "submitting"}>
-          {status === "submitting" ? "Sending..." : "Send Message"}
-        </Button>
+        <div className="pt-2">
+          <Button
+            type="submit"
+            disabled={status === "submitting"}
+            className="w-full sm:w-auto min-h-11">
+            {status === "submitting" ? "Sending..." : "Send Message"}
+          </Button>
+        </div>
       </form>
     </div>
   );

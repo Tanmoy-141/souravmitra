@@ -47,7 +47,7 @@ export default function ProjectGridSection() {
   }
 
   return (
-    <section className="py-16 px-8 max-w-6xl mx-auto">
+    <section className="py-12 sm:py-16 px-4 sm:px-8 max-w-6xl mx-auto">
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
         {items.map((project) => {
           const imageUrl = project.coverImage || project.images?.[0];

@@ -277,14 +277,14 @@ export default function ProjectDetailView({
           <div className="absolute -inset-4 bg-black/15 blur-xl group-hover/frame:bg-black/25 transition-colors duration-500 pointer-events-none rounded-lg" />
 
           {/* Wooden Frame */}
-          <div className="relative p-5 bg-linear-to-b from-[#2e1d11] via-[#1d1109] to-[#0d0703] border-[6px] border-[#3e291b] shadow-2xl rounded-sm flex items-center justify-center">
+          <div className="relative p-3 sm:p-5 bg-linear-to-b from-[#2e1d11] via-[#1d1109] to-[#0d0703] border-4 sm:border-[6px] border-[#3e291b] shadow-2xl rounded-sm flex items-center justify-center max-w-[90vw]">
             {/* Golden Inner Fillet Frame */}
-            <div className="absolute inset-1.5 border border-[#C5A059]/40 pointer-events-none" />
+            <div className="absolute inset-1 sm:inset-1.5 border border-[#C5A059]/40 pointer-events-none" />
 
             {/* White Matting (Passpartout) */}
-            <div className="p-10 bg-[#faf8f5] shadow-inner border border-gray-200 flex items-center justify-center">
+            <div className="p-4 sm:p-10 bg-[#faf8f5] shadow-inner border border-gray-200 flex items-center justify-center">
               {/* Painting Artwork */}
-              <div className="w-72 h-72 shadow-md relative overflow-hidden bg-linear-to-br border border-black/10">
+              <div className="w-52 h-52 sm:w-72 sm:h-72 shadow-md relative overflow-hidden bg-linear-to-br border border-black/10">
                 {coverImage ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -395,22 +395,22 @@ export default function ProjectDetailView({
   };
 
   return (
-    <div className="px-6 md:px-10 py-12 max-w-7xl mx-auto text-[#D4D4D4]">
+    <div className="px-4 sm:px-6 md:px-10 py-8 sm:py-12 max-w-7xl mx-auto text-[#D4D4D4]">
       {/* Back to list */}
       <Link
         href={backUrl}
-        className="inline-flex items-center gap-2 mb-10 text-[#C5A059] hover:text-white font-medium text-sm transition-colors group">
+        className="inline-flex items-center gap-2 mb-8 sm:mb-10 text-[#C5A059] hover:text-white font-medium text-sm transition-colors group">
         <span className="transform group-hover:-translate-x-1 transition-transform duration-200">
           &larr;
         </span>
         Back to Portfolio
       </Link>
 
-      <div className="flex flex-col gap-12 items-center">
+      <div className="flex flex-col gap-8 sm:gap-12 items-center">
         {/* MAIN COLUMN: Case Study Visual Blocks Flow */}
-        <div className="w-full max-w-4xl flex flex-col gap-12">
+        <div className="w-full max-w-4xl flex flex-col gap-8 sm:gap-12">
           {/* Header Block */}
-          <div className="bg-[#0c0c0c] rounded-xl border border-[#1e1e1e] p-8 shadow-2xl flex flex-col gap-6">
+          <div className="bg-[#0c0c0c] rounded-xl border border-[#1e1e1e] p-5 sm:p-8 shadow-2xl flex flex-col gap-6">
             <div>
               <span className="text-[10px] tracking-widest uppercase text-[#C5A059] font-bold block mb-1">
                 {type === "book-cover"
@@ -419,7 +419,7 @@ export default function ProjectDetailView({
                     ? "Illustration"
                     : "Fine Art"}
               </span>
-              <h1 className="text-4xl font-serif font-black text-white leading-tight">
+              <h1 className="text-2xl sm:text-4xl font-serif font-black text-white leading-tight">
                 {title}
               </h1>
               <p className="text-sm text-gray-400 mt-2">
@@ -605,7 +605,7 @@ export default function ProjectDetailView({
           {renderDetailStudy()}
 
           {/* Creative Process Description Block */}
-          <div className="bg-[#0c0c0c] rounded-xl border border-[#1d1d1d] p-8 flex flex-col gap-4 shadow-xl">
+          <div className="bg-[#0c0c0c] rounded-xl border border-[#1d1d1d] p-5 sm:p-8 flex flex-col gap-4 shadow-xl">
             <h3 className="text-xl font-serif text-white font-bold border-b border-[#222] pb-3 mb-2">
               The Creative Process & Insight
             </h3>
@@ -625,7 +625,7 @@ export default function ProjectDetailView({
           </div>
 
           {/* Interactive Comments Feed Section */}
-          <div className="bg-[#0c0c0c] rounded-xl border border-[#1a1a1a] p-8 shadow-xl">
+          <div className="bg-[#0c0c0c] rounded-xl border border-[#1a1a1a] p-5 sm:p-8 shadow-xl">
             <h3 className="text-xl font-serif text-white font-bold border-b border-[#222] pb-4 mb-6 flex items-center justify-between">
               <span>Project Feedback</span>
               <span className="text-xs font-sans text-[#C5A059] font-medium px-2.5 py-1 bg-[#C5A059]/10 rounded-full">
@@ -635,7 +635,7 @@ export default function ProjectDetailView({
 
             {/* Add Comment Form */}
             <form onSubmit={handleSubmitComment} className="mb-8">
-              <div className="flex gap-4">
+              <div className="flex gap-3 sm:gap-4">
                 <div className="w-10 h-10 rounded-full bg-[#C5A059] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-lg">
                   V
                 </div>
@@ -645,13 +645,13 @@ export default function ProjectDetailView({
                     placeholder="Type a professional feedback..."
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    className="w-full bg-[#141414] border border-[#2a2a2a] rounded-lg p-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#C5A059] focus:ring-1 focus:ring-[#C5A059] transition-all resize-none"
+                    className="w-full bg-[#141414] border border-[#2a2a2a] rounded-lg p-3 text-base sm:text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#C5A059] focus:ring-1 focus:ring-[#C5A059] transition-all resize-none"
                   />
                   <div className="flex justify-end">
                     <button
                       type="submit"
                       disabled={!newComment.trim()}
-                      className="px-5 py-2 rounded-md bg-[#C5A059] text-white hover:bg-[#a88849] font-medium text-xs tracking-wider uppercase transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
+                      className="px-5 py-2.5 sm:py-2 rounded-md bg-[#C5A059] text-white hover:bg-[#a88849] font-medium text-xs tracking-wider uppercase transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer min-h-[40px]">
                       Post Comment
                     </button>
                   </div>

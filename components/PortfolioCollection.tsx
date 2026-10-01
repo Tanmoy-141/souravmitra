@@ -91,13 +91,13 @@ export default function PortfolioCollection({
   }
 
   return (
-    <section className="px-6 py-12 text-[#D4D4D4] md:px-10">
+    <section className="px-4 sm:px-6 py-8 sm:py-12 text-[#D4D4D4] md:px-10">
       {showIntro ? (
-        <div className="mx-auto mb-16 max-w-2xl text-center">
+        <div className="mx-auto mb-12 sm:mb-16 max-w-2xl text-center">
           <span className="mb-3 block text-xs font-bold uppercase tracking-[0.3em] text-[#C5A059]">
             Portfolio
           </span>
-          <h1 className="text-4xl font-black leading-tight text-white md:text-5xl">
+          <h1 className="text-3xl sm:text-4xl font-black leading-tight text-white md:text-5xl">
             {INTRO[category].title}
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-gray-400">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { testimonials } from "@/data/content";
 
 type Testimonial = (typeof testimonials)[number];
@@ -16,6 +16,7 @@ export function TestimonialsSection({
 }: TestimonialsSectionProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const touchStartXRef = useRef<number | null>(null);
   const safeIndex = items.length > 0 ? activeIndex % items.length : 0;
   const activeTestimonial = items[safeIndex];
 
@@ -38,6 +39,24 @@ export function TestimonialsSection({
     );
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartXRef.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartXRef.current === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchStartXRef.current - touchEndX;
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) {
+        move(1);
+      } else {
+        move(-1);
+      }
+    }
+    touchStartXRef.current = null;
+  };
+
   return (
     <section
       suppressHydrationWarning
@@ -45,22 +64,25 @@ export function TestimonialsSection({
       aria-roledescription="carousel"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      className="border-y border-white/10 bg-[#0a0a0a] px-6 py-20 text-center text-white md:py-24">
+      className="border-y border-white/10 bg-[#0a0a0a] px-4 sm:px-6 py-14 sm:py-20 text-center text-white md:py-24">
       <div className="mx-auto max-w-4xl">
-        <p className="mb-5 text-xs font-bold uppercase tracking-[0.3em] text-[#c5a059]">
+        <p className="mb-4 text-xs font-bold uppercase tracking-[0.3em] text-[#c5a059]">
           Kind Words
         </p>
-        <h2 className="mb-10 text-3xl font-serif md:text-4xl">
+        <h2 className="mb-8 sm:mb-10 text-2xl sm:text-3xl font-serif md:text-4xl">
           {heading || "What Publishers & Clients Say"}
         </h2>
 
-        <div className="relative flex items-center justify-center">
+        <div
+          className="relative flex items-center justify-center cursor-grab active:cursor-grabbing select-none"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}>
           {items.length > 1 && (
             <button
               type="button"
               onClick={() => move(-1)}
               aria-label="Previous testimonial"
-              className="absolute left-0 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white/70 transition-all hover:border-[#c5a059] hover:bg-black hover:text-[#c5a059] focus:outline-none focus:ring-1 focus:ring-[#c5a059]">
+              className="absolute left-0 z-10 flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white/80 transition-all hover:border-[#c5a059] hover:bg-black hover:text-[#c5a059] focus:outline-none focus:ring-1 focus:ring-[#c5a059] cursor-pointer">
               <svg
                 className="h-5 w-5"
                 fill="none"
@@ -81,16 +103,16 @@ export function TestimonialsSection({
             role="group"
             aria-roledescription="slide"
             aria-label={`${safeIndex + 1} of ${items.length}`}
-            className="testimonial-carousel-reveal mx-auto flex min-h-52 max-w-3xl flex-col items-center justify-center px-12 md:min-h-56">
+            className="testimonial-carousel-reveal mx-auto flex min-h-48 max-w-3xl flex-col items-center justify-center px-8 sm:px-12 md:min-h-56">
             <span
               aria-hidden="true"
-              className="mb-3 text-5xl leading-none text-[#c5a059]">
+              className="mb-2 sm:mb-3 text-4xl sm:text-5xl leading-none text-[#c5a059]">
               &ldquo;
             </span>
-            <blockquote className="text-xl italic leading-relaxed text-[#e5e5e5] md:text-3xl">
+            <blockquote className="text-base sm:text-xl md:text-3xl italic leading-relaxed text-[#e5e5e5]">
               {activeTestimonial.quote}
             </blockquote>
-            <p className="mt-7 text-xs font-bold uppercase tracking-[0.2em] text-[#c5a059]">
+            <p className="mt-5 sm:mt-7 text-xs font-bold uppercase tracking-[0.2em] text-[#c5a059]">
               {activeTestimonial.author}
             </p>
           </div>
@@ -100,7 +122,7 @@ export function TestimonialsSection({
               type="button"
               onClick={() => move(1)}
               aria-label="Next testimonial"
-              className="absolute right-0 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white/70 transition-all hover:border-[#c5a059] hover:bg-black hover:text-[#c5a059] focus:outline-none focus:ring-1 focus:ring-[#c5a059]">
+              className="absolute right-0 z-10 flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white/80 transition-all hover:border-[#c5a059] hover:bg-black hover:text-[#c5a059] focus:outline-none focus:ring-1 focus:ring-[#c5a059] cursor-pointer">
               <svg
                 className="h-5 w-5"
                 fill="none"
@@ -121,7 +143,7 @@ export function TestimonialsSection({
           <div
             role="tablist"
             aria-label="Testimonial navigation"
-            className="mt-8 flex items-center justify-center gap-2">
+            className="mt-6 sm:mt-8 flex items-center justify-center gap-1.5 flex-wrap">
             {items.map((testimonial, index) => (
               <button
                 key={`${testimonial.author}-${index}`}
@@ -130,12 +152,15 @@ export function TestimonialsSection({
                 aria-selected={index === safeIndex}
                 aria-label={`Go to slide ${index + 1}: ${testimonial.author}`}
                 onClick={() => setActiveIndex(index)}
-                className={`h-2 rounded-full transition-all focus:outline-none cursor-pointer ${
-                  index === safeIndex
-                    ? "w-8 bg-[#c5a059]"
-                    : "w-2 bg-white/40 hover:bg-white/80"
-                }`}
-              />
+                className="p-2 -m-1 inline-flex items-center justify-center cursor-pointer">
+                <span
+                  className={`h-2 rounded-full transition-all block ${
+                    index === safeIndex
+                      ? "w-8 bg-[#c5a059]"
+                      : "w-2 bg-white/40 hover:bg-white/80"
+                  }`}
+                />
+              </button>
             ))}
           </div>
         ) : null}

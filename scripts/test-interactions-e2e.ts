@@ -1,11 +1,13 @@
 import "dotenv/config";
+import crypto from "crypto";
 import { NextRequest } from "next/server";
 import { db } from "../db";
-import { projects, projectLikes, projectViews } from "../db/schema";
-import { eq, and } from "drizzle-orm";
+import { projects, projectLikes, projectViews, users } from "../db/schema";
+import { eq, and, or } from "drizzle-orm";
 import { GET as getLikes, POST as postLikes } from "../app/api/projects/[id]/likes/route";
 import { POST as postViews } from "../app/api/projects/[id]/views/route";
 import { getOrCreateVisitorId } from "../lib/visitor-session";
+import { createSessionToken } from "../lib/auth";
 
 const BASE_URL = "http://localhost:3000";
 
@@ -219,46 +221,68 @@ async function runTests() {
     }
     console.log(`  ✓ Repeated view within cooldown correctly blocked (counted: false, reason: 'cooldown')`);
 
-    // 3.3 Concurrent first-view attempts with clean visitor
-    const concurrentVid = `test-v-concurrent-${Date.now()}`;
-    const cookieConcurrent = `sm_vid=${concurrentVid}.dummy`;
-    const cReq1 = new NextRequest(`${BASE_URL}/api/projects/${testProject.id}/views`, {
-      method: "POST",
-      headers: { cookie: cookieConcurrent, "x-forwarded-for": "10.0.0.99" },
-    });
-    const cRes1 = await postViews(cReq1, { params: Promise.resolve({ id: testProject.id }) });
-    const cCookie = getCookieHeader(cRes1);
+    // 3.3 Concurrent first-view attempts with clean visitor (no prior view)
+    const cleanVid = `test-v-clean-${Date.now()}`;
+    const secret = process.env.AUTH_SECRET || "dev-fallback-secret-for-visitor-sessions-do-not-use-in-production";
+    const cleanSig = crypto.createHmac("sha256", secret).update(cleanVid).digest("hex");
+    const cleanCookie = `sm_vid=${cleanVid}.${cleanSig}`;
 
-    // Run 5 simultaneous view requests with this verified cookie
-    console.log("  Testing 5 simultaneous concurrent view requests from same visitor...");
+    // Ensure no prior views for this clean visitor
+    await db.delete(projectViews).where(eq(projectViews.visitorId, cleanVid));
+
+    console.log("  Testing 5 simultaneous concurrent first-view requests from a clean visitor...");
     const concurrentViewRequests = Array.from({ length: 5 }, () =>
       postViews(
         new NextRequest(`${BASE_URL}/api/projects/${testProject.id}/views`, {
           method: "POST",
-          headers: { cookie: cCookie, "x-forwarded-for": "10.0.0.99" },
+          headers: { cookie: cleanCookie, "x-forwarded-for": "10.0.0.99" },
         }),
         { params: Promise.resolve({ id: testProject.id }) }
       )
     );
     const cResults = await Promise.all(concurrentViewRequests);
-    const countedCount = (await Promise.all(cResults.map((r) => r.json()))).filter((d) => d.counted).length;
+    const cJsonResults = await Promise.all(cResults.map((r) => r.json()));
+    const countedCleanCount = cJsonResults.filter((d) => d.success && d.counted).length;
 
-    if (countedCount > 1) {
-      throw new Error(`Race condition: ${countedCount} simultaneous views were counted!`);
+    if (countedCleanCount !== 1) {
+      throw new Error(`Race condition: Expected exactly 1 counted view out of 5 simultaneous requests, got ${countedCleanCount}! Details: ${JSON.stringify(cJsonResults)}`);
     }
-    console.log(`  ✓ Concurrent views test PASSED: Exactly 0 extra views counted during cooldown window.`);
+    console.log(`  ✓ Concurrent first-views test PASSED: Exactly 1 view counted out of 5 simultaneous requests.`);
 
-    // 3.4 Admin view exclusion
-    const adminReq = new NextRequest(`${BASE_URL}/api/projects/${testProject.id}/views`, {
-      method: "POST",
-      headers: { cookie: "admin_session=invalid-signature-session" },
-    });
-    const adminRes = await postViews(adminReq, { params: Promise.resolve({ id: testProject.id }) });
-    if (!adminRes.ok) {
-      console.log("  ✓ Admin view correctly processed without errors.");
+    // 3.4 Admin view exclusion (with valid signed admin session)
+    const [adminUser] = await db
+      .select()
+      .from(users)
+      .where(or(eq(users.role, "admin"), eq(users.role, "owner")))
+      .limit(1);
+
+    if (adminUser) {
+      const adminToken = createSessionToken({
+        id: adminUser.id,
+        username: adminUser.username,
+        email: adminUser.email,
+        role: adminUser.role,
+        sessionVersion: adminUser.sessionVersion,
+      });
+
+      const adminReq = new NextRequest(`${BASE_URL}/api/projects/${testProject.id}/views`, {
+        method: "POST",
+        headers: { cookie: `admin_session=${adminToken}` },
+      });
+      const adminRes = await postViews(adminReq, { params: Promise.resolve({ id: testProject.id }) });
+      const adminData = await adminRes.json();
+
+      if (!adminRes.ok || !adminData.success || adminData.counted !== false || adminData.reason !== "admin") {
+        throw new Error(`Admin view exclusion test failed: ${JSON.stringify(adminData)}`);
+      }
+      console.log("  ✓ Admin view correctly recognized and excluded from public count (counted: false, reason: 'admin').");
+    } else {
+      console.log("  ✓ No admin user found in DB to test valid admin session view exclusion.");
     }
+
     // Restore clean views
     await db.delete(projectViews).where(eq(projectViews.visitorId, visitorId));
+    await db.delete(projectViews).where(eq(projectViews.visitorId, cleanVid));
     await db.update(projects).set({ views: startViews }).where(eq(projects.id, testProject.id));
   }
 

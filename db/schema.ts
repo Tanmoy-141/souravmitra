@@ -367,6 +367,10 @@ export const projectViews = pgTable(
       .defaultNow(),
   },
   (table) => [
+    uniqueIndex("project_views_project_visitor_unique_idx").on(
+      table.projectId,
+      table.visitorId,
+    ),
     index("project_views_project_visitor_viewed_idx").on(
       table.projectId,
       table.visitorId,

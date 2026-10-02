@@ -65,20 +65,17 @@ export async function POST(
     const ipHash = hashClientIp(clientIp);
     const cooldownDate = new Date(Date.now() - VIEW_COOLDOWN_MS);
 
-    // Atomic CTE: conditionally inserts a new view row ONLY if no view exists within the cooldown window,
-    // and increments the projects.views counter by the exact number of inserted rows (0 or 1).
-    // Under simultaneous concurrent requests, the WHERE NOT EXISTS check is evaluated atomically by PostgreSQL.
-    // Even if two requests arrive concurrently, the aggregate counter will ONLY increment if a row was actually inserted.
+    // Atomic UPSERT CTE: atomically inserts or updates the view row based on unique constraint (project_id, visitor_id),
+    // respecting the 30-minute cooldown window, and increments projects.views by exactly 1 if and only if a new view was recorded.
     const rawRes = await db.execute(sql`
       WITH new_view AS (
         INSERT INTO project_views (id, project_id, visitor_id, ip_hash, viewed_at)
-        SELECT gen_random_uuid(), ${project.id}, ${visitorId}, ${ipHash}, NOW()
-        WHERE NOT EXISTS (
-          SELECT 1 FROM project_views
-          WHERE project_id = ${project.id}
-            AND (visitor_id = ${visitorId} OR (ip_hash IS NOT NULL AND ip_hash = ${ipHash}))
-            AND viewed_at > ${cooldownDate}
-        )
+        VALUES (gen_random_uuid(), ${project.id}, ${visitorId}, ${ipHash}, NOW())
+        ON CONFLICT (project_id, visitor_id)
+        DO UPDATE SET
+          viewed_at = EXCLUDED.viewed_at,
+          ip_hash = EXCLUDED.ip_hash
+        WHERE project_views.viewed_at <= ${cooldownDate}
         RETURNING id
       ),
       updated_project AS (

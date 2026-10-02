@@ -299,7 +299,7 @@ export const inquiries = pgTable(
 );
 
 /* -------------------------------------------------------------------------- */
-/*  Visitor Interactions: Likes, Saves (Wishlist), Comments, Views           */
+/*  Visitor Interactions: Likes, Comments, Views                             */
 /* -------------------------------------------------------------------------- */
 
 export const projectLikes = pgTable(

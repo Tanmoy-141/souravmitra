@@ -6,6 +6,14 @@ import { getProjectByIdOrSlug } from "@/lib/projects";
 import { getOrCreateVisitorId, setVisitorCookie } from "@/lib/visitor-session";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
+function extractQueryRow<T>(res: unknown): T | undefined {
+  if (!res) return undefined;
+  if (Array.isArray(res)) return res[0] as T;
+  const withRows = res as { rows?: T[] };
+  if (Array.isArray(withRows.rows)) return withRows.rows[0];
+  return undefined;
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -14,7 +22,8 @@ export async function GET(
     const { id } = await params;
     const project = await getProjectByIdOrSlug(id);
 
-    if (!project) {
+    // Only published projects are public
+    if (!project || project.status !== "published") {
       return NextResponse.json(
         { success: false, message: "Project not found" },
         { status: 404 },
@@ -60,7 +69,8 @@ export async function POST(
     const { id } = await params;
     const project = await getProjectByIdOrSlug(id);
 
-    if (!project) {
+    // Only published projects can be liked
+    if (!project || project.status !== "published") {
       return NextResponse.json(
         { success: false, message: "Project not found" },
         { status: 404 },
@@ -82,8 +92,19 @@ export async function POST(
 
     const { visitorId } = getOrCreateVisitorId(req);
 
-    // Check if current visitor has already liked this project
-    const existing = await db
+    // Optional action body: "like" | "unlike" | "toggle" (defaults to "toggle")
+    let desiredAction: "like" | "unlike" | "toggle" = "toggle";
+    try {
+      const body = await req.json();
+      if (body?.action === "like" || body?.action === "unlike" || body?.action === "toggle") {
+        desiredAction = body.action;
+      }
+    } catch {
+      // Empty or non-JSON body defaults to toggle
+    }
+
+    // Check current state for this visitor
+    const [existing] = await db
       .select({ id: projectLikes.id })
       .from(projectLikes)
       .where(
@@ -94,56 +115,78 @@ export async function POST(
       )
       .limit(1);
 
+    const isCurrentlyLiked = Boolean(existing);
+    const shouldUnlike =
+      desiredAction === "unlike" ||
+      (desiredAction === "toggle" && isCurrentlyLiked);
+
     let isLikedNow = false;
-    let updatedLikes = project.likes;
+    let finalLikes = project.likes;
 
-    if (existing.length > 0) {
-      // Unlike: Remove the like record and decrement aggregate counter
-      await db
-        .delete(projectLikes)
-        .where(
-          and(
-            eq(projectLikes.projectId, project.id),
-            eq(projectLikes.visitorId, visitorId),
-          ),
-        );
+    if (shouldUnlike) {
+      // Atomic CTE: deletes the row only if it exists, and decrements counter by the exact number of deleted rows (0 or 1).
+      // Under concurrency, if another request already deleted the row, 0 rows are deleted and counter is decremented by 0.
+      const rawRes = await db.execute(sql`
+        WITH deleted AS (
+          DELETE FROM project_likes
+          WHERE project_id = ${project.id} AND visitor_id = ${visitorId}
+          RETURNING id
+        ),
+        updated_project AS (
+          UPDATE projects
+          SET likes = GREATEST(0, projects.likes - (SELECT COUNT(*)::int FROM deleted))
+          WHERE id = ${project.id}
+          RETURNING likes
+        )
+        SELECT 
+          (SELECT COUNT(*)::int FROM deleted) AS did_delete,
+          (SELECT likes FROM updated_project) AS likes;
+      `);
 
-      const [updated] = await db
-        .update(projects)
-        .set({
-          likes: sql`GREATEST(0, ${projects.likes} - 1)`,
-        })
-        .where(eq(projects.id, project.id))
-        .returning({ likes: projects.likes });
-
-      updatedLikes = updated?.likes ?? Math.max(0, project.likes - 1);
+      const row = extractQueryRow<{ did_delete: number | string; likes: number | string }>(rawRes);
       isLikedNow = false;
+      if (row?.likes !== undefined && row?.likes !== null) {
+        finalLikes = Number(row.likes);
+      } else {
+        const [fresh] = await db.select({ likes: projects.likes }).from(projects).where(eq(projects.id, project.id));
+        finalLikes = fresh?.likes ?? 0;
+      }
     } else {
-      // Like: Insert record and increment aggregate counter
-      await db
-        .insert(projectLikes)
-        .values({
-          projectId: project.id,
-          visitorId,
-        })
-        .onConflictDoNothing();
+      // Atomic CTE: inserts the row only if it doesn't already exist (ON CONFLICT DO NOTHING),
+      // and increments counter by the exact number of inserted rows (0 or 1).
+      // Under concurrency, if another request already inserted the row, 0 rows are inserted and counter is incremented by 0.
+      const rawRes = await db.execute(sql`
+        WITH inserted AS (
+          INSERT INTO project_likes (id, project_id, visitor_id, created_at)
+          VALUES (gen_random_uuid(), ${project.id}, ${visitorId}, NOW())
+          ON CONFLICT (project_id, visitor_id) DO NOTHING
+          RETURNING id
+        ),
+        updated_project AS (
+          UPDATE projects
+          SET likes = projects.likes + (SELECT COUNT(*)::int FROM inserted)
+          WHERE id = ${project.id}
+          RETURNING likes
+        )
+        SELECT 
+          (SELECT COUNT(*)::int FROM inserted) AS did_insert,
+          (SELECT likes FROM updated_project) AS likes;
+      `);
 
-      const [updated] = await db
-        .update(projects)
-        .set({
-          likes: sql`${projects.likes} + 1`,
-        })
-        .where(eq(projects.id, project.id))
-        .returning({ likes: projects.likes });
-
-      updatedLikes = updated?.likes ?? project.likes + 1;
+      const row = extractQueryRow<{ did_insert: number | string; likes: number | string }>(rawRes);
       isLikedNow = true;
+      if (row?.likes !== undefined && row?.likes !== null) {
+        finalLikes = Number(row.likes);
+      } else {
+        const [fresh] = await db.select({ likes: projects.likes }).from(projects).where(eq(projects.id, project.id));
+        finalLikes = fresh?.likes ?? project.likes;
+      }
     }
 
     const res = NextResponse.json({
       success: true,
       liked: isLikedNow,
-      likes: updatedLikes,
+      likes: finalLikes,
     });
     setVisitorCookie(res, visitorId);
     return res;

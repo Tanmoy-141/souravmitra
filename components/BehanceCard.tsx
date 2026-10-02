@@ -465,7 +465,7 @@ export default function BehanceCard({
 
         {/* Hover Overlay */}
         <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/30 to-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out flex flex-col justify-between p-5">
-          {/* Top of overlay: Save (Wishlist) & Appreciate buttons */}
+          {/* Top of overlay: Appreciate button */}
           <div className="flex justify-end items-center gap-2">
 
             {/* Like/Appreciate Button */}

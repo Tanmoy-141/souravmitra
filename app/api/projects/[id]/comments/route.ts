@@ -52,7 +52,7 @@ export async function GET(
     const { id } = await params;
     const project = await getProjectByIdOrSlug(id);
 
-    if (!project) {
+    if (!project || project.status !== "published") {
       return NextResponse.json(
         { success: false, message: "Project not found" },
         { status: 404 },

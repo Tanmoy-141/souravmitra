@@ -6,10 +6,16 @@ const VISITOR_COOKIE_NAME = "sm_vid";
 const TWO_YEARS_SECONDS = 60 * 60 * 24 * 365 * 2;
 
 function getSecret(): string {
-  return (
-    process.env.AUTH_SECRET ||
-    "fallback-secret-for-visitor-sessions-change-in-production"
-  );
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "CRITICAL SECURITY CONFIGURATION ERROR: AUTH_SECRET must be set in production for signed visitor sessions.",
+      );
+    }
+    return "dev-fallback-secret-for-visitor-sessions-do-not-use-in-production";
+  }
+  return secret;
 }
 
 function computeSignature(visitorId: string): string {

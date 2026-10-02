@@ -368,40 +368,69 @@ export default function BehanceCard({
    * Therefore, localStorage is NOT accessed inside useState.
    */
   const [isLiked, setIsLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(initialLikes);
+  const [isLiking, setIsLiking] = useState(false);
 
-  /*
-   * localStorage is a browser-only API.
-   * We read it only after the component has hydrated.
-   *
-   * The ESLint suppression is intentional here because this effect
-   * synchronizes React state with an external browser system.
-   */
   useEffect(() => {
-    const savedLiked = localStorage.getItem(`liked-${id}`);
+    let isMounted = true;
 
-    if (savedLiked === "true") {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIsLiked(true);
-    }
+    // Fetch initial persistent like status for this visitor
+    fetch(`/api/projects/${id}/likes`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((likeData) => {
+        if (!isMounted) return;
+        if (likeData?.success) {
+          setIsLiked(Boolean(likeData.liked));
+          if (typeof likeData.likes === "number") {
+            setLikesCount(likeData.likes);
+          }
+        }
+      })
+      .catch(() => null);
+
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
-  /*
-   * The displayed like count is derived from:
-   *
-   * initialLikes = server-provided/base count
-   * isLiked      = current browser's local appreciation
-   */
-  const likes = initialLikes + (isLiked ? 1 : 0);
-
-  const handleLike = (e: React.MouseEvent) => {
+  const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (isLiking) return;
 
-    const newLikedState = !isLiked;
+    setIsLiking(true);
+    const prevLiked = isLiked;
+    const prevCount = likesCount;
 
-    setIsLiked(newLikedState);
+    const nextLiked = !prevLiked;
+    const nextCount = nextLiked ? prevCount + 1 : Math.max(0, prevCount - 1);
 
-    localStorage.setItem(`liked-${id}`, String(newLikedState));
+    // Optimistic UI update
+    setIsLiked(nextLiked);
+    setLikesCount(nextCount);
+
+    try {
+      const res = await fetch(`/api/projects/${id}/likes`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data?.success) {
+        setIsLiked(Boolean(data.liked));
+        if (typeof data.likes === "number") {
+          setLikesCount(data.likes);
+        }
+      } else {
+        // Rollback
+        setIsLiked(prevLiked);
+        setLikesCount(prevCount);
+      }
+    } catch {
+      // Rollback on network failure
+      setIsLiked(prevLiked);
+      setLikesCount(prevCount);
+    } finally {
+      setIsLiking(false);
+    }
   };
 
   const getAspectStyle = () => {
@@ -436,11 +465,13 @@ export default function BehanceCard({
 
         {/* Hover Overlay */}
         <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/30 to-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out flex flex-col justify-between p-5">
-          {/* Top of overlay: Appreciate quick-button */}
-          <div className="flex justify-end">
+          {/* Top of overlay: Save (Wishlist) & Appreciate buttons */}
+          <div className="flex justify-end items-center gap-2">
+
+            {/* Like/Appreciate Button */}
             <button
               onClick={handleLike}
-              className={`p-2.5 rounded-full backdrop-blur-md transition-all duration-300 hover:scale-115 ${
+              className={`p-2.5 rounded-full backdrop-blur-md transition-all duration-300 hover:scale-115 cursor-pointer ${
                 isLiked
                   ? "bg-rose-600 text-white shadow-rose-600/40 shadow-lg"
                   : "bg-black/60 text-white/80 hover:text-white hover:bg-black/80"
@@ -485,12 +516,14 @@ export default function BehanceCard({
           </span>
         </Link>
 
-        {/* Stats */}
-        <div className="flex items-center gap-3.5 text-gray-400 shrink-0">
+        {/* Stats & Actions */}
+        <div className="flex items-center gap-3 text-gray-400 shrink-0">
+
           {/* Live Likes Count */}
           <button
             onClick={handleLike}
-            className={`flex items-center gap-1.5 text-[11px] transition-colors duration-200 group/btn hover:text-white ${
+            title={isLiked ? "Appreciated" : "Appreciate"}
+            className={`flex items-center gap-1.5 text-[11px] transition-colors duration-200 group/btn hover:text-white cursor-pointer ${
               isLiked ? "text-rose-500 font-semibold" : ""
             }`}>
             <svg
@@ -499,7 +532,7 @@ export default function BehanceCard({
               <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
             </svg>
 
-            <span>{likes}</span>
+            <span>{likesCount}</span>
           </button>
 
           {/* Views Count */}
@@ -517,3 +550,4 @@ export default function BehanceCard({
     </div>
   );
 }
+

@@ -11,22 +11,6 @@ import { db } from "../db";
 import { projects } from "../db/schema";
 import { slugify } from "../lib/projects";
 
-function seededRandom(seed: string): number {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = (hash << 5) - hash + seed.charCodeAt(i);
-    hash |= 0;
-  }
-  let t = (hash += 0x6d2b79f5);
-  t = Math.imul(t ^ (t >>> 15), t | 1);
-  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-}
-
-function seededRange(seed: string, min: number, max: number): number {
-  return Math.floor(seededRandom(seed) * (max - min)) + min;
-}
-
 const bookGenres = [
   "Literary Fiction",
   "Thriller",
@@ -65,15 +49,14 @@ function buildRows(): SeedRow[] {
 
   for (const genre of bookGenres) {
     for (let i = 0; i < 10; i++) {
-      const id = `bc-${bookGenres.indexOf(genre)}-${i}`;
       rows.push({
         category: "book-covers",
         title: `${genre} Book ${i + 1}`,
         publisher: "Publisher Name",
         year: String(2024 + (i % 2)),
         description: `Description for ${genre} book cover #${i + 1}.`,
-        likes: seededRange(`${id}-likes`, 50, 550),
-        views: seededRange(`${id}-views`, 500, 2500),
+        likes: 0,
+        views: 0,
         tags: ["Typography", "Layout", genre, "Cover Art"],
       });
     }
@@ -81,14 +64,13 @@ function buildRows(): SeedRow[] {
 
   for (const genre of illustrationGenres) {
     for (let i = 0; i < 5; i++) {
-      const id = `ill-${illustrationGenres.indexOf(genre)}-${i}`;
       rows.push({
         category: "illustration",
         title: `${genre} Illustration ${i + 1}`,
         year: String(2024 + (i % 2)),
         description: `Description for ${genre} illustration #${i + 1}.`,
-        likes: seededRange(`${id}-likes`, 30, 430),
-        views: seededRange(`${id}-views`, 300, 1800),
+        likes: 0,
+        views: 0,
         tags: ["Digital Art", genre, "Concept", "Illustration"],
       });
     }
@@ -102,8 +84,8 @@ function buildRows(): SeedRow[] {
       dimensions: '24" x 36"',
       year: String(2024 + (i % 2)),
       description: `Artist notes for piece #${i + 1}.`,
-      likes: seededRange(`art-${i}-likes`, 20, 320),
-      views: seededRange(`art-${i}-views`, 200, 1200),
+      likes: 0,
+      views: 0,
       tags: ["Traditional Art", "Gallery", "Texture"],
     });
   }

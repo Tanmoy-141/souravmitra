@@ -46,6 +46,21 @@ export async function getProjectBySlug(slug: string): Promise<Project | null> {
   return project ?? null;
 }
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function getProjectByIdOrSlug(
+  idOrSlug: string,
+): Promise<Project | null> {
+  const trimmed = idOrSlug.trim();
+  if (UUID_REGEX.test(trimmed)) {
+    const byId = await getProjectById(trimmed);
+    if (byId) return byId;
+  }
+  return getProjectBySlug(trimmed);
+}
+
+
 // Readable slug from a title — lowercase, non-alphanumerics to hyphens.
 // Uniqueness is enforced by the DB unique index; callers should append a
 // short random suffix on a collision (Postgres error code 23505) rather

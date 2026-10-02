@@ -13,6 +13,7 @@ import { parseTestimonialBlock } from "@/lib/dynamic-blocks";
 import {
   ProjectShareBlock,
   ProjectCommentsBlock,
+  ProjectLikeBlock,
 } from "./ProjectDetailInteractiveBlocks";
 import Counter from "@/components/Counter";
 import { initCountersInContainer } from "@/lib/counter-animation";
@@ -29,6 +30,7 @@ interface CmsDynamicBlockPortalProps {
   html: string;
   category?: PortfolioCategory;
   className?: string;
+  projectId?: string;
 }
 
 interface ExtractedHeadingInfo {
@@ -509,6 +511,7 @@ export function CmsDynamicBlockPortal({
   html,
   category,
   className,
+  projectId,
 }: CmsDynamicBlockPortalProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [targets, setTargets] = useState<PortalTarget[]>([]);
@@ -721,10 +724,25 @@ export function CmsDynamicBlockPortal({
         });
       } else if (block === "project-comments") {
         element.replaceChildren();
+        const blockProjectId =
+          element.getAttribute("data-project-id") ||
+          sourceEl.getAttribute("data-project-id") ||
+          projectId;
         newTargets.push({
           element,
           key: `portal-project-comments-${index}`,
-          node: <ProjectCommentsBlock />,
+          node: <ProjectCommentsBlock projectId={blockProjectId} />,
+        });
+      } else if (block === "project-like" || block === "project-appreciation") {
+        element.replaceChildren();
+        const blockProjectId =
+          element.getAttribute("data-project-id") ||
+          sourceEl.getAttribute("data-project-id") ||
+          projectId;
+        newTargets.push({
+          element,
+          key: `portal-project-like-${index}`,
+          node: <ProjectLikeBlock projectId={blockProjectId} />,
         });
       } else if (
         block === "portfolio-spotlight" ||
@@ -849,7 +867,7 @@ export function CmsDynamicBlockPortal({
     return () => {
       cleanupCounters();
     };
-  }, [html, category]);
+  }, [html, category, projectId]);
 
   return (
     <>

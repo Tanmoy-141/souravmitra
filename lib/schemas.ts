@@ -74,3 +74,18 @@ export const CmsBulkPageSchema = z.object({
     }),
   ),
 });
+
+export const ProjectCommentSchema = z.object({
+  author: z
+    .string()
+    .trim()
+    .min(1, "Name is required")
+    .max(80, "Name must be under 80 characters"),
+  content: z
+    .string()
+    .trim()
+    .min(1, "Comment is required")
+    .max(2000, "Comment must be under 2000 characters"),
+  hp_website: z.string().max(0).optional().default(""), // Honeypot field: must be empty
+});
+

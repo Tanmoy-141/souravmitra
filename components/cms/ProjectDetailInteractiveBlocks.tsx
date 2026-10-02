@@ -1,13 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useId } from "react";
 
-interface Comment {
+interface CommentItem {
   id: string;
   author: string;
+  content: string;
   initials: string;
-  text: string;
-  time: string;
+  createdAt: string;
+  timeAgo: string;
+}
+
+function resolveProjectIdFromPath(): string | null {
+  if (typeof window === "undefined") return null;
+  const path = window.location.pathname;
+  // Match patterns like /fine-art/[id], /book-covers/[id], /illustration/[id], /projects/[id]
+  const match = path.match(
+    /\/(?:fine-art|book-covers|illustration|projects)\/([^/?#]+)/i,
+  );
+  return match ? match[1] : null;
 }
 
 export function ProjectShareBlock() {
@@ -146,81 +157,294 @@ export function ProjectShareBlock() {
   );
 }
 
-export function ProjectCommentsBlock() {
-  const [comments, setComments] = useState<Comment[]>([
-    {
-      id: "c1",
-      author: "Elena Rostova",
-      initials: "ER",
-      text: "The compositional rhythm and lighting in this piece are exceptional. Evokes a deeply contemplative atmosphere.",
-      time: "2 hours ago",
-    },
-    {
-      id: "c2",
-      author: "Marcus Vance",
-      initials: "MV",
-      text: "Masterful balance between texture and narrative tension. A signature work.",
-      time: "Yesterday",
-    },
-  ]);
-  const [newText, setNewText] = useState("");
+export function ProjectLikeBlock({ projectId }: { projectId?: string }) {
+  const [liked, setLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+  const [toggling, setToggling] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const targetId = projectId || resolveProjectIdFromPath();
+    if (!targetId) {
+      return;
+    }
+
+    let isMounted = true;
+    fetch(`/api/projects/${targetId}/likes`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!isMounted) return;
+        if (data?.success) {
+          setLiked(Boolean(data.liked));
+          setLikesCount(data.likes ?? 0);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [projectId]);
+
+  const handleToggleLike = async () => {
+    const targetId = projectId || resolveProjectIdFromPath();
+    if (!targetId || toggling) return;
+    setToggling(true);
+
+    const prevLiked = liked;
+    const prevCount = likesCount;
+    const nextLiked = !prevLiked;
+    const nextCount = nextLiked ? prevCount + 1 : Math.max(0, prevCount - 1);
+
+    setLiked(nextLiked);
+    setLikesCount(nextCount);
+
+    try {
+      const res = await fetch(`/api/projects/${targetId}/likes`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data?.success) {
+        setLiked(Boolean(data.liked));
+        setLikesCount(data.likes ?? nextCount);
+      } else {
+        setLiked(prevLiked);
+        setLikesCount(prevCount);
+      }
+    } catch {
+      setLiked(prevLiked);
+      setLikesCount(prevCount);
+    } finally {
+      setToggling(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        type="button"
+        onClick={handleToggleLike}
+        disabled={loading}
+        className={`inline-flex items-center gap-2.5 px-6 py-3 rounded-lg font-bold tracking-wider text-xs uppercase transition-all duration-300 cursor-pointer border ${
+          liked
+            ? "bg-rose-600 border-rose-500 text-white shadow-lg shadow-rose-600/30"
+            : "bg-[#111] border-[#2a2a2a] text-gray-300 hover:text-white hover:border-[#444] hover:bg-[#1a1a1a]"
+        }`}>
+        <svg
+          className={`w-4 h-4 fill-current transition-transform duration-200 ${
+            liked ? "scale-110" : ""
+          }`}
+          viewBox="0 0 24 24">
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+        </svg>
+        <span>{liked ? "Appreciated" : "Appreciate Project"}</span>
+        <span className="ml-1 px-2 py-0.5 rounded-full text-[11px] bg-black/40 text-white font-mono">
+          {likesCount}
+        </span>
+      </button>
+    </div>
+  );
+}
+
+export function ProjectCommentsBlock({ projectId }: { projectId?: string }) {
+  const [comments, setComments] = useState<CommentItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [authorName, setAuthorName] = useState("");
+  const [commentText, setCommentText] = useState("");
+  const [honeypot, setHoneypot] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const authorInputId = useId();
+  const commentTextId = useId();
+
+  useEffect(() => {
+    const targetId = projectId || resolveProjectIdFromPath();
+    if (!targetId) {
+      return;
+    }
+
+    let isMounted = true;
+    fetch(`/api/projects/${targetId}/comments`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!isMounted) return;
+        if (data?.success && Array.isArray(data.comments)) {
+          setComments(data.comments);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load comments:", err);
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [projectId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newText.trim()) return;
+    const targetId = projectId || resolveProjectIdFromPath();
+    if (!targetId) {
+      setErrorMsg("Cannot post comments: Project ID could not be identified.");
+      return;
+    }
 
-    setComments([
-      {
-        id: Date.now().toString(),
-        author: "You (Visitor)",
-        initials: "YO",
-        text: newText.trim(),
-        time: "Just now",
-      },
-      ...comments,
-    ]);
-    setNewText("");
+    if (!commentText.trim()) return;
+
+    setSubmitting(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const displayName = authorName.trim() || "Visitor";
+
+    try {
+      const res = await fetch(`/api/projects/${targetId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          author: displayName,
+          content: commentText.trim(),
+          hp_website: honeypot,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data?.success && data?.comment) {
+        setComments((prev) => [data.comment, ...prev]);
+        setCommentText("");
+        setSuccessMsg("Your comment has been posted.");
+        setTimeout(() => setSuccessMsg(null), 4000);
+      } else {
+        setErrorMsg(
+          data?.message || "Failed to submit comment. Please try again.",
+        );
+      }
+    } catch {
+      setErrorMsg("A network error occurred. Please check your connection.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <div className="bg-[#0a0a0a] rounded-xl border border-[#1e1e1e] p-6 sm:p-8 shadow-xl">
-      <h3 className="text-xl font-serif text-white font-bold border-b border-[#222] pb-3 mb-6">
-        Visitor Comments &amp; Appreciation
-      </h3>
+      <div className="flex items-center justify-between border-b border-[#222] pb-4 mb-6">
+        <h3 className="text-xl font-serif text-white font-bold">
+          Visitor Comments &amp; Appreciation
+        </h3>
+        <span className="text-xs font-mono text-[#C5A059] px-2.5 py-1 bg-[#C5A059]/10 rounded-full border border-[#C5A059]/20">
+          {comments.length} {comments.length === 1 ? "Comment" : "Comments"}
+        </span>
+      </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="mb-8">
-        <textarea
-          rows={3}
-          value={newText}
-          onChange={(e) => setNewText(e.target.value)}
-          placeholder="Share your thoughts on this artwork..."
-          className="w-full bg-[#111] border border-[#2a2a2a] rounded-lg p-3 text-base sm:text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-[#C5A059] transition-colors resize-none"
-        />
-        <div className="flex justify-end mt-2">
+      <form onSubmit={handleSubmit} className="mb-8 flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="sm:w-1/3">
+            <label htmlFor={authorInputId} className="sr-only">
+              Your Name
+            </label>
+            <input
+              id={authorInputId}
+              type="text"
+              value={authorName}
+              onChange={(e) => setAuthorName(e.target.value)}
+              placeholder="Your Name (optional)"
+              maxLength={80}
+              className="w-full bg-[#111] border border-[#2a2a2a] rounded-lg px-3.5 py-2.5 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-[#C5A059] transition-colors"
+            />
+          </div>
+          {/* Honeypot field - invisible to real visitors */}
+          <div className="hidden" aria-hidden="true">
+            <input
+              type="text"
+              name="hp_website"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+              tabIndex={-1}
+              autoComplete="off"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor={commentTextId} className="sr-only">
+            Comment
+          </label>
+          <textarea
+            id={commentTextId}
+            rows={3}
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            placeholder="Share your thoughts on this artwork..."
+            maxLength={2000}
+            className="w-full bg-[#111] border border-[#2a2a2a] rounded-lg p-3 text-base sm:text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-[#C5A059] transition-colors resize-none"
+          />
+        </div>
+
+        {errorMsg && (
+          <div className="text-xs text-rose-400 bg-rose-950/30 border border-rose-900/50 p-2.5 rounded-lg">
+            {errorMsg}
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="text-xs text-emerald-400 bg-emerald-950/30 border border-emerald-900/50 p-2.5 rounded-lg">
+            {successMsg}
+          </div>
+        )}
+
+        <div className="flex justify-end">
           <button
             type="submit"
-            disabled={!newText.trim()}
-            className="px-5 py-2.5 sm:py-2 min-h-10 bg-[#C5A059] hover:bg-white text-black font-bold uppercase tracking-wider text-xs rounded transition-colors disabled:opacity-40 cursor-pointer">
-            Post Comment
+            disabled={submitting || !commentText.trim()}
+            className="px-6 py-2.5 min-h-10 bg-[#C5A059] hover:bg-white text-black font-bold uppercase tracking-wider text-xs rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md">
+            {submitting ? "Posting..." : "Post Comment"}
           </button>
         </div>
       </form>
 
       {/* Comments List */}
-      <div className="flex flex-col gap-4">
-        {comments.map((c) => (
-          <div
-            key={c.id}
-            className="p-4 bg-[#111] rounded-lg border border-[#1e1e1e] flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-[#C5A059]">{c.author}</span>
-              <span className="text-[10px] text-gray-500">{c.time}</span>
+      {loading ? (
+        <div className="py-8 text-center text-sm text-gray-500 font-mono">
+          Loading discussion...
+        </div>
+      ) : comments.length === 0 ? (
+        <div className="py-8 text-center text-sm text-gray-500 bg-[#0d0d0d] rounded-lg border border-[#1a1a1a]">
+          No comments yet. Be the first to share your thoughts on this work.
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {comments.map((c) => (
+            <div
+              key={c.id}
+              className="p-4 bg-[#111] rounded-lg border border-[#1e1e1e] flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-[#222] text-[#C5A059] border border-[#333] flex items-center justify-center font-bold text-xs select-none">
+                    {c.initials}
+                  </div>
+                  <span className="text-xs font-bold text-white">
+                    {c.author}
+                  </span>
+                </div>
+                <span className="text-[10px] text-gray-500">{c.timeAgo}</span>
+              </div>
+              <p className="text-sm text-gray-300 leading-relaxed pl-9">
+                {c.content}
+              </p>
             </div>
-            <p className="text-sm text-gray-300 leading-relaxed">{c.text}</p>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

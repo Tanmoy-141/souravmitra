@@ -54,7 +54,7 @@ export default async function FineArtDetail({
           <style>{safeCssForStyleTag(customPage.cssCache)}</style>
         )}
         <div id="cms-page-content" className="w-full" suppressHydrationWarning>
-          <CmsDynamicBlockPortal html={safeHtml} />
+          <CmsDynamicBlockPortal html={safeHtml} projectId={project.id} />
         </div>
       </main>
     );
@@ -86,7 +86,7 @@ export default async function FineArtDetail({
           <style>{safeCssForStyleTag(templatePage.cssCache)}</style>
         )}
         <div id="cms-page-content" className="w-full" suppressHydrationWarning>
-          <CmsDynamicBlockPortal html={safeHtml} />
+          <CmsDynamicBlockPortal html={safeHtml} projectId={project.id} />
         </div>
       </main>
     );

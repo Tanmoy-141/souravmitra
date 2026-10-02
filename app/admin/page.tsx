@@ -1679,28 +1679,7 @@ export default function AdminDashboard() {
           </aside>
 
           {/* GrapesJS Visual Builder Canvas */}
-          <main className="flex-1 flex flex-col overflow-hidden bg-black relative">
-            {!sidebarOpen && (
-              <button
-                type="button"
-                onClick={toggleSidebar}
-                className="absolute top-3 left-3 z-40 px-3 py-1.5 bg-black/90 hover:bg-[#C5A059] text-[#C5A059] hover:text-black border border-[#C5A059]/60 hover:border-[#C5A059] rounded shadow-2xl backdrop-blur-md transition-all duration-300 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider cursor-pointer active:scale-95"
-                title="Restore Sidebar Controls">
-                <svg
-                  className="w-3.5 h-3.5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.4}>
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
-                </svg>
-                <span>Show Sidebar</span>
-              </button>
-            )}
+          <main className="flex-1 flex flex-col overflow-hidden bg-black">
             <GrapesEditor
               ref={editorRef}
               key={activePage?.id || activePage?.slug}

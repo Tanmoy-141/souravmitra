@@ -39,6 +39,13 @@ export const siteSettingsKeyEnum = pgEnum("site_settings_key", [
   "theme",
 ]);
 
+export const commentStatusEnum = pgEnum("comment_status", [
+  "published",
+  "pending",
+  "hidden",
+  "spam",
+]);
+
 /* -------------------------------------------------------------------------- */
 /*  Auth: users, oauth accounts, verification tokens                         */
 /* -------------------------------------------------------------------------- */
@@ -292,6 +299,84 @@ export const inquiries = pgTable(
 );
 
 /* -------------------------------------------------------------------------- */
+/*  Visitor Interactions: Likes, Saves (Wishlist), Comments, Views           */
+/* -------------------------------------------------------------------------- */
+
+export const projectLikes = pgTable(
+  "project_likes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    visitorId: varchar("visitor_id", { length: 128 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("project_likes_project_visitor_unique_idx").on(
+      table.projectId,
+      table.visitorId,
+    ),
+    index("project_likes_project_id_idx").on(table.projectId),
+    index("project_likes_visitor_id_idx").on(table.visitorId),
+  ],
+);
+
+export const projectComments = pgTable(
+  "project_comments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    visitorId: varchar("visitor_id", { length: 128 }).notNull(),
+    author: varchar("author", { length: 80 }).notNull(),
+    content: text("content").notNull(),
+    status: commentStatusEnum("status").notNull().default("published"),
+    ipHash: varchar("ip_hash", { length: 64 }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("project_comments_project_created_idx").on(
+      table.projectId,
+      table.createdAt,
+    ),
+    index("project_comments_status_idx").on(table.status),
+    index("project_comments_visitor_idx").on(table.visitorId),
+  ],
+);
+
+export const projectViews = pgTable(
+  "project_views",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    visitorId: varchar("visitor_id", { length: 128 }).notNull(),
+    ipHash: varchar("ip_hash", { length: 64 }),
+    viewedAt: timestamp("viewed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("project_views_project_visitor_viewed_idx").on(
+      table.projectId,
+      table.visitorId,
+      table.viewedAt,
+    ),
+    index("project_views_project_id_idx").on(table.projectId),
+  ],
+);
+
+/* -------------------------------------------------------------------------- */
 /*  Relations (for Drizzle's relational query API)                           */
 /* -------------------------------------------------------------------------- */
 
@@ -310,8 +395,35 @@ export const pagesRelations = relations(pages, ({ one }) => ({
   author: one(users, { fields: [pages.createdBy], references: [users.id] }),
 }));
 
-export const projectsRelations = relations(projects, ({ one }) => ({
+export const projectsRelations = relations(projects, ({ one, many }) => ({
   author: one(users, { fields: [projects.createdBy], references: [users.id] }),
+  likesList: many(projectLikes),
+  comments: many(projectComments),
+  viewsList: many(projectViews),
+}));
+
+export const projectLikesRelations = relations(projectLikes, ({ one }) => ({
+  project: one(projects, {
+    fields: [projectLikes.projectId],
+    references: [projects.id],
+  }),
+}));
+
+export const projectCommentsRelations = relations(
+  projectComments,
+  ({ one }) => ({
+    project: one(projects, {
+      fields: [projectComments.projectId],
+      references: [projects.id],
+    }),
+  }),
+);
+
+export const projectViewsRelations = relations(projectViews, ({ one }) => ({
+  project: one(projects, {
+    fields: [projectViews.projectId],
+    references: [projects.id],
+  }),
 }));
 
 export const mediaAssetsRelations = relations(mediaAssets, ({ one }) => ({
@@ -351,3 +463,14 @@ export type NewProject = typeof projects.$inferInsert;
 
 export type Inquiry = typeof inquiries.$inferSelect;
 export type NewInquiry = typeof inquiries.$inferInsert;
+
+export type ProjectLike = typeof projectLikes.$inferSelect;
+export type NewProjectLike = typeof projectLikes.$inferInsert;
+
+
+export type ProjectComment = typeof projectComments.$inferSelect;
+export type NewProjectComment = typeof projectComments.$inferInsert;
+
+export type ProjectView = typeof projectViews.$inferSelect;
+export type NewProjectView = typeof projectViews.$inferInsert;
+

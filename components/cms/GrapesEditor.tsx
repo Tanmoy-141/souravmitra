@@ -797,7 +797,6 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         avoidInlineStyle: false,
 
         selectorManager: {
-          appendTo: ".gjs-clm-tags",
           componentFirst: true,
         },
 
@@ -5043,7 +5042,23 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   <span>+ Custom Font</span>
                 </button>
               </div>
-              <div className="gjs-clm-tags border-b border-[#222] p-2 bg-[#0c0c0c]" />
+
+              {!hasSelectedElement && (
+                <div className="p-5 text-center text-gray-400 flex flex-col items-center justify-center gap-2.5 border-b border-[#222] bg-[#0d0d0d]">
+                  <div className="w-8 h-8 rounded-full bg-[#161616] border border-[#2a2a2a] flex items-center justify-center text-[#C5A059] text-xs">
+                    ✦
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-gray-200 uppercase tracking-wider mb-1">
+                      No Element Selected
+                    </p>
+                    <p className="text-[11px] text-gray-500 leading-relaxed max-w-52 mx-auto">
+                      Click any element on the canvas to customize its font, spacing, colors, and styling.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="gjs-sm-container" />
             </div>
 

@@ -32,3 +32,4 @@ Thumbs.db
 public/uploads/*
 !public/uploads/.gitkeep
 
+.neon

@@ -1,0 +1,135 @@
+name: Production Database Migration
+
+# Manual only. Before running:
+#  - Use Neon's DIRECT (non-pooled) connection string for the DATABASE_URL secret;
+#    DDL through a pooler can misbehave.
+#  - Take a Neon restore point / backup branch first if any pending migration
+#    modifies or deletes data (e.g. 0005 deletes duplicate project_views rows).
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: "Target Commit SHA to migrate (leave blank to default to latest origin/main)"
+        required: false
+        type: string
+      confirm:
+        description: 'Type "APPLY" to confirm running migrations against production database'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+# Never run two production migrations at once.
+concurrency:
+  group: migrate-prod
+  cancel-in-progress: false
+
+jobs:
+  verify-target:
+    name: Verify Commit & CI Status
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      target_sha: ${{ steps.resolve-sha.outputs.sha }}
+
+    steps:
+      - name: Validate confirmation string
+        env:
+          CONFIRM_INPUT: ${{ inputs.confirm }}
+        run: |
+          if [ "$CONFIRM_INPUT" != "APPLY" ]; then
+            echo "::error::Migration cancelled: Confirmation input was not 'APPLY'."
+            exit 1
+          fi
+
+      - name: Checkout repository with full history
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and validate target commit
+        id: resolve-sha
+        env:
+          SHA_INPUT: ${{ inputs.commit_sha }}
+        run: |
+          git fetch origin main
+
+          if [ -n "$SHA_INPUT" ]; then
+            TARGET_SHA="$SHA_INPUT"
+          else
+            # Authoritatively resolve the current commit of origin/main
+            TARGET_SHA=$(git rev-parse origin/main)
+          fi
+
+          # 1. Enforce strict 40-character hexadecimal SHA format
+          if [[ ! "$TARGET_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::Invalid commit SHA format: '$TARGET_SHA'. Must be a full 40-character hexadecimal SHA."
+            exit 1
+          fi
+
+          # 2. Verify reachability from origin/main
+          echo "Validating that commit $TARGET_SHA is reachable from origin/main..."
+          if ! git merge-base --is-ancestor "$TARGET_SHA" origin/main; then
+            echo "::error::Target commit $TARGET_SHA is not reachable from origin/main!"
+            exit 1
+          fi
+
+          echo "Target commit confirmed: $TARGET_SHA"
+          echo "sha=$TARGET_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Verify CI workflow passed on target commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ steps.resolve-sha.outputs.sha }}
+        run: |
+          echo "Querying CI workflow runs for commit $TARGET_SHA..."
+          RUNS=$(gh run list --commit "$TARGET_SHA" --workflow "CI" --json status,conclusion --jq '.')
+
+          if [ -z "$RUNS" ] || [ "$RUNS" = "[]" ]; then
+            echo "::error::No CI workflow runs found for commit $TARGET_SHA. Cannot migrate untested code."
+            exit 1
+          fi
+
+          SUCCESS_COUNT=$(echo "$RUNS" | jq '[.[] | select(.status == "completed" and .conclusion == "success")] | length')
+          IN_PROGRESS_COUNT=$(echo "$RUNS" | jq '[.[] | select(.status != "completed")] | length')
+
+          if [ "$SUCCESS_COUNT" -eq 0 ]; then
+            if [ "$IN_PROGRESS_COUNT" -gt 0 ]; then
+              echo "::error::CI is currently still in progress for commit $TARGET_SHA. Wait for it to finish."
+            else
+              echo "::error::CI did not succeed for commit $TARGET_SHA."
+            fi
+            exit 1
+          fi
+
+          echo "Verified: Commit $TARGET_SHA has passed CI successfully."
+
+  apply-migration:
+    name: Apply Drizzle Migrations
+    needs: verify-target
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production # Requires human review/approval, ONLY after verify-target passes
+
+    steps:
+      - name: Checkout verified commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.verify-target.outputs.target_sha }}
+
+      - name: Setup Node.js (v22)
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Drizzle migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run db:migrate

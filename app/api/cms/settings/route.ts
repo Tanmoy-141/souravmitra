@@ -139,7 +139,8 @@ export async function PUT(req: NextRequest) {
 
     const themeData = {
       faviconUrl:
-        typeof body.faviconUrl === "string"
+        typeof body.faviconUrl === "string" &&
+        (body.faviconUrl.trim() === "" || isSafeUrl(body.faviconUrl.trim()))
           ? body.faviconUrl.trim() || "/favicon.svg"
           : currentThemeData.faviconUrl || "/favicon.svg",
       customFonts: currentThemeData.customFonts || [],
@@ -150,7 +151,8 @@ export async function PUT(req: NextRequest) {
           ? body.siteName.trim().slice(0, 100) || "Sourav Mitra"
           : currentHeaderData.siteName || "Sourav Mitra",
       logoUrl:
-        typeof body.logoUrl === "string"
+        typeof body.logoUrl === "string" &&
+        (body.logoUrl.trim() === "" || isSafeUrl(body.logoUrl.trim()))
           ? body.logoUrl.trim()
           : currentHeaderData.logoUrl || "",
     };

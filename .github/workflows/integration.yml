@@ -1,0 +1,70 @@
+name: Integration Tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shared-neon-test-database
+  cancel-in-progress: false
+
+jobs:
+  check-environment:
+    name: Check Test Environment
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      has_secret: ${{ steps.check.outputs.has_secret }}
+    steps:
+      - name: Inspect TEST_DATABASE_URL secret
+        id: check
+        env:
+          TEST_DB: ${{ secrets.TEST_DATABASE_URL }}
+        run: |
+          if [ -n "$TEST_DB" ]; then
+            echo "has_secret=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_secret=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping integration tests: TEST_DATABASE_URL is not configured (e.g. fork PR or missing secret)."
+          fi
+
+  integration:
+    name: HTTP & Concurrency E2E Test Suite
+    needs: check-environment
+    if: needs.check-environment.outputs.has_secret == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # IMPORTANT: TEST_DATABASE_URL must point at a dedicated Neon test branch or
+    # project, never production. The test suite writes likes, views and comments.
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js (v22)
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Apply the PR's migrations to the test database so tests run against the
+      # schema in this commit. The test DB is throwaway; production is untouched.
+      - name: Migrate test database
+        env:
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+        run: npm run db:migrate
+
+      - name: Run HTTP & DB interactions E2E test suite
+        env:
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          # Fixed test-only value. Never reuse the production AUTH_SECRET in CI.
+          AUTH_SECRET: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+        run: npx tsx scripts/test-interactions-e2e.ts

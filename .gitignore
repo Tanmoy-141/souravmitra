@@ -23,6 +23,7 @@ out/
 Thumbs.db
 .vercel
 .env*
+!.env.example
 
 # IDE and tool artifacts
 .vscode/

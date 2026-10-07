@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { rateLimits } from "@/db/schema";
 import { NextRequest } from "next/server";
@@ -82,19 +82,21 @@ export async function checkRateLimit(
       };
     }
 
-    const nextCount = current.count + 1;
-    await db
+    const updated = await db
       .update(rateLimits)
       .set({
-        count: nextCount,
+        count: sql`${rateLimits.count} + 1`,
         updatedAt: new Date(),
       })
-      .where(eq(rateLimits.key, identifier));
+      .where(eq(rateLimits.key, identifier))
+      .returning({ count: rateLimits.count });
+
+    const newCount = updated[0]?.count ?? current.count + 1;
 
     return {
       success: true,
       limit,
-      remaining: Math.max(0, limit - nextCount),
+      remaining: Math.max(0, limit - newCount),
       reset: Math.ceil(current.resetAt.getTime() / 1000),
     };
   } catch {

@@ -44,30 +44,32 @@ export default async function Home() {
   return (
     <div className="flex flex-col gap-20">
       {/* Hero Section — full-width image with text overlay */}
-      <section className="relative w-full min-h-screen overflow-hidden">
+      <section className="relative w-full min-h-[85vh] sm:min-h-screen overflow-hidden flex items-center justify-center">
         {/* Background Image */}
         <Image
           src="https://static.wixstatic.com/media/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg/v1/fill/w_1920,h_900,al_c,q_90,enc_avif,quality_auto/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg"
           alt="Sourav Mitra - Hero Artwork"
           fill
           unoptimized
-          className="object-cover"
+          className="object-cover object-center"
           priority
         />
 
         {/* Dark overlay for text readability */}
-        <div className="absolute inset-0 bg-black/40" />
+        <div className="absolute inset-0 bg-black/45" />
 
         {/* Text overlay — centered on the image */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
-          <h1 className="text-5xl md:text-8xl font-serif text-white mb-4 tracking-tight drop-shadow-lg">
+        <div className="relative z-10 flex flex-col items-center justify-center text-center px-4 sm:px-6 max-w-4xl mx-auto py-12">
+          <h1 className="text-4xl sm:text-6xl md:text-8xl font-serif text-white mb-3 sm:mb-4 tracking-tight drop-shadow-lg leading-tight">
             Sourav Mitra
           </h1>
-          <p className="text-xl md:text-2xl text-gray-200 mb-10 drop-shadow-md">
+          <p className="text-base sm:text-xl md:text-2xl text-gray-200 mb-8 sm:mb-10 max-w-xl mx-auto drop-shadow-md px-2 leading-relaxed">
             550+ covers in 8+ years, and still learning.
           </p>
           <Link href="/book-covers">
-            <Button>Explore My Work</Button>
+            <Button className="w-auto px-6 sm:px-8 py-3 text-xs sm:text-sm tracking-widest uppercase">
+              Explore My Work
+            </Button>
           </Link>
         </div>
       </section>

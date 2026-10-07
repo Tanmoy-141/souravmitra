@@ -417,17 +417,17 @@ async function seedAllPages() {
       status: "published" as const,
       htmlCache: `
         <div class="flex flex-col gap-16 py-12 bg-black text-white">
-          <section style="position:relative; width:100%; min-height:100vh; overflow:hidden;">
-            <img src="https://static.wixstatic.com/media/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg/v1/fill/w_1920,h_900,al_c,q_90,enc_avif,quality_auto/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg" alt="Sourav Mitra - Hero Artwork" width="1920" height="900" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;" />
-            <div style="position:absolute; inset:0; background:rgba(0,0,0,0.4);"></div>
-            <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:0 1.5rem;">
-              <h1 style="font-size:clamp(3rem, 8vw, 7rem); font-family:serif; color:#FFFFFF; margin-bottom:0.5rem; letter-spacing:-0.02em; text-shadow:0 4px 12px rgba(0,0,0,0.5);">Sourav Mitra</h1>
-              <p style="font-size:clamp(1.1rem, 2.5vw, 1.5rem); color:#E5E5E5; margin-bottom:2.5rem; text-shadow:0 2px 8px rgba(0,0,0,0.4);">550+ covers in 8+ years, and still learning.</p>
-              <a href="/book-covers" style="display:inline-block; padding:0.875rem 2.5rem; background:#C5A059; color:#000; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; font-size:0.75rem; text-decoration:none;">Explore My Work</a>
+          <section style="position:relative; width:100%; min-height:85vh; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+            <img src="https://static.wixstatic.com/media/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg/v1/fill/w_1920,h_900,al_c,q_90,enc_avif,quality_auto/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg" alt="Sourav Mitra - Hero Artwork" width="1920" height="900" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center;" />
+            <div style="position:absolute; inset:0; background:rgba(0,0,0,0.45);"></div>
+            <div style="position:relative; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:3rem 1.25rem; max-width:56rem; margin:0 auto; width:100%;">
+              <h1 style="font-size:clamp(2.4rem, 8vw, 6rem); font-family:serif; color:#FFFFFF; margin-bottom:0.75rem; letter-spacing:-0.02em; text-shadow:0 4px 12px rgba(0,0,0,0.6); line-height:1.15;">Sourav Mitra</h1>
+              <p style="font-size:clamp(1rem, 2.6vw, 1.35rem); color:#E5E5E5; margin-bottom:2rem; text-shadow:0 2px 8px rgba(0,0,0,0.5); max-width:36rem; line-height:1.5;">550+ covers in 8+ years, and still learning.</p>
+              <a href="/book-covers" style="display:inline-block; padding:0.875rem 2.25rem; background:#C5A059; color:#000; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; font-size:0.75rem; text-decoration:none; border-radius:2px;">Explore My Work</a>
             </div>
           </section>
 
-          <section class="px-10 max-w-6xl mx-auto w-full">
+          <section class="px-6 sm:px-10 max-w-6xl mx-auto w-full">
             <h2 class="text-3xl font-serif text-white text-center mb-10">Explore Portfolios</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
               <a href="/book-covers" class="group aspect-square bg-[#111111] p-8 flex flex-col justify-end transition-transform hover:scale-105 border border-[#333333]">
@@ -464,8 +464,8 @@ async function seedAllPages() {
             </div>
           </section>
 
-          <section class="px-10 py-20 text-center">
-            <h2 class="text-4xl font-serif mb-8 text-[#FFFFFF]">Let's Create Something Extraordinary Together</h2>
+          <section class="px-6 sm:px-10 py-16 sm:py-20 text-center">
+            <h2 class="text-3xl sm:text-4xl font-serif mb-8 text-[#FFFFFF]">Let's Create Something Extraordinary Together</h2>
             <a href="/contact" class="inline-block px-8 py-3 bg-[#C5A059] text-black font-bold uppercase tracking-widest text-xs">Start a Project</a>
           </section>
         </div>
@@ -476,9 +476,13 @@ async function seedAllPages() {
       title: "About",
       status: "published" as const,
       htmlCache: `
-        <div class="px-10 py-12 max-w-4xl mx-auto text-[#D4D4D4] bg-black">
-          <h1 class="text-4xl font-serif text-white mb-8">About Myself...</h1>
-          <p class="text-lg mb-8 leading-relaxed">I am Sourav Mitra, a professional illustrator, book cover designer, and fine artist based in India. My work explores the intersection of dark atmospheric storytelling and traditional illustrative techniques.</p>
+        <div class="px-5 sm:px-8 md:px-10 py-8 sm:py-12 max-w-4xl mx-auto text-[#D4D4D4] bg-black">
+          <div class="mb-8">
+            <span class="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059] block mb-2">Introduction</span>
+            <h1 class="text-3xl sm:text-4xl md:text-5xl font-serif text-white mb-3 tracking-tight">About Myself...</h1>
+            <div class="w-12 h-1 bg-[#C5A059] mb-5"></div>
+            <p class="text-base sm:text-lg mb-8 leading-relaxed text-[#E0E0E0]">I am Sourav Mitra, a professional illustrator, book cover designer, and fine artist based in India. My work explores the intersection of dark atmospheric storytelling and traditional illustrative techniques.</p>
+          </div>
           
           <section class="py-12 border-t border-[#222]">
             <div class="flex flex-col items-center">

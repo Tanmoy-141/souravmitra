@@ -19,30 +19,30 @@
     "blob:list": "tsx scripts/blob-list.ts"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.1.0",
+    "@neondatabase/serverless": "^1.2.0",
     "@vercel/blob": "^2.8.0",
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "^0.45.3",
     "grapesjs": "^0.23.6",
-    "isomorphic-dompurify": "4.2.0",
-    "next": "^16.3.5",
-    "pg": "^8.23.0",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "resend": "^6.20.0",
+    "isomorphic-dompurify": "4.4.0",
+    "next": "^16.3.8",
+    "pg": "^8.23.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "resend": "^6.32.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^26",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "dotenv": "^17.4.2",
+    "dotenv": "^18.0.5",
     "drizzle-kit": "^0.31.11",
-    "eslint": "^9",
-    "eslint-config-next": "16.3.0",
+    "eslint": "^10",
+    "eslint-config-next": "16.3.8",
     "tailwindcss": "^4",
-    "tsx": "^4.23.13",
-    "typescript": "^5"
+    "tsx": "^4.23.15",
+    "typescript": "^7"
   }
 }

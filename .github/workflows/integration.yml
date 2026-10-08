@@ -2,6 +2,10 @@ name: Integration Tests
 
 on:
   workflow_dispatch:
+  # Runs on main too, so the production migration workflow can verify
+  # that integration tests passed on the exact commit being migrated.
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
 

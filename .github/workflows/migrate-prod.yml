@@ -55,8 +55,6 @@ jobs:
         env:
           SHA_INPUT: ${{ inputs.commit_sha }}
         run: |
-          git fetch origin main
-
           if [ -n "$SHA_INPUT" ]; then
             TARGET_SHA="$SHA_INPUT"
           else
@@ -80,32 +78,35 @@ jobs:
           echo "Target commit confirmed: $TARGET_SHA"
           echo "sha=$TARGET_SHA" >> "$GITHUB_OUTPUT"
 
-      - name: Verify CI workflow passed on target commit
+      - name: Verify required workflows passed on target commit
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET_SHA: ${{ steps.resolve-sha.outputs.sha }}
         run: |
-          echo "Querying CI workflow runs for commit $TARGET_SHA..."
-          RUNS=$(gh run list --commit "$TARGET_SHA" --workflow "CI" --json status,conclusion --jq '.')
+          # Every workflow listed here must have a successful run on the target commit.
+          for WORKFLOW in "CI" "Integration Tests"; do
+            echo "Querying '$WORKFLOW' workflow runs for commit $TARGET_SHA..."
+            RUNS=$(gh run list --commit "$TARGET_SHA" --workflow "$WORKFLOW" --json status,conclusion --jq '.')
 
-          if [ -z "$RUNS" ] || [ "$RUNS" = "[]" ]; then
-            echo "::error::No CI workflow runs found for commit $TARGET_SHA. Cannot migrate untested code."
-            exit 1
-          fi
-
-          SUCCESS_COUNT=$(echo "$RUNS" | jq '[.[] | select(.status == "completed" and .conclusion == "success")] | length')
-          IN_PROGRESS_COUNT=$(echo "$RUNS" | jq '[.[] | select(.status != "completed")] | length')
-
-          if [ "$SUCCESS_COUNT" -eq 0 ]; then
-            if [ "$IN_PROGRESS_COUNT" -gt 0 ]; then
-              echo "::error::CI is currently still in progress for commit $TARGET_SHA. Wait for it to finish."
-            else
-              echo "::error::CI did not succeed for commit $TARGET_SHA."
+            if [ -z "$RUNS" ] || [ "$RUNS" = "[]" ]; then
+              echo "::error::No '$WORKFLOW' workflow runs found for commit $TARGET_SHA. Cannot migrate untested code."
+              exit 1
             fi
-            exit 1
-          fi
 
-          echo "Verified: Commit $TARGET_SHA has passed CI successfully."
+            SUCCESS_COUNT=$(echo "$RUNS" | jq '[.[] | select(.status == "completed" and .conclusion == "success")] | length')
+            IN_PROGRESS_COUNT=$(echo "$RUNS" | jq '[.[] | select(.status != "completed")] | length')
+
+            if [ "$SUCCESS_COUNT" -eq 0 ]; then
+              if [ "$IN_PROGRESS_COUNT" -gt 0 ]; then
+                echo "::error::'$WORKFLOW' is still in progress for commit $TARGET_SHA. Wait for it to finish."
+              else
+                echo "::error::'$WORKFLOW' did not succeed for commit $TARGET_SHA."
+              fi
+              exit 1
+            fi
+
+            echo "Verified: '$WORKFLOW' passed for commit $TARGET_SHA."
+          done
 
   apply-migration:
     name: Apply Drizzle Migrations

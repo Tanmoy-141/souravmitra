@@ -83,30 +83,103 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TARGET_SHA: ${{ steps.resolve-sha.outputs.sha }}
         run: |
-          # Every workflow listed here must have a successful run on the target commit.
-          for WORKFLOW in "CI" "Integration Tests"; do
-            echo "Querying '$WORKFLOW' workflow runs for commit $TARGET_SHA..."
-            RUNS=$(gh run list --commit "$TARGET_SHA" --workflow "$WORKFLOW" --json status,conclusion --jq '.')
+          echo "Verifying CI and Integration test runs for target commit: $TARGET_SHA"
 
-            if [ -z "$RUNS" ] || [ "$RUNS" = "[]" ]; then
-              echo "::error::No '$WORKFLOW' workflow runs found for commit $TARGET_SHA. Cannot migrate untested code."
-              exit 1
+          # -----------------------------------------------------------------
+          # 1. VERIFY CI WORKFLOW
+          # -----------------------------------------------------------------
+          echo "Querying 'CI' workflow runs for commit $TARGET_SHA..."
+          CI_RUNS=$(gh run list --commit "$TARGET_SHA" --workflow "CI" --json databaseId,status,conclusion,createdAt --jq '.')
+
+          if [ -z "$CI_RUNS" ] || [ "$CI_RUNS" = "[]" ]; then
+            echo "::error::No 'CI' workflow runs found for commit $TARGET_SHA. Cannot migrate untested code."
+            exit 1
+          fi
+
+          CI_IN_PROGRESS=$(echo "$CI_RUNS" | jq '[.[] | select(.status != "completed")] | length')
+          if [ "$CI_IN_PROGRESS" -gt 0 ]; then
+            echo "::error::'CI' workflow is currently in progress for commit $TARGET_SHA. Wait for all CI runs to complete."
+            exit 1
+          fi
+
+          # Pick the latest run (prevent older successes from masking newer failures)
+          LATEST_CI_RUN=$(echo "$CI_RUNS" | jq 'sort_by(.createdAt) | reverse | .[0]')
+          CI_RUN_ID=$(echo "$LATEST_CI_RUN" | jq -r '.databaseId')
+          CI_STATUS=$(echo "$LATEST_CI_RUN" | jq -r '.status')
+          CI_CONCLUSION=$(echo "$LATEST_CI_RUN" | jq -r '.conclusion')
+
+          if [ "$CI_STATUS" != "completed" ] || [ "$CI_CONCLUSION" != "success" ]; then
+            echo "::error::Latest 'CI' workflow run (ID: $CI_RUN_ID) did not succeed (status: $CI_STATUS, conclusion: $CI_CONCLUSION)."
+            exit 1
+          fi
+
+          CI_JOBS=$(gh run view "$CI_RUN_ID" --json jobs --jq '.jobs')
+          CI_BUILD_JOB=$(echo "$CI_JOBS" | jq '.[] | select(.name == "Lint, Typecheck, Tests & Build")')
+          CI_BUILD_CONCLUSION=$(echo "$CI_BUILD_JOB" | jq -r '.conclusion')
+          if [ "$CI_BUILD_CONCLUSION" != "success" ]; then
+            echo "::error::'Lint, Typecheck, Tests & Build' job in CI run $CI_RUN_ID concluded with '$CI_BUILD_CONCLUSION'."
+            exit 1
+          fi
+          echo "Verified: 'CI' workflow passed on commit $TARGET_SHA (run ID: $CI_RUN_ID)."
+
+          # -----------------------------------------------------------------
+          # 2. VERIFY INTEGRATION TESTS & SPECIFIC E2E JOB
+          # -----------------------------------------------------------------
+          echo "Querying 'Integration Tests' workflow runs for commit $TARGET_SHA..."
+          INT_RUNS=$(gh run list --commit "$TARGET_SHA" --workflow "Integration Tests" --json databaseId,status,conclusion,createdAt --jq '.')
+
+          if [ -z "$INT_RUNS" ] || [ "$INT_RUNS" = "[]" ]; then
+            echo "::error::No 'Integration Tests' workflow runs found for commit $TARGET_SHA. Integration tests must run and pass before production migration."
+            exit 1
+          fi
+
+          INT_IN_PROGRESS=$(echo "$INT_RUNS" | jq '[.[] | select(.status != "completed")] | length')
+          if [ "$INT_IN_PROGRESS" -gt 0 ]; then
+            echo "::error::'Integration Tests' workflow is currently in progress for commit $TARGET_SHA. Wait for completion."
+            exit 1
+          fi
+
+          # Pick the latest run
+          LATEST_INT_RUN=$(echo "$INT_RUNS" | jq 'sort_by(.createdAt) | reverse | .[0]')
+          INT_RUN_ID=$(echo "$LATEST_INT_RUN" | jq -r '.databaseId')
+          INT_STATUS=$(echo "$LATEST_INT_RUN" | jq -r '.status')
+          INT_CONCLUSION=$(echo "$LATEST_INT_RUN" | jq -r '.conclusion')
+
+          if [ "$INT_STATUS" != "completed" ]; then
+            echo "::error::Latest 'Integration Tests' run (ID: $INT_RUN_ID) is not completed (status: $INT_STATUS)."
+            exit 1
+          fi
+
+          # Query individual jobs inside the latest run
+          echo "Inspecting jobs inside Integration Tests run $INT_RUN_ID..."
+          INT_JOBS=$(gh run view "$INT_RUN_ID" --json jobs --jq '.jobs')
+          E2E_JOB=$(echo "$INT_JOBS" | jq '.[] | select(.name == "HTTP & Concurrency E2E Test Suite")')
+
+          if [ -z "$E2E_JOB" ] || [ "$E2E_JOB" = "null" ]; then
+            echo "::error::'HTTP & Concurrency E2E Test Suite' job not found in Integration Tests run $INT_RUN_ID."
+            exit 1
+          fi
+
+          E2E_STATUS=$(echo "$E2E_JOB" | jq -r '.status')
+          E2E_CONCLUSION=$(echo "$E2E_JOB" | jq -r '.conclusion')
+
+          echo "Found 'HTTP & Concurrency E2E Test Suite' job: status='$E2E_STATUS', conclusion='$E2E_CONCLUSION'."
+
+          if [ "$E2E_STATUS" != "completed" ]; then
+            echo "::error::'HTTP & Concurrency E2E Test Suite' job is not completed (status: $E2E_STATUS)."
+            exit 1
+          fi
+
+          if [ "$E2E_CONCLUSION" != "success" ]; then
+            if [ "$E2E_CONCLUSION" = "skipped" ]; then
+              echo "::error::The 'HTTP & Concurrency E2E Test Suite' job was SKIPPED in run $INT_RUN_ID (TEST_DATABASE_URL was unavailable). Production migration strictly requires actual integration test execution and success."
+            else
+              echo "::error::The 'HTTP & Concurrency E2E Test Suite' job concluded with '$E2E_CONCLUSION' (run $INT_RUN_ID). Cannot migrate."
             fi
+            exit 1
+          fi
 
-            SUCCESS_COUNT=$(echo "$RUNS" | jq '[.[] | select(.status == "completed" and .conclusion == "success")] | length')
-            IN_PROGRESS_COUNT=$(echo "$RUNS" | jq '[.[] | select(.status != "completed")] | length')
-
-            if [ "$SUCCESS_COUNT" -eq 0 ]; then
-              if [ "$IN_PROGRESS_COUNT" -gt 0 ]; then
-                echo "::error::'$WORKFLOW' is still in progress for commit $TARGET_SHA. Wait for it to finish."
-              else
-                echo "::error::'$WORKFLOW' did not succeed for commit $TARGET_SHA."
-              fi
-              exit 1
-            fi
-
-            echo "Verified: '$WORKFLOW' passed for commit $TARGET_SHA."
-          done
+          echo "Verified: 'HTTP & Concurrency E2E Test Suite' job completed with 'success' for commit $TARGET_SHA (run ID: $INT_RUN_ID)."
 
   apply-migration:
     name: Apply Drizzle Migrations

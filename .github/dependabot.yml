@@ -11,6 +11,21 @@ updates:
       dependencies:
         patterns:
           - "*"
+        # Only group minor/patch updates. Major bumps arrive as separate PRs,
+        # so one incompatible major can't block the safe updates.
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # typescript-eslint (bundled in eslint-config-next) doesn't support TS 7 yet.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      # Keep @types/node on the Node major used in CI/runtime (Node 22).
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # eslint 10 needs eslint-config-next support; revisit when it's confirmed.
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"

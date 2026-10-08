@@ -31,9 +31,16 @@ jobs:
         run: |
           if [ -n "$TEST_DB" ]; then
             echo "has_secret=true" >> "$GITHUB_OUTPUT"
+            echo "TEST_DATABASE_URL secret is configured. Proceeding to E2E integration test suite."
           else
             echo "has_secret=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Skipping integration tests: TEST_DATABASE_URL is not configured (e.g. fork PR or missing secret)."
+            echo "::warning title=Integration Tests Unavailable::TEST_DATABASE_URL is not accessible in this context (${{ github.event_name }} from '${{ github.actor }}'). The HTTP & Concurrency E2E Test Suite job will be skipped."
+            echo "### ⚠️ Integration Tests Not Run" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "The \`TEST_DATABASE_URL\` secret is unavailable in this workflow run." >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Trigger**: \`${{ github.event_name }}\` by \`${{ github.actor }}\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Context**: Dependabot PRs, fork PRs, or runs without repository secrets cannot access the test database." >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Status**: The \`HTTP & Concurrency E2E Test Suite\` job was skipped. Note that production migration checks enforce that this job completed with **success**, so skipped runs cannot be migrated." >> "$GITHUB_STEP_SUMMARY"
           fi
 
   integration:

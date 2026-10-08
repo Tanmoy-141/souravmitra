@@ -21,6 +21,7 @@ jobs:
     name: Check Test Environment
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    environment: production
     outputs:
       has_secret: ${{ steps.check.outputs.has_secret }}
     steps:
@@ -49,6 +50,7 @@ jobs:
     if: needs.check-environment.outputs.has_secret == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: production
 
     # IMPORTANT: TEST_DATABASE_URL must point at a dedicated Neon test branch or
     # project, never production. The test suite writes likes, views and comments.

@@ -670,9 +670,11 @@ export default function ProjectDetailView({
               {availability && (
                 <span
                   className={
-                    availability === "Available"
-                      ? "text-green-400"
-                      : "text-rose-400"
+                    availability.toLowerCase() === "available"
+                      ? "text-sky-400 font-semibold uppercase tracking-wider"
+                      : availability.toLowerCase() === "sold"
+                        ? "text-rose-400 font-semibold uppercase tracking-wider"
+                        : "text-purple-300 font-semibold uppercase tracking-wider"
                   }>
                   {availability}
                 </span>

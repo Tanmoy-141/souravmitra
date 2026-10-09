@@ -118,7 +118,22 @@ export function generateProjectDetailHtml(project: Project): string {
         <span style="background: #141414; padding: 4px 10px; border-radius: 4px; border: 1px solid #282828;"><strong style="color: #fff;">Year:</strong> ${year}</span>
         <span style="background: #141414; padding: 4px 10px; border-radius: 4px; border: 1px solid #282828;"><strong style="color: #fff;">Medium:</strong> ${medium}</span>
         ${dimensions ? `<span style="background: #141414; padding: 4px 10px; border-radius: 4px; border: 1px solid #282828;"><strong style="color: #fff;">Dimensions:</strong> ${dimensions}</span>` : ""}
-        <span style="background: #141414; padding: 4px 10px; border-radius: 4px; border: 1px solid #282828; color: #4ade80;">Available for Licensing</span>
+        ${(() => {
+          const avail = ((project.tags as string[]) ?? []).find((t) => {
+            const l = t.trim().toLowerCase();
+            return l === "available" || l === "sold" || l === "private collection";
+          });
+          if (avail) {
+            const isAvail = avail.toLowerCase() === "available";
+            const isSold = avail.toLowerCase() === "sold";
+            const color = isAvail ? "#38bdf8" : isSold ? "#f43f5e" : "#c084fc";
+            return `<span style="background: #141414; padding: 4px 10px; border-radius: 4px; border: 1px solid #282828; color: ${color}; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;">${escapeHtml(avail)}</span>`;
+          }
+          if (project.category === "fine-art") {
+            return `<span style="background: #141414; padding: 4px 10px; border-radius: 4px; border: 1px solid #282828; color: #38bdf8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;">Available</span>`;
+          }
+          return `<span style="background: #141414; padding: 4px 10px; border-radius: 4px; border: 1px solid #282828; color: #4ade80;">Available for Licensing</span>`;
+        })()}
       </div>
     </div>
   `;

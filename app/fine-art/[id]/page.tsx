@@ -93,6 +93,11 @@ export default async function FineArtDetail({
   }
 
   // 3. Fallback to default ProjectDetailView with artwork cover image support
+  const availabilityTag = ((project.tags as string[]) ?? []).find((t) => {
+    const l = t.trim().toLowerCase();
+    return l === "available" || l === "sold" || l === "private collection";
+  });
+
   return (
     <ProjectDetailView
       id={project.id}
@@ -106,6 +111,7 @@ export default async function FineArtDetail({
       views={project.views}
       tags={(project.tags as string[]) ?? []}
       dimensions={project.dimensions ?? undefined}
+      availability={availabilityTag}
       notes={project.details ?? undefined}
       backUrl="/fine-art"
     />

@@ -75,12 +75,15 @@ export default function PortfolioCollection({
     [projects, sort],
   );
 
-  const filteredFineArt = sortedProjects.filter(
-    (project) =>
-      category !== "fine-art" ||
-      filter === "All" ||
-      (project.details ?? "").includes(filter),
-  );
+  const filteredFineArt = sortedProjects.filter((project) => {
+    if (category !== "fine-art" || filter === "All") return true;
+    const filterNorm = filter.trim().toLowerCase();
+    const inDetails = (project.details ?? "").toLowerCase().includes(filterNorm);
+    const inTags = ((project.tags as string[]) ?? []).some(
+      (t) => t.trim().toLowerCase() === filterNorm,
+    );
+    return inDetails || inTags;
+  });
 
   if (loading) {
     return (
@@ -125,20 +128,33 @@ export default function PortfolioCollection({
             onSortChange={setSort}
           />
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {filteredFineArt.map((project) => (
-              <BehanceCard
-                key={project.id}
-                id={project.id}
-                title={project.title}
-                type="fine-art"
-                genreOrMedium={project.medium ?? "Mixed Media"}
-                year={Number(project.year ?? 2024)}
-                likes={project.likes}
-                views={project.views}
-                detailUrl={`/fine-art/${project.id}`}
-                imageUrl={project.coverImage || undefined}
-              />
-            ))}
+            {filteredFineArt.map((project) => {
+              const availabilityTag = ((project.tags as string[]) ?? []).find(
+                (t) => {
+                  const lower = t.trim().toLowerCase();
+                  return (
+                    lower === "available" ||
+                    lower === "sold" ||
+                    lower === "private collection"
+                  );
+                },
+              );
+              return (
+                <BehanceCard
+                  key={project.id}
+                  id={project.id}
+                  title={project.title}
+                  type="fine-art"
+                  genreOrMedium={project.medium ?? "Mixed Media"}
+                  year={Number(project.year ?? 2024)}
+                  likes={project.likes}
+                  views={project.views}
+                  detailUrl={`/fine-art/${project.id}`}
+                  imageUrl={project.coverImage || undefined}
+                  availability={availabilityTag}
+                />
+              );
+            })}
           </div>
         </>
       ) : (

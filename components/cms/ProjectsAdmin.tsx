@@ -12,6 +12,44 @@ const CATEGORY_LABELS: Record<Category, string> = {
   "fine-art": "Fine Art",
 };
 
+export const AVAILABILITY_OPTIONS = [
+  "Available",
+  "Sold",
+  "Private Collection",
+] as const;
+
+export type AvailabilityOption = (typeof AVAILABILITY_OPTIONS)[number];
+
+function getAvailabilityFromTags(tagsStr: string): AvailabilityOption | null {
+  const parts = tagsStr.split(",").map((t) => t.trim().toLowerCase());
+  for (const opt of AVAILABILITY_OPTIONS) {
+    if (parts.includes(opt.toLowerCase())) {
+      return opt;
+    }
+  }
+  return null;
+}
+
+function updateAvailabilityInTags(tagsStr: string, option: AvailabilityOption): string {
+  const current = getAvailabilityFromTags(tagsStr);
+  const otherTags = tagsStr
+    .split(",")
+    .map((t) => t.trim())
+    .filter(
+      (t) =>
+        t.length > 0 &&
+        !AVAILABILITY_OPTIONS.some((opt) => opt.toLowerCase() === t.toLowerCase()),
+    );
+
+  if (current === option) {
+    // Deselect if already active
+    return otherTags.join(", ");
+  }
+
+  // Set new option
+  return [...otherTags, option].join(", ");
+}
+
 const EMPTY_FORM = {
   title: "",
   category: "book-covers" as Category,
@@ -280,6 +318,28 @@ export default function ProjectsAdmin({ onEditInsidePage }: ProjectsAdminProps =
                   }`}>
                     {p.status}
                   </span>
+                  {(() => {
+                    const avail = ((p.tags as string[]) ?? []).find((t) =>
+                      AVAILABILITY_OPTIONS.some(
+                        (opt) => opt.toLowerCase() === t.trim().toLowerCase(),
+                      ),
+                    );
+                    if (!avail) return null;
+                    const isAvailable = avail.toLowerCase() === "available";
+                    const isSold = avail.toLowerCase() === "sold";
+                    return (
+                      <span
+                        className={`text-[9px] px-1.5 py-0.5 font-bold uppercase tracking-wider border ${
+                          isAvailable
+                            ? "border-sky-500/50 bg-sky-950/40 text-sky-400"
+                            : isSold
+                              ? "border-rose-500/50 bg-rose-950/40 text-rose-400"
+                              : "border-purple-500/50 bg-purple-950/40 text-purple-300"
+                        }`}>
+                        {avail}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="text-gray-600 text-[11px] mt-0.5">
                   {CATEGORY_LABELS[p.category as Category]} · {p.year ?? "—"} · {p.likes} likes · {p.views} views
@@ -459,11 +519,70 @@ export default function ProjectsAdmin({ onEditInsidePage }: ProjectsAdminProps =
                 />
               </div>
 
+              {/* Artwork Availability Status / Tag (Fine Art & Portfolio) */}
+              <div className="flex flex-col gap-2 p-3.5 bg-[#0a0a0a] border border-[#222]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] uppercase text-gray-400 font-bold tracking-wider">
+                      Artwork Availability Tag
+                    </label>
+                    {form.category === "fine-art" && (
+                      <span className="text-[9px] text-[#C5A059] uppercase font-semibold">
+                        (Fine Art)
+                      </span>
+                    )}
+                  </div>
+                  {getAvailabilityFromTags(form.tags) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const active = getAvailabilityFromTags(form.tags);
+                        if (active) {
+                          setForm({
+                            ...form,
+                            tags: updateAvailabilityInTags(form.tags, active),
+                          });
+                        }
+                      }}
+                      className="text-[10px] text-gray-500 hover:text-white transition-colors cursor-pointer">
+                      Clear tag ✕
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-2.5 pt-0.5">
+                  {AVAILABILITY_OPTIONS.map((opt) => {
+                    const isSelected =
+                      getAvailabilityFromTags(form.tags)?.toLowerCase() ===
+                      opt.toLowerCase();
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => {
+                          setForm({
+                            ...form,
+                            tags: updateAvailabilityInTags(form.tags, opt),
+                          });
+                        }}
+                        className={`px-3.5 py-2 text-[11px] font-bold tracking-[0.14em] uppercase transition-all border cursor-pointer select-none ${
+                          isSelected
+                            ? "border-[#38bdf8] text-[#38bdf8] bg-[#38bdf8]/15 shadow-[0_0_14px_rgba(56,189,248,0.3)]"
+                            : "border-[#222] text-[#777] bg-[#0d0d0d] hover:border-[#444] hover:text-[#bbb]"
+                        }`}
+                        title={`Tag as ${opt}`}>
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Tags + featured */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] uppercase text-gray-500 font-bold">
-                    Tags (comma-separated)
+                    Additional Tags (comma-separated)
                   </label>
                   <input
                     type="text"

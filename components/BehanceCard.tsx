@@ -14,6 +14,7 @@ interface BehanceCardProps {
   views: number;
   detailUrl: string;
   imageUrl?: string; // real uploaded cover; falls back to ProceduralPlaceholder when absent
+  availability?: string; // e.g. "Available", "Sold", "Private Collection"
 }
 
 // Simple hash function to generate consistent pseudo-random numbers from an ID
@@ -360,6 +361,7 @@ export default function BehanceCard({
   views,
   detailUrl,
   imageUrl,
+  availability,
 }: BehanceCardProps) {
   /*
    * IMPORTANT:
@@ -462,6 +464,22 @@ export default function BehanceCard({
             <ProceduralPlaceholder id={id} type={type} title={title} />
           )}
         </div>
+
+        {/* Availability Badge (Available, Sold, Private Collection) */}
+        {availability && (
+          <div className="absolute top-3 left-3 z-20 pointer-events-none">
+            <span
+              className={`px-2.5 py-1 text-[9.5px] font-bold uppercase tracking-[0.15em] backdrop-blur-md border ${
+                availability.toLowerCase() === "available"
+                  ? "border-sky-500/60 bg-black/80 text-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.2)]"
+                  : availability.toLowerCase() === "sold"
+                    ? "border-rose-500/60 bg-black/80 text-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.2)]"
+                    : "border-purple-500/60 bg-black/80 text-purple-300 shadow-[0_0_10px_rgba(168,85,247,0.2)]"
+              }`}>
+              {availability}
+            </span>
+          </div>
+        )}
 
         {/* Hover Overlay */}
         <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/30 to-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out flex flex-col justify-between p-5">

@@ -76,7 +76,16 @@ function buildRows(): SeedRow[] {
     }
   }
 
+  const fineArtAvailability = [
+    "Available",
+    "Available",
+    "Sold",
+    "Available",
+    "Private Collection",
+  ];
+
   for (let i = 0; i < 15; i++) {
+    const avail = fineArtAvailability[i % fineArtAvailability.length];
     rows.push({
       category: "fine-art",
       title: `Fine Art Piece ${i + 1}`,
@@ -86,7 +95,7 @@ function buildRows(): SeedRow[] {
       description: `Artist notes for piece #${i + 1}.`,
       likes: 0,
       views: 0,
-      tags: ["Traditional Art", "Gallery", "Texture"],
+      tags: ["Traditional Art", "Gallery", "Texture", avail],
     });
   }
 

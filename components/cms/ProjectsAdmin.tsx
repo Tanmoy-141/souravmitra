@@ -242,6 +242,46 @@ export default function ProjectsAdmin({ onEditInsidePage }: ProjectsAdminProps =
     fetchProjects();
   };
 
+  const handleQuickSetAvailability = async (p: Project, option: string) => {
+    const currentTags = (p.tags as string[]) ?? [];
+    const otherTags = currentTags.filter(
+      (t) =>
+        !AVAILABILITY_OPTIONS.some(
+          (opt) => opt.toLowerCase() === t.trim().toLowerCase(),
+        ),
+    );
+    const newTags = option ? [...otherTags, option] : otherTags;
+
+    // Optimistic UI update
+    setProjects((prev) =>
+      prev.map((proj) =>
+        proj.id === p.id ? { ...proj, tags: newTags } : proj,
+      ),
+    );
+
+    try {
+      const res = await fetch(`/api/projects/${p.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tags: newTags }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        showMsg("Failed to update availability tag", "error");
+        fetchProjects();
+        return;
+      }
+      showMsg(
+        option
+          ? `Tagged "${p.title}" as ${option}`
+          : `Cleared tag for "${p.title}"`,
+      );
+    } catch {
+      showMsg("Network error updating tag", "error");
+      fetchProjects();
+    }
+  };
+
   const visibleProjects = categoryFilter === "all"
     ? projects
     : projects.filter((p) => p.category === categoryFilter);
@@ -376,6 +416,27 @@ export default function ProjectsAdmin({ onEditInsidePage }: ProjectsAdminProps =
                   className="text-[10px] px-2 py-1 border border-[#333] text-gray-600 hover:text-white transition-colors">
                   {p.status === "published" ? "Unpublish" : "Publish"}
                 </button>
+                {p.category === "fine-art" && (
+                  <select
+                    value={
+                      ((p.tags as string[]) ?? []).find((t) =>
+                        AVAILABILITY_OPTIONS.some(
+                          (opt) =>
+                            opt.toLowerCase() === t.trim().toLowerCase(),
+                        ),
+                      ) ?? ""
+                    }
+                    onChange={(e) =>
+                      handleQuickSetAvailability(p, e.target.value)
+                    }
+                    className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 bg-black border border-[#333] text-gray-300 hover:border-[#555] focus:border-[#C5A059] focus:outline-none cursor-pointer"
+                    title="Change availability status tag">
+                    <option value="">No Status Tag</option>
+                    <option value="Available">Available</option>
+                    <option value="Sold">Sold</option>
+                    <option value="Private Collection">Private Collection</option>
+                  </select>
+                )}
                 <button
                   onClick={() => openEdit(p)}
                   className="text-[10px] px-2 py-1 border border-[#333] text-gray-400 hover:text-white transition-colors">

@@ -2,28 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
-import { cookies } from "next/headers";
-import { resolveSession } from "@/lib/auth";
+import { isAuthorized } from "@/lib/require-session";
 import { getProjectById } from "@/lib/projects";
 import { ProjectUpdateSchema } from "@/lib/schemas";
 import { sanitizeHtml } from "@/lib/sanitize";
-
-async function isAuthorized(req?: NextRequest): Promise<boolean> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("admin_session")?.value;
-  if (sessionCookie) {
-    const result = await resolveSession(sessionCookie);
-    if (result.valid) return true;
-  }
-  if (req) {
-    const authHeader = req.headers.get("authorization");
-    if (authHeader?.startsWith("Bearer ")) {
-      const result = await resolveSession(authHeader.substring(7).trim());
-      if (result.valid) return true;
-    }
-  }
-  return false;
-}
 
 export async function GET(
   req: NextRequest,

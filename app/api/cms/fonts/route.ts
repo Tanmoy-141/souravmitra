@@ -2,32 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { siteSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { cookies } from "next/headers";
-import { resolveSession } from "@/lib/auth";
+import { isAuthorized } from "@/lib/require-session";
 import { isSafeUrl } from "@/lib/sanitize";
 import {
   CustomFont,
   sanitizeFontFamily,
   buildGoogleFontUrl,
 } from "@/lib/fonts";
-
-async function isAuthorized(req?: NextRequest): Promise<boolean> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("admin_session")?.value;
-  if (sessionCookie) {
-    const result = await resolveSession(sessionCookie);
-    if (result.valid) return true;
-  }
-  if (req) {
-    const authHeader = req.headers.get("authorization");
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.substring(7).trim();
-      const result = await resolveSession(token);
-      if (result.valid) return true;
-    }
-  }
-  return false;
-}
 
 interface ThemeData {
   faviconUrl?: string;

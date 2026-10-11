@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
-import { resolveSession } from "@/lib/auth";
-import { cookies } from "next/headers";
+import { getAuthenticatedUserId } from "@/lib/require-session";
 import { listMediaAssets, saveMediaAsset, deleteMediaAsset } from "@/lib/media";
 import fs from "fs/promises";
 import path from "path";
@@ -80,26 +79,6 @@ function sanitizeFilename(name: string): string {
   // Prefix with random string to avoid collisions and predictable names
   const prefix = crypto.randomUUID().slice(0, 8);
   return `${prefix}_${clean || "upload"}`;
-}
-
-async function getAuthenticatedUserId(
-  req?: NextRequest,
-): Promise<string | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("admin_session")?.value;
-  if (sessionCookie) {
-    const result = await resolveSession(sessionCookie);
-    if (result.valid && result.payload) return result.payload.userId;
-  }
-  if (req) {
-    const authHeader = req.headers.get("authorization");
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.substring(7).trim();
-      const result = await resolveSession(token);
-      if (result.valid && result.payload) return result.payload.userId;
-    }
-  }
-  return null;
 }
 
 export async function GET(req: NextRequest) {

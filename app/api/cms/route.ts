@@ -3,42 +3,10 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { pages } from "@/db/schema";
 import { eq, desc, isNull, isNotNull, and } from "drizzle-orm";
-import { cookies } from "next/headers";
-import { resolveSession } from "@/lib/auth";
+import { isAuthorized } from "@/lib/require-session";
 import type { Block } from "@/data/cms";
 import { sanitizeHtml, sanitizeCss, sanitizePathSlug } from "@/lib/sanitize";
 import { CmsPageSchema, CmsBulkPageSchema } from "@/lib/schemas";
-
-/**
- * Validates the cryptographic session token against tampering, forgery,
- * expiration, AND revocation (a password reset since the token was issued).
- */
-async function isAuthorized(req?: NextRequest): Promise<boolean> {
-  // 1. Check HTTP Cookie
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("admin_session")?.value;
-
-  if (sessionCookie) {
-    const result = await resolveSession(sessionCookie);
-    if (result.valid) {
-      return true;
-    }
-  }
-
-  // 2. Check Authorization Header (Bearer token)
-  if (req) {
-    const authHeader = req.headers.get("authorization");
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.substring(7).trim();
-      const result = await resolveSession(token);
-      if (result.valid) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
 
 function sanitizePageSlug(slug: string): string {
   return sanitizePathSlug(slug);

@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { siteSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { cookies } from "next/headers";
-import { resolveSession } from "@/lib/auth";
+import { isAuthorized } from "@/lib/require-session";
 import { isSafeUrl } from "@/lib/sanitize";
 
 const SOCIAL_LINK_KEYS = [
@@ -14,16 +13,6 @@ const SOCIAL_LINK_KEYS = [
   "linkedin",
   "x",
 ] as const;
-
-async function isAuthorized(): Promise<boolean> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("admin_session")?.value;
-  if (sessionCookie) {
-    const result = await resolveSession(sessionCookie);
-    return result.valid;
-  }
-  return false;
-}
 
 // GET /api/cms/settings - Fetch global site branding and footer settings.
 export async function GET() {

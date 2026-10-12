@@ -13,6 +13,7 @@ import {
   createDbVerificationToken,
   verifyAndConsumeDbToken,
 } from "@/lib/auth";
+import { isGoogleOAuthConfigured } from "@/lib/google-auth";
 import { sendEmail } from "@/lib/email";
 import { LoginSchema } from "@/lib/schemas";
 
@@ -25,16 +26,19 @@ const RATE_LIMIT_CONFIG = {
 export async function GET(req: NextRequest) {
   const sessionCookie = req.cookies.get("admin_session")?.value;
   const result = await resolveSession(sessionCookie);
+  const googleAuthAvailable = isGoogleOAuthConfigured();
 
   if (!result.valid || !result.payload) {
     return NextResponse.json({
       authenticated: false,
       user: null,
+      googleAuthAvailable,
     });
   }
 
   return NextResponse.json({
     authenticated: true,
+    googleAuthAvailable,
     user: {
       id: result.payload.userId,
       username: result.payload.sub,

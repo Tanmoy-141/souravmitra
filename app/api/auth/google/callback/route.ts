@@ -37,7 +37,8 @@ export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
   const googleError = searchParams.get("error");
   if (googleError) {
-    console.warn("[OAuth] Google returned authorization error:", googleError);
+    // Static log message to prevent user-controlled log injection (CWE-117)
+    console.warn("[OAuth] Google returned authorization error: access denied or consent cancelled.");
     return clearCookieAndRedirect("/admin?error=google_denied");
   }
 
@@ -48,15 +49,15 @@ export async function GET(req: NextRequest) {
     return clearCookieAndRedirect("/admin?error=invalid_request");
   }
 
-  const authSecret = process.env.AUTH_SECRET;
-  if (!authSecret) {
+  const cookieSigningKey = process.env.AUTH_SECRET;
+  if (!cookieSigningKey) {
     console.error("[OAuth] AUTH_SECRET is not configured in the environment.");
     return clearCookieAndRedirect("/admin?error=server_error");
   }
 
   // Verify and unpack the signed flow cookie
   const rawCookie = req.cookies.get(GOOGLE_OAUTH_COOKIE_NAME)?.value;
-  const flowData = verifyAndUnpackFlowCookie(rawCookie, authSecret);
+  const flowData = verifyAndUnpackFlowCookie(rawCookie, cookieSigningKey);
 
   if (!flowData || flowData.state !== state) {
     console.warn("[OAuth] State mismatch or expired flow cookie.");

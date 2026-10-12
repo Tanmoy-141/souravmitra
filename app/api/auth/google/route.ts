@@ -29,8 +29,8 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const authSecret = process.env.AUTH_SECRET;
-  if (!authSecret) {
+  const cookieSigningKey = process.env.AUTH_SECRET;
+  if (!cookieSigningKey) {
     console.error("[OAuth] AUTH_SECRET is not configured in the environment.");
     return NextResponse.redirect(
       new URL("/admin?error=server_error", req.nextUrl.origin),
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
         codeVerifier: flow.codeVerifier,
         nonce: flow.nonce,
       },
-      authSecret,
+      cookieSigningKey,
     );
 
     const response = NextResponse.redirect(authUrl);

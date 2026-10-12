@@ -105,3 +105,4 @@ export async function GET(req: NextRequest) {
     return clearCookieAndRedirect("/admin?error=auth_failed");
   }
 }
+

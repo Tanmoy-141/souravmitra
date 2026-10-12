@@ -12,7 +12,22 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string>(() => {
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [googleAuthAvailable, setGoogleAuthAvailable] = useState(false);
+
+  useEffect(() => {
+    // Check if Google OAuth is configured on the backend
+    fetch("/api/auth")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.googleAuthAvailable) {
+          setGoogleAuthAvailable(true);
+        }
+      })
+      .catch(() => {});
+
+    // Read error query param post-hydration to prevent server/client HTML mismatch
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const errCode = params.get("error");
@@ -32,34 +47,17 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
           server_error: "Authentication service error. Please try again later.",
           auth_failed: "Authentication failed. Please try again.",
         };
-        return (
+        const message =
           errorMap[errCode] ||
-          "Google authentication failed. Please try again."
-        );
+          "Google authentication failed. Please try again.";
+
+        // Defer to next tick so it runs post-mount without hydration mismatch or sync effect warning
+        setTimeout(() => {
+          setError(message);
+        }, 0);
+
+        window.history.replaceState({}, "", window.location.pathname);
       }
-    }
-    return "";
-  });
-  const [loading, setLoading] = useState(false);
-  const [googleAuthAvailable, setGoogleAuthAvailable] = useState(false);
-
-  useEffect(() => {
-    // Check if Google OAuth is configured on the backend
-    fetch("/api/auth")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && data.googleAuthAvailable) {
-          setGoogleAuthAvailable(true);
-        }
-      })
-      .catch(() => {});
-
-    // Clean URL query param if present
-    if (
-      typeof window !== "undefined" &&
-      window.location.search.includes("error=")
-    ) {
-      window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
 

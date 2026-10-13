@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
   isGoogleOAuthConfigured,
-  generateOAuthFlow,
+  generateGooglePKCEFlow,
   buildGoogleAuthUrl,
   packAndSignFlowCookie,
   GOOGLE_OAUTH_COOKIE_NAME,
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const flow = generateOAuthFlow();
+    const flow = generateGooglePKCEFlow();
     const authUrl = buildGoogleAuthUrl(flow);
     const signedCookie = packAndSignFlowCookie(
       {

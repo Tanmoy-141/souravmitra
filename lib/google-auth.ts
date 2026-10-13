@@ -47,9 +47,17 @@ export interface OAuthFlowData {
 }
 
 /**
+ * Computes RFC 7636 PKCE SHA-256 base64url code challenge from entropy.
+ */
+export function computePKCEChallenge(entropy: string): string {
+  // codeql[js/insufficient-password-hash] RFC 7636 PKCE specifies SHA-256 for code_challenge derivation, not password hashing.
+  return crypto.createHash("sha256").update(entropy).digest("base64url");
+}
+
+/**
  * Generates cryptographic state, PKCE code verifier/challenge, and OIDC nonce.
  */
-export function generateOAuthFlow(): {
+export function generateGooglePKCEFlow(): {
   state: string;
   codeVerifier: string;
   codeChallenge: string;
@@ -57,15 +65,16 @@ export function generateOAuthFlow(): {
 } {
   const state = crypto.randomBytes(32).toString("hex");
   const pkceEntropy = crypto.randomBytes(32).toString("base64url");
-  // codeql[js/insufficient-password-hash] RFC 7636 PKCE specifies SHA-256 for code_challenge derivation from code_verifier, not password hashing.
-  const codeChallenge = crypto
-    .createHash("sha256")
-    .update(pkceEntropy)
-    .digest("base64url");
+  const codeChallenge = computePKCEChallenge(pkceEntropy);
   const nonce = crypto.randomBytes(32).toString("hex");
 
   return { state, codeVerifier: pkceEntropy, codeChallenge, nonce };
 }
+
+/**
+ * Backwards-compatible alias for generateGooglePKCEFlow.
+ */
+export const generateOAuthFlow = generateGooglePKCEFlow;
 
 /**
  * Builds the Google OAuth 2.0 authorization URL.
@@ -108,9 +117,10 @@ export function packAndSignFlowCookie(
   const encodedPayload = Buffer.from(json).toString("base64url");
 
   // codeql[js/insufficient-password-hash] HMAC-SHA256 integrity signature for flow cookie verification, not password hashing.
-  const hmac = crypto.createHmac("sha256", signingKey);
-  hmac.update(encodedPayload);
-  const signature = hmac.digest("base64url");
+  const signature = crypto
+    .createHmac("sha256", signingKey)
+    .update(encodedPayload)
+    .digest("base64url");
 
   return `${encodedPayload}.${signature}`;
 }
@@ -133,9 +143,10 @@ export function verifyAndUnpackFlowCookie(
 
   const [encodedPayload, signature] = parts;
   // codeql[js/insufficient-password-hash] HMAC-SHA256 integrity signature for flow cookie verification, not password hashing.
-  const hmac = crypto.createHmac("sha256", signingKey);
-  hmac.update(encodedPayload);
-  const expectedSignature = hmac.digest("base64url");
+  const expectedSignature = crypto
+    .createHmac("sha256", signingKey)
+    .update(encodedPayload)
+    .digest("base64url");
 
   const sigBuffer = Buffer.from(signature, "utf8");
   const expBuffer = Buffer.from(expectedSignature, "utf8");

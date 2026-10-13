@@ -1,6 +1,6 @@
-import crypto from "crypto";
 import {
-  generateOAuthFlow,
+  generateGooglePKCEFlow,
+  computePKCEChallenge,
   buildGoogleAuthUrl,
   packAndSignFlowCookie,
   verifyAndUnpackFlowCookie,
@@ -11,11 +11,11 @@ async function runUnitTests() {
   console.log("  GOOGLE OAUTH UNIT & CRYPTOGRAPHY TEST SUITE                    ");
   console.log("==================================================================");
 
-  const testSecret = "test_super_secret_auth_key_1234567890abcdef";
+  const testSigningKey = "test_cookie_integrity_signing_key_32chars_ok";
 
   // Test 1: Flow Generation & PKCE
   console.log("\n[TEST 1] PKCE, State, and Nonce Generation...");
-  const flow = generateOAuthFlow();
+  const flow = generateGooglePKCEFlow();
   if (!flow.state || flow.state.length !== 64) {
     throw new Error(`State must be 64-char hex string, got: ${flow.state.length}`);
   }
@@ -26,13 +26,10 @@ async function runUnitTests() {
     throw new Error("codeVerifier too short");
   }
 
-  // Verify codeChallenge is valid SHA-256 base64url of codeVerifier
-  const expectedChallenge = crypto
-    .createHash("sha256")
-    .update(flow.codeVerifier)
-    .digest("base64url");
+  // Verify codeChallenge matches RFC 7636 S256 derivation of codeVerifier
+  const expectedChallenge = computePKCEChallenge(flow.codeVerifier);
   if (flow.codeChallenge !== expectedChallenge) {
-    throw new Error("codeChallenge does not match SHA-256 of codeVerifier");
+    throw new Error("codeChallenge does not match expected PKCE challenge");
   }
   console.log("  ✓ PKCE, state, and nonce cryptography verified.");
 
@@ -76,10 +73,10 @@ async function runUnitTests() {
       codeVerifier: flow.codeVerifier,
       nonce: flow.nonce,
     },
-    testSecret,
+    testSigningKey,
   );
 
-  const unpacked = verifyAndUnpackFlowCookie(signedCookie, testSecret);
+  const unpacked = verifyAndUnpackFlowCookie(signedCookie, testSigningKey);
   if (!unpacked) {
     throw new Error("Failed to unpack valid signed cookie");
   }
@@ -90,7 +87,7 @@ async function runUnitTests() {
 
   // Tamper signature
   const tamperedSig = signedCookie.slice(0, -4) + "AAAA";
-  const tamperedResult = verifyAndUnpackFlowCookie(tamperedSig, testSecret);
+  const tamperedResult = verifyAndUnpackFlowCookie(tamperedSig, testSigningKey);
   if (tamperedResult !== null) {
     throw new Error("Tampered signature was accepted!");
   }
@@ -99,7 +96,7 @@ async function runUnitTests() {
   // Tamper payload
   const parts = signedCookie.split(".");
   const tamperedPayload = "xyz" + parts[0].slice(3) + "." + parts[1];
-  const tamperedPayloadResult = verifyAndUnpackFlowCookie(tamperedPayload, testSecret);
+  const tamperedPayloadResult = verifyAndUnpackFlowCookie(tamperedPayload, testSigningKey);
   if (tamperedPayloadResult !== null) {
     throw new Error("Tampered payload was accepted!");
   }
@@ -112,10 +109,10 @@ async function runUnitTests() {
       codeVerifier: flow.codeVerifier,
       nonce: flow.nonce,
     },
-    testSecret,
+    testSigningKey,
     -1000, // already expired
   );
-  const expiredResult = verifyAndUnpackFlowCookie(expiredCookie, testSecret);
+  const expiredResult = verifyAndUnpackFlowCookie(expiredCookie, testSigningKey);
   if (expiredResult !== null) {
     throw new Error("Expired cookie was accepted!");
   }

@@ -149,15 +149,195 @@ function registerCmsDynamicBlockTypes(editorInstance: Editor) {
     },
   });
 
+  editorInstance.Components.addType("contact-card", {
+    isComponent: (el: HTMLElement) =>
+      el.classList?.contains?.("contact-card") ||
+      el.getAttribute?.("data-component") === "contact-card"
+        ? { type: "contact-card" }
+        : undefined,
+    model: {
+      defaults: {
+        selectable: true,
+        hoverable: true,
+        draggable: true,
+        droppable: true,
+        removable: true,
+        copyable: true,
+        traits: [
+          {
+            type: "color",
+            name: "card_bg_color",
+            label: "Card Background",
+          },
+          {
+            type: "color",
+            name: "card_text_color",
+            label: "Text Color",
+          },
+          {
+            type: "select",
+            name: "card_hover_style",
+            label: "Hover Effect",
+            options: [
+              { id: "lift", label: "Elevate & Lift" },
+              { id: "scale", label: "Subtle Scale" },
+              { id: "glow", label: "Shadow Glow" },
+              { id: "none", label: "None" },
+            ],
+            default: "lift",
+          },
+          {
+            type: "color",
+            name: "card_border_color",
+            label: "Border Color",
+          },
+        ],
+      },
+      init() {
+        const syncTraits = () => {
+          const style = this.getStyle() || {};
+          const bg = style["background-color"] || "#DBDBDB";
+          const color = style["color"] || "#000000";
+          const border = style["border-color"] || "";
+          this.set("card_bg_color", bg);
+          this.set("card_text_color", color);
+          if (border) this.set("card_border_color", border);
+        };
+
+        syncTraits();
+        this.on("change:selected", (_comp: unknown, isSelected: boolean) => {
+          if (isSelected) syncTraits();
+        });
+
+        this.on("change:card_bg_color", () => {
+          const bg = this.get("card_bg_color");
+          if (bg) {
+            this.addStyle({
+              "background-color": bg,
+              width: "100%",
+              "max-width": "340px",
+              flex: "0 1 340px",
+              padding: "2.5rem 2.25rem",
+              display: "flex",
+              "flex-direction": "column",
+              "justify-content": "space-between",
+              "box-sizing": "border-box",
+            });
+            this.addAttributes({ "data-card-bg": bg });
+          }
+        });
+
+        this.on("change:card_text_color", () => {
+          const color = this.get("card_text_color");
+          if (color) {
+            this.addStyle({ color });
+            this.addAttributes({ "data-card-color": color });
+            this.find?.("h1, h2, h3, p, div, a")?.forEach((child: Component) => {
+              child.addStyle({ color });
+            });
+          }
+        });
+
+        this.on("change:card_border_color", () => {
+          const border = this.get("card_border_color");
+          if (border) {
+            this.addStyle({ "border-color": border, "border-style": "solid", "border-width": "1px" });
+          } else {
+            this.addStyle({ "border-width": "0" });
+          }
+        });
+
+        this.on("change:card_hover_style", () => {
+          const effect = this.get("card_hover_style");
+          this.addAttributes({ "data-card-hover": effect });
+        });
+      },
+    },
+  });
+
   editorInstance.Components.addType("contact-form", {
     isComponent: (el: HTMLElement) =>
-      el.getAttribute?.("data-cms-block") === "contact-form"
+      (el.getAttribute?.("data-cms-block") === "contact-form" && !el.classList?.contains?.("contact-page-wrapper")) ||
+      el.classList?.contains?.("contact-form-container")
         ? { type: "contact-form" }
         : undefined,
     model: {
       defaults: {
         ...dynamicBlockDefaults,
         attributes: { "data-cms-block": "contact-form" },
+        traits: [
+          {
+            type: "color",
+            name: "submit_btn_bg",
+            label: "Button Background",
+          },
+          {
+            type: "color",
+            name: "submit_btn_text",
+            label: "Button Text Color",
+          },
+          {
+            type: "color",
+            name: "input_border_color",
+            label: "Input Border Color",
+          },
+          {
+            type: "color",
+            name: "form_bg_color",
+            label: "Form Background",
+          },
+        ],
+      },
+      init() {
+        const syncTraits = () => {
+          const btn = this.find?.("[data-submit-btn]")?.[0] || this.find?.("button")?.[0];
+          if (btn) {
+            const btnStyle = btn.getStyle() || {};
+            if (btnStyle["background-color"]) this.set("submit_btn_bg", btnStyle["background-color"]);
+            if (btnStyle["color"]) this.set("submit_btn_text", btnStyle["color"]);
+          }
+        };
+
+        syncTraits();
+        this.on("change:selected", (_comp: unknown, isSelected: boolean) => {
+          if (isSelected) syncTraits();
+        });
+
+        this.on("change:submit_btn_bg", () => {
+          const bg = this.get("submit_btn_bg");
+          if (bg) {
+            this.addAttributes({ "data-btn-bg": bg });
+            const btn = this.find?.("[data-submit-btn]")?.[0] || this.find?.("button")?.[0];
+            btn?.addStyle({ "background-color": bg });
+          }
+        });
+
+        this.on("change:submit_btn_text", () => {
+          const color = this.get("submit_btn_text");
+          if (color) {
+            this.addAttributes({ "data-btn-color": color });
+            const btn = this.find?.("[data-submit-btn]")?.[0] || this.find?.("button")?.[0];
+            btn?.addStyle({ color });
+          }
+        });
+
+        this.on("change:input_border_color", () => {
+          const border = this.get("input_border_color");
+          if (border) {
+            this.addAttributes({ "data-input-border": border });
+            this.find?.("div[style*='border'], input, textarea")?.forEach((el: Component) => {
+              el.addStyle({ "border-color": border });
+            });
+          }
+        });
+
+        this.on("change:form_bg_color", () => {
+          const bg = this.get("form_bg_color");
+          if (bg) {
+            this.addStyle({ "background-color": bg, "padding": "1.5rem" });
+            this.addAttributes({ "data-form-bg": bg });
+          }
+        });
       },
     },
   });
@@ -462,28 +642,11 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
     };
 
     const exportCleanCss = (editor: Editor): string => {
-      let css = editor.getCss() ?? "";
+      const css = editor.getCss() ?? "";
       if (initialCssRef.current && initialCssRef.current.trim()) {
         const initial = initialCssRef.current.trim();
         if (!css || css.trim().length <= 50) {
           return initial;
-        }
-        // Extract all rules from initialCss and preserve any that are not already present in css
-        const initialBlocks = initial.split("}");
-        for (const block of initialBlocks) {
-          const trimmedBlock = block.trim();
-          if (!trimmedBlock) continue;
-          const openBrace = trimmedBlock.indexOf("{");
-          if (openBrace === -1) continue;
-          const selector = trimmedBlock.substring(0, openBrace).trim();
-          if (
-            selector &&
-            !css.includes(selector) &&
-            !selector.startsWith("*") &&
-            !selector.startsWith("body")
-          ) {
-            css += `\n${trimmedBlock}}`;
-          }
         }
       }
       return css;
@@ -580,6 +743,43 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       }
     };
 
+    const syncContactCardDataAttributes = (editor: Editor) => {
+      try {
+        const wrapper = editor.getWrapper();
+        if (!wrapper) return;
+
+        const card = wrapper.find?.(".contact-card, [data-component='contact-card']")?.[0];
+        if (!card) return;
+
+        const style = card.getStyle?.() || {};
+        const el = card.getEl?.();
+        const styleAttr = (card.getAttributes?.()?.style as string) || "";
+        const bgMatch = styleAttr.match(/background(?:-color)?\s*:\s*([^;!]+)/i);
+        const colMatch = styleAttr.match(/(?:^|;)\s*color\s*:\s*([^;!]+)/i);
+
+        const activeBg =
+          style["background-color"] ||
+          (bgMatch ? bgMatch[1].trim() : null) ||
+          el?.style?.backgroundColor ||
+          card.getAttributes?.()["data-card-bg"];
+
+        const activeColor =
+          style["color"] ||
+          (colMatch ? colMatch[1].trim() : null) ||
+          el?.style?.color ||
+          card.getAttributes?.()["data-card-color"];
+
+        if (activeBg && activeBg !== "rgba(0, 0, 0, 0)" && activeBg !== "transparent") {
+          card.addAttributes({ "data-card-bg": activeBg });
+        }
+        if (activeColor) {
+          card.addAttributes({ "data-card-color": activeColor });
+        }
+      } catch (err) {
+        console.warn("Failed to sync contact card attributes:", err);
+      }
+    };
+
     useImperativeHandle(
       ref,
       () => ({
@@ -588,6 +788,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           if (!editor) return null;
 
           syncAllCounters(editor);
+          syncContactCardDataAttributes(editor);
 
           return {
             projectData: editor.getProjectData(),
@@ -839,6 +1040,155 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             "https://fonts.googleapis.com/css2?family=Almendra:ital,wght@0,400;0,700;1,400&family=Bellefair&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Cardo:ital,wght@0,400;0,700;1,400&family=Castoro+Titling&family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400..900&family=Cormorant+Garamond:ital,wght@0,300..700;1,300..700&family=Crimson+Pro:ital,wght@0,300..900;1,300..900&family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Faustina:ital,wght@0,300..800;1,300..800&family=Forum&family=Frank+Ruhl+Libre:wght@300..900&family=Italiana&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400..700;1,400..700&family=Marcellus&family=MedievalSharp&family=Merriweather:ital,wght@0,300..900;1,300..900&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Playfair+Display+SC:ital,wght@0,400;0,700;0,900;1,400&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Prata&family=Spectral:ital,wght@0,200..800;1,200..800&family=Unna:ital,wght@0,400;0,700;1,400&family=Vollkorn:ital,wght@0,400..900;1,400..900&display=swap",
             "https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,300..900;1,300..900&family=Be+Vietnam+Pro:ital,wght@0,300..900;1,300..900&family=Cabin:ital,wght@0,400..700;1,400..700&family=DM+Sans:ital,opsz,wght@0,9..40,300..900;1,9..40,300..900&family=Epilogue:ital,wght@0,300..900;1,300..900&family=Inter:wght@300..900&family=Jost:ital,wght@0,300..900;1,300..900&family=Lexend:wght@300..900&family=Manrope:wght@300..800&family=Montserrat:ital,wght@0,300..900;1,300..900&family=Outfit:wght@300..900&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Poppins:ital,wght@0,300..900;1,300..900&family=Raleway:ital,wght@0,300..900;1,300..900&family=Sora:wght@300..800&family=Space+Grotesk:wght@300..700&family=Syne:wght@400..800&family=Urbanist:ital,wght@0,300..900;1,300..900&family=Work+Sans:ital,wght@0,300..900;1,300..900&display=swap",
             "https://fonts.googleapis.com/css2?family=Alex+Brush&family=Anton&family=Audiowide&family=Bebas+Neue&family=Bungee&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Creepster&family=Dancing+Script:wght@400..700&family=Fira+Code:wght@400..700&family=Great+Vibes&family=JetBrains+Mono:ital,wght@0,300..800;1,300..800&family=Nosifer&family=Orbitron:wght@400..900&family=Oswald:wght@300..700&family=Parisienne&family=Pirata+One&family=Righteous&family=Russo+One&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Special+Elite&family=Teko:wght@400..700&family=Uncial+Antiqua&display=swap",
+            "data:text/css;charset=utf-8," +
+              encodeURIComponent(`
+                html, body {
+                  background-color: #000000 !important;
+                  color: #FFFFFF !important;
+                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Poppins", sans-serif !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  box-sizing: border-box !important;
+                }
+                .contact-page-wrapper, [data-component="contact-wrapper"] {
+                  width: 100% !important;
+                  max-width: 960px !important;
+                  margin: 2rem auto !important;
+                  padding: 1rem !important;
+                  box-sizing: border-box !important;
+                  display: flex !important;
+                  flex-direction: row !important;
+                  flex-wrap: wrap !important;
+                  gap: 2rem !important;
+                  justify-content: center !important;
+                  align-items: stretch !important;
+                  background: transparent !important;
+                }
+                .contact-card, [data-component="contact-card"] {
+                  padding: 2.5rem 2.25rem !important;
+                  width: 100% !important;
+                  max-width: 340px !important;
+                  min-width: 280px !important;
+                  box-sizing: border-box !important;
+                  display: flex !important;
+                  flex-direction: column !important;
+                  justify-content: space-between !important;
+                  border-radius: 0px !important;
+                  cursor: pointer !important;
+                  flex: 0 1 340px !important;
+                }
+                .contact-card h1 {
+                  font-size: 2.25rem !important;
+                  font-weight: 500 !important;
+                  margin: 0 0 1.25rem 0 !important;
+                  line-height: 1.15 !important;
+                  color: inherit;
+                  font-family: sans-serif !important;
+                }
+                .contact-card p, .contact-card div {
+                  font-size: 0.85rem !important;
+                  line-height: 1.6 !important;
+                  color: inherit;
+                }
+                .contact-card a[href^="mailto:"] {
+                  font-size: 0.85rem !important;
+                  color: inherit;
+                  text-decoration: none !important;
+                  display: inline-block !important;
+                  margin-bottom: 1.25rem !important;
+                }
+                .contact-social-icons-row {
+                  display: flex !important;
+                  gap: 0.5rem !important;
+                  align-items: center !important;
+                }
+                .contact-social-icon {
+                  display: inline-flex !important;
+                  width: 24px !important;
+                  height: 24px !important;
+                  background: #000000 !important;
+                  border-radius: 50% !important;
+                  align-items: center !important;
+                  justify-content: center !important;
+                  color: #FFFFFF !important;
+                  font-size: 11px !important;
+                  font-weight: bold !important;
+                  text-decoration: none !important;
+                }
+                .contact-form-container, [data-cms-block="contact-form"]:not(.contact-page-wrapper):not([data-component="contact-wrapper"]) {
+                  width: 100% !important;
+                  max-width: 450px !important;
+                  display: flex !important;
+                  flex-direction: column !important;
+                  gap: 1rem !important;
+                  box-sizing: border-box !important;
+                  justify-content: center !important;
+                  flex: 1 1 380px !important;
+                }
+                  box-sizing: border-box !important;
+                  justify-content: center !important;
+                }
+                .contact-form-grid-2 {
+                  display: grid !important;
+                  grid-template-columns: 1fr 1fr !important;
+                  gap: 0.75rem !important;
+                }
+                .contact-form-label {
+                  display: block !important;
+                  color: #FFFFFF !important;
+                  font-size: 0.8rem !important;
+                  margin-bottom: 0.35rem !important;
+                }
+                .contact-mock-input {
+                  background: #000000 !important;
+                  border: 1px solid #FFFFFF !important;
+                  height: 34px !important;
+                  width: 100% !important;
+                  box-sizing: border-box !important;
+                  display: block !important;
+                }
+                .contact-mock-textarea {
+                  background: #000000 !important;
+                  border: 1px solid #FFFFFF !important;
+                  height: 75px !important;
+                  width: 100% !important;
+                  box-sizing: border-box !important;
+                  display: block !important;
+                }
+                .contact-roles-row {
+                  display: flex !important;
+                  justify-content: center !important;
+                  align-items: center !important;
+                  gap: 1.5rem !important;
+                  padding: 0.25rem 0 !important;
+                }
+                .contact-role-item {
+                  color: #FFFFFF !important;
+                  font-size: 0.8rem !important;
+                  display: inline-flex !important;
+                  align-items: center !important;
+                  gap: 0.4rem !important;
+                }
+                .contact-radio-dot {
+                  display: inline-block !important;
+                  width: 13px !important;
+                  height: 13px !important;
+                  border-radius: 50% !important;
+                  border: 1px solid #FFFFFF !important;
+                }
+                .contact-submit-btn, [data-submit-btn] {
+                  background-color: #DBDBDB !important;
+                  color: #000000 !important;
+                  text-align: center !important;
+                  padding: 0.65rem 1rem !important;
+                  font-size: 0.85rem !important;
+                  font-weight: 500 !important;
+                  cursor: pointer !important;
+                  width: 100% !important;
+                  display: block !important;
+                  box-sizing: border-box !important;
+                }
+              `),
           ],
         },
 
@@ -1980,6 +2330,74 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               ...defaultToolbar,
             ]);
           }
+        } else if (
+          component.is("contact-card") ||
+          component.closest?.(".contact-card, [data-component='contact-card']")
+        ) {
+          const target = component.is("contact-card")
+            ? component
+            : component.closest(".contact-card, [data-component='contact-card']");
+          if (!target) return;
+          const defaultToolbar = (target.get("toolbar") || []) as ToolbarButtonProps[];
+          if (!defaultToolbar.some((item) => item.command === "open-contact-card-customizer")) {
+            target.set("toolbar", [
+              {
+                id: "card-customizer-btn",
+                attributes: { title: "Customize Card Colors, Button & Hover Style" },
+                command: "open-contact-card-customizer",
+                label: "🎨 Card Colors",
+              },
+              ...defaultToolbar,
+            ]);
+          }
+          if (component !== target) {
+            const childToolbar = (component.get("toolbar") || []) as ToolbarButtonProps[];
+            if (!childToolbar.some((item) => item.command === "open-contact-card-customizer")) {
+              component.set("toolbar", [
+                {
+                  id: "card-customizer-child-btn",
+                  attributes: { title: "Customize Card Colors & Style" },
+                  command: "open-contact-card-customizer",
+                  label: "🎨 Card Colors",
+                },
+                ...childToolbar,
+              ]);
+            }
+          }
+        } else if (
+          component.is("contact-form") ||
+          component.closest?.('[data-cms-block="contact-form"], .contact-form-container')
+        ) {
+          const target = component.is("contact-form")
+            ? component
+            : component.closest('[data-cms-block="contact-form"], .contact-form-container');
+          if (!target) return;
+          const defaultToolbar = (target.get("toolbar") || []) as ToolbarButtonProps[];
+          if (!defaultToolbar.some((item) => item.command === "open-contact-card-customizer")) {
+            target.set("toolbar", [
+              {
+                id: "form-customizer-btn",
+                attributes: { title: "Customize Form & Button Colors" },
+                command: "open-contact-card-customizer",
+                label: "🎨 Form Colors",
+              },
+              ...defaultToolbar,
+            ]);
+          }
+          if (component !== target) {
+            const childToolbar = (component.get("toolbar") || []) as ToolbarButtonProps[];
+            if (!childToolbar.some((item) => item.command === "open-contact-card-customizer")) {
+              component.set("toolbar", [
+                {
+                  id: "form-customizer-child-btn",
+                  attributes: { title: "Customize Form & Button Colors" },
+                  command: "open-contact-card-customizer",
+                  label: "🎨 Form Colors",
+                },
+                ...childToolbar,
+              ]);
+            }
+          }
         }
 
         // Attach on-canvas Alignment & Anchoring buttons to EVERY selected component
@@ -2134,6 +2552,13 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           component.closest?.('[data-cms-block="project-carousel"]')
         ) {
           editor.runCommand("open-project-carousel-editor");
+        } else if (
+          component.is("contact-card") ||
+          component.closest?.(".contact-card, [data-component='contact-card']") ||
+          component.is("contact-form") ||
+          component.closest?.('[data-cms-block="contact-form"], .contact-form-container')
+        ) {
+          editor.runCommand("open-contact-card-customizer");
         }
       });
 
@@ -2807,18 +3232,248 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         try {
           const doc = editor.Canvas.getDocument();
           if (doc?.head) {
-            if (!doc.head.querySelector("#cms-counter-reset-style")) {
-              const style = doc.createElement("style");
+            if (doc.body) {
+              doc.body.style.backgroundColor = "#000000";
+              doc.body.style.color = "#FFFFFF";
+            }
+            if (doc.documentElement) {
+              doc.documentElement.style.backgroundColor = "#000000";
+              doc.documentElement.style.color = "#FFFFFF";
+            }
+            let style = doc.head.querySelector("#cms-counter-reset-style") as HTMLStyleElement | null;
+            if (!style) {
+              style = doc.createElement("style");
               style.id = "cms-counter-reset-style";
-              style.textContent = `
+              doc.head.appendChild(style);
+            }
+            style.textContent = `
+                /* Dark Theme Canvas Root matching Live Site */
+                html, body {
+                  background-color: #000000 !important;
+                  color: #FFFFFF !important;
+                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Poppins", sans-serif !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  box-sizing: border-box !important;
+                }
+
                 .counter-item {
                   background: transparent !important;
                   border: none !important;
                   box-shadow: none !important;
                 }
+
+                /* Contact Page 2-Column Responsive Layout */
+                .contact-page-wrapper,
+                [data-component="contact-wrapper"] {
+                  width: 100% !important;
+                  max-width: 960px !important;
+                  margin: 2rem auto !important;
+                  padding: 1rem !important;
+                  box-sizing: border-box !important;
+                  display: flex !important;
+                  flex-direction: row !important;
+                  flex-wrap: wrap !important;
+                  gap: 2rem !important;
+                  justify-content: center !important;
+                  align-items: stretch !important;
+                  background: transparent !important;
+                }
+
+                /* Left Contact Card in CMS */
+                .contact-card,
+                [data-component="contact-card"] {
+                  padding: 2.5rem 2.25rem !important;
+                  width: 100% !important;
+                  max-width: 340px !important;
+                  min-width: 280px !important;
+                  box-sizing: border-box !important;
+                  display: flex !important;
+                  flex-direction: column !important;
+                  justify-content: space-between !important;
+                  border-radius: 0px !important;
+                  flex: 0 1 340px !important;
+                  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s ease, filter 0.35s ease !important;
+                  will-change: transform, box-shadow;
+                  cursor: pointer !important;
+                }
+
+                .contact-card h1 {
+                  font-size: 2.25rem !important;
+                  font-weight: 500 !important;
+                  margin: 0 0 1.25rem 0 !important;
+                  line-height: 1.15 !important;
+                  color: inherit;
+                  font-family: sans-serif !important;
+                }
+
+                .contact-card p,
+                .contact-card div {
+                  font-size: 0.85rem !important;
+                  line-height: 1.6 !important;
+                  color: inherit;
+                }
+
+                .contact-card a[href^="mailto:"] {
+                  font-size: 0.85rem !important;
+                  color: inherit;
+                  text-decoration: none !important;
+                  display: inline-block !important;
+                  margin-bottom: 1.25rem !important;
+                }
+
+                .contact-social-icons-row {
+                  display: flex !important;
+                  gap: 0.5rem !important;
+                  align-items: center !important;
+                }
+
+                .contact-social-icon {
+                  display: inline-flex !important;
+                  width: 24px !important;
+                  height: 24px !important;
+                  background: #000000 !important;
+                  border-radius: 50% !important;
+                  align-items: center !important;
+                  justify-content: center !important;
+                  color: #FFFFFF !important;
+                  font-size: 11px !important;
+                  font-weight: bold !important;
+                  text-decoration: none !important;
+                  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.25s ease, opacity 0.25s ease, box-shadow 0.25s ease !important;
+                  will-change: transform;
+                }
+
+                .contact-card:hover {
+                  transform: translateY(-8px) !important;
+                  box-shadow: 0 20px 40px -10px rgba(255, 255, 255, 0.22), 0 0 30px rgba(255, 255, 255, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.35) !important;
+                }
+
+                .contact-card[data-card-hover="scale"]:hover {
+                  transform: scale(1.03) !important;
+                  box-shadow: 0 20px 40px -10px rgba(255, 255, 255, 0.22), 0 0 30px rgba(255, 255, 255, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.35) !important;
+                }
+
+                .contact-card[data-card-hover="glow"]:hover {
+                  transform: none !important;
+                  box-shadow: 0 0 40px 4px rgba(255, 255, 255, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.5) !important;
+                }
+
+                .contact-card[data-card-hover="none"]:hover {
+                  transform: none !important;
+                  box-shadow: none !important;
+                }
+
+                /* Right Form Container in CMS */
+                .contact-form-container,
+                [data-cms-block="contact-form"]:not(.contact-page-wrapper):not([data-component="contact-wrapper"]) {
+                  width: 100% !important;
+                  max-width: 450px !important;
+                  display: flex !important;
+                  flex-direction: column !important;
+                  gap: 1rem !important;
+                  box-sizing: border-box !important;
+                  justify-content: center !important;
+                  flex: 1 1 380px !important;
+                  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+                  will-change: transform, box-shadow;
+                }
+
+                .contact-form-container:hover {
+                  transform: translateY(-4px) !important;
+                }
+
+                .contact-form-grid-2 {
+                  display: grid !important;
+                  grid-template-columns: 1fr 1fr !important;
+                  gap: 0.75rem !important;
+                }
+
+                .contact-form-label {
+                  display: block !important;
+                  color: #FFFFFF !important;
+                  font-size: 0.8rem !important;
+                  margin-bottom: 0.35rem !important;
+                  font-weight: normal !important;
+                  font-family: sans-serif !important;
+                }
+
+                .contact-mock-input {
+                  background: #000000 !important;
+                  border: 1px solid #FFFFFF !important;
+                  height: 34px !important;
+                  width: 100% !important;
+                  box-sizing: border-box !important;
+                  display: block !important;
+                  border-radius: 0px !important;
+                }
+
+                .contact-mock-textarea {
+                  background: #000000 !important;
+                  border: 1px solid #FFFFFF !important;
+                  height: 75px !important;
+                  width: 100% !important;
+                  box-sizing: border-box !important;
+                  display: block !important;
+                  border-radius: 0px !important;
+                }
+
+                .contact-roles-row {
+                  display: flex !important;
+                  justify-content: center !important;
+                  align-items: center !important;
+                  gap: 1.5rem !important;
+                  padding: 0.25rem 0 !important;
+                }
+
+                .contact-role-item {
+                  color: #FFFFFF !important;
+                  font-size: 0.8rem !important;
+                  display: inline-flex !important;
+                  align-items: center !important;
+                  gap: 0.4rem !important;
+                  font-family: sans-serif !important;
+                }
+
+                .contact-radio-dot {
+                  display: inline-block !important;
+                  width: 13px !important;
+                  height: 13px !important;
+                  border-radius: 50% !important;
+                  border: 1px solid #FFFFFF !important;
+                }
+
+                .contact-submit-btn,
+                [data-submit-btn] {
+                  background-color: #DBDBDB;
+                  color: #000000;
+                  text-align: center !important;
+                  padding: 0.65rem 1rem !important;
+                  font-size: 0.85rem !important;
+                  font-weight: 500 !important;
+                  cursor: pointer !important;
+                  width: 100% !important;
+                  display: block !important;
+                  box-sizing: border-box !important;
+                  border-radius: 0px !important;
+                  font-family: sans-serif !important;
+                  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, filter 0.25s ease !important;
+                }
+
+                .contact-social-icon:hover {
+                  transform: translateY(-3px) scale(1.22) !important;
+                  opacity: 0.95 !important;
+                  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.35) !important;
+                }
+
+                [data-submit-btn]:hover {
+                  transform: translateY(-2.5px) scale(1.01) !important;
+                  filter: brightness(1.12) !important;
+                  box-shadow: 0 10px 25px -4px rgba(255, 255, 255, 0.35), 0 0 15px rgba(255, 255, 255, 0.15) !important;
+                  cursor: pointer !important;
+                }
               `;
-              doc.head.appendChild(style);
-            }
+
             if (
               initialCssRef.current &&
               initialCssRef.current.trim() &&
@@ -2830,8 +3485,128 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               doc.head.appendChild(pageStyle);
             }
           }
+
+          if (doc?.body) {
+            doc.body.style.backgroundColor = "#000000";
+            doc.body.style.color = "#FFFFFF";
+          }
+          const frame = editor.Canvas.getFrameEl();
+          if (frame) {
+            frame.style.backgroundColor = "#000000";
+          }
         } catch {
           // ignore
+        }
+      };
+
+      const repairContactPageLayout = (ed: Editor) => {
+        try {
+          const wrapper = ed.getWrapper();
+          if (!wrapper) return;
+
+          // Check if contact elements exist on canvas
+          const contactWrappers =
+            wrapper.find?.(".contact-page-wrapper, [data-component='contact-wrapper']") || [];
+          const contactCards =
+            wrapper.find?.(".contact-card, [data-component='contact-card']") || [];
+          const contactForms =
+            wrapper.find?.(".contact-form-container, [data-cms-block='contact-form']") || [];
+
+          if (contactWrappers.length === 0 && contactCards.length === 0 && contactForms.length === 0) {
+            return;
+          }
+
+          let pWrap: Component | null = contactWrappers[0] || null;
+          let cCard: Component | null = contactCards[0] || null;
+          let fForm: Component | null = null;
+
+          // If no wrapper found, but card exists, find or wrap
+          if (!pWrap && cCard) {
+            const parent = cCard.parent?.();
+            if (parent && parent !== wrapper) {
+              pWrap = parent;
+              pWrap.addClass?.("contact-page-wrapper");
+              pWrap.addAttributes({ "data-component": "contact-wrapper" });
+            }
+          }
+
+          if (pWrap) {
+            // Guarantee parent wrapper is 2-column flex row, max 960px, transparent
+            pWrap.addStyle({
+              width: "100%",
+              "max-width": "960px",
+              margin: "2rem auto",
+              padding: "1rem",
+              "box-sizing": "border-box",
+              display: "flex",
+              "flex-direction": "row",
+              "flex-wrap": "wrap",
+              gap: "2rem",
+              "justify-content": "center",
+              "align-items": "stretch",
+              background: "transparent",
+            });
+            pWrap.addClass?.("contact-page-wrapper");
+            pWrap.addAttributes({ "data-component": "contact-wrapper" });
+            if (pWrap.getAttributes?.()["data-cms-block"] === "contact-form") {
+              pWrap.removeAttributes?.("data-cms-block");
+            }
+
+            // Find or associate card
+            if (!cCard) {
+              const foundCards = pWrap.find?.(".contact-card, [data-component='contact-card']") || [];
+              if (foundCards.length > 0) cCard = foundCards[0];
+            }
+
+            // Find or associate form container (must NOT be pWrap)
+            const forms = pWrap.find?.(".contact-form-container") || [];
+            if (forms.length > 0) {
+              fForm = forms[0];
+            } else {
+              const children = (pWrap.components?.() as { models?: Component[] })?.models || [];
+              const nonCard = children.find(
+                (c: Component) => c !== cCard && !c.getClasses?.()?.includes("contact-card"),
+              );
+              if (nonCard) {
+                fForm = nonCard;
+                fForm.addClass?.("contact-form-container");
+              }
+            }
+          }
+
+          if (cCard) {
+            cCard.addStyle({
+              width: "100%",
+              "max-width": "340px",
+              "min-width": "280px",
+              flex: "0 1 340px",
+              padding: "2.5rem 2.25rem",
+              display: "flex",
+              "flex-direction": "column",
+              "justify-content": "space-between",
+              "box-sizing": "border-box",
+              cursor: "pointer",
+            });
+            cCard.addClass?.("contact-card");
+            cCard.addAttributes({ "data-component": "contact-card" });
+          }
+
+          if (fForm && fForm !== pWrap) {
+            fForm.addStyle({
+              width: "100%",
+              "max-width": "450px",
+              display: "flex",
+              "flex-direction": "column",
+              gap: "1rem",
+              "box-sizing": "border-box",
+              "justify-content": "center",
+              flex: "1 1 380px",
+            });
+            fForm.addClass?.("contact-form-container");
+            fForm.addAttributes({ "data-cms-block": "contact-form" });
+          }
+        } catch (err) {
+          console.warn("Contact page layout auto-repair error:", err);
         }
       };
 
@@ -2841,6 +3616,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         });
         setTimeout(setupTypographyCustomFontButton, 250);
         injectEditorResetStyles();
+        repairContactPageLayout(editor);
       });
 
       editor.on("canvas:frame:load", () => {
@@ -2848,6 +3624,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           injectFontIntoDocumentAndCanvas(font, editor);
         });
         injectEditorResetStyles();
+        repairContactPageLayout(editor);
       });
 
       /*
@@ -2865,8 +3642,622 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       });
 
       /*
-       * Counter animation preview command
+       * Contact Card & Form Color Customizer Modal Command
        */
+      editor.Commands.add("open-contact-card-customizer", {
+        run: () => {
+          const selected = editor.getSelected();
+          const wrapper = editor.getWrapper();
+
+          // 1. Locate parent wrapper
+          let parentWrap: Component | null = null;
+          if (selected) {
+            if (
+              selected.getClasses?.()?.includes("contact-page-wrapper") ||
+              selected.getAttributes?.()["data-component"] === "contact-wrapper"
+            ) {
+              parentWrap = selected;
+            } else {
+              parentWrap =
+                selected.closest?.(".contact-page-wrapper") ||
+                selected.closest?.("[data-component='contact-wrapper']") ||
+                null;
+            }
+          }
+          if (!parentWrap && wrapper) {
+            const found =
+              wrapper.find?.(".contact-page-wrapper") ||
+              wrapper.find?.("[data-component='contact-wrapper']") ||
+              [];
+            if (found.length > 0) parentWrap = found[0];
+          }
+
+          // 2. Locate card component (must not be parentWrap)
+          let cardComp: Component | null = null;
+          if (selected && selected !== parentWrap) {
+            if (
+              selected.is("contact-card") ||
+              selected.getClasses?.()?.includes("contact-card") ||
+              selected.getAttributes?.()["data-component"] === "contact-card"
+            ) {
+              cardComp = selected;
+            } else {
+              cardComp =
+                selected.closest?.(".contact-card") ||
+                selected.closest?.("[data-component='contact-card']") ||
+                null;
+            }
+          }
+          if (!cardComp && parentWrap) {
+            const found =
+              parentWrap.find?.(".contact-card") ||
+              parentWrap.find?.("[data-component='contact-card']") ||
+              [];
+            if (found.length > 0) cardComp = found[0];
+          }
+          if (!cardComp && wrapper) {
+            const found =
+              wrapper.find?.(".contact-card") ||
+              wrapper.find?.("[data-component='contact-card']") ||
+              [];
+            if (found.length > 0) cardComp = found[0];
+          }
+
+          // 3. Locate form container component (must NEVER be parentWrap or cardComp)
+          let formComp: Component | null = null;
+          if (selected && selected !== parentWrap && selected !== cardComp) {
+            if (
+              selected.getClasses?.()?.includes("contact-form-container") ||
+              (selected.getAttributes?.()["data-cms-block"] === "contact-form" && selected !== parentWrap)
+            ) {
+              formComp = selected;
+            } else {
+              formComp =
+                selected.closest?.(".contact-form-container") ||
+                null;
+            }
+          }
+          if (!formComp && parentWrap) {
+            const found = parentWrap.find?.(".contact-form-container") || [];
+            if (found.length > 0) {
+              formComp = found[0];
+            } else {
+              // In older HTML where form container lacked class, find child sibling of cardComp
+              const children = (parentWrap.components?.() as { models?: Component[] })?.models || [];
+              const nonCard = children.find(
+                (c: Component) => c !== cardComp && !c.getClasses?.()?.includes("contact-card"),
+              );
+              if (nonCard) {
+                formComp = nonCard;
+                formComp.addClass?.("contact-form-container");
+              }
+            }
+          }
+          if (!formComp && wrapper) {
+            const found = wrapper.find?.(".contact-form-container") || [];
+            if (found.length > 0 && found[0] !== parentWrap) {
+              formComp = found[0];
+            }
+          }
+
+          if (!cardComp && !formComp) {
+            alert("Please select or add the Contact Card or Contact Form first to customize colors.");
+            return;
+          }
+
+          const normalizeHex = (colorStr?: string, fallback = "#DBDBDB") => {
+            if (!colorStr) return fallback;
+            const s = colorStr.trim();
+            if (s.startsWith("#")) {
+              if (s.length === 4) {
+                return `#${s[1]}${s[1]}${s[2]}${s[2]}${s[3]}${s[3]}`.toUpperCase();
+              }
+              return s.slice(0, 7).toUpperCase();
+            }
+            const match = s.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+            if (match) {
+              const r = parseInt(match[1], 10).toString(16).padStart(2, "0");
+              const g = parseInt(match[2], 10).toString(16).padStart(2, "0");
+              const b = parseInt(match[3], 10).toString(16).padStart(2, "0");
+              return `#${r}${g}${b}`.toUpperCase();
+            }
+            return fallback;
+          };
+
+          const getCompBg = (comp: Component | null) => {
+            if (!comp) return "#DBDBDB";
+            const s = comp.getStyle?.();
+            if (s && s["background-color"]) return s["background-color"];
+            const styleAttr = (comp.getAttributes?.()?.style as string) || "";
+            const match = styleAttr.match(/background(?:-color)?\s*:\s*([^;!]+)/i);
+            if (match) return match[1].trim();
+            const el = comp.getEl?.();
+            if (el?.style?.backgroundColor) return el.style.backgroundColor;
+            return comp.getAttributes?.()["data-card-bg"] || "#DBDBDB";
+          };
+
+          const getCompColor = (comp: Component | null) => {
+            if (!comp) return "#000000";
+            const s = comp.getStyle?.();
+            if (s && s["color"]) return s["color"];
+            const styleAttr = (comp.getAttributes?.()?.style as string) || "";
+            const match = styleAttr.match(/(?:^|;)\s*color\s*:\s*([^;!]+)/i);
+            if (match) return match[1].trim();
+            const el = comp.getEl?.();
+            if (el?.style?.color) return el.style.color;
+            return comp.getAttributes?.()["data-card-color"] || "#000000";
+          };
+
+          const curCardBg = normalizeHex(getCompBg(cardComp), "#DBDBDB");
+          const curCardColor = normalizeHex(getCompColor(cardComp), "#000000");
+          const curBtnBg = normalizeHex(
+            formComp?.getAttributes?.()["data-btn-bg"] || formComp?.find?.("[data-submit-btn]")?.[0]?.getStyle?.()["background-color"],
+            "#DBDBDB",
+          );
+          const curBtnColor = normalizeHex(
+            formComp?.getAttributes?.()["data-btn-color"] || formComp?.find?.("[data-submit-btn]")?.[0]?.getStyle?.()["color"],
+            "#000000",
+          );
+          const curBorder = normalizeHex(
+            formComp?.getAttributes?.()["data-input-border"],
+            "#FFFFFF",
+          );
+          const curHover = cardComp?.getAttributes?.()["data-card-hover"] || "lift";
+
+          const modal = editor.Modal;
+          modal.setTitle("🎨 Customize Contact Card & Form Colors");
+
+          const container = document.createElement("div");
+          container.style.cssText =
+            "display: flex; flex-direction: column; gap: 16px; color: #fff; max-height: 80vh; overflow-y: auto; padding: 4px 8px; font-family: sans-serif;";
+
+          container.innerHTML = `
+            <div style="background: #141414; border: 1px solid #262626; border-radius: 4px; padding: 12px 14px;">
+              <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; margin-bottom: 8px;">
+                ⚡ Quick Palette Presets
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px;" id="cfg-presets-row">
+                <button type="button" data-preset="default" style="background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; padding: 5px 12px; font-size: 11px; cursor: pointer;">🔘 Default Gray</button>
+                <button type="button" data-preset="dark" style="background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; padding: 5px 12px; font-size: 11px; cursor: pointer;">🌙 Dark Charcoal</button>
+                <button type="button" data-preset="gold" style="background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; padding: 5px 12px; font-size: 11px; cursor: pointer;">✨ Luxury Gold</button>
+                <button type="button" data-preset="white" style="background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; padding: 5px 12px; font-size: 11px; cursor: pointer;">⚪ Clean White</button>
+                <button type="button" data-preset="black" style="background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; padding: 5px 12px; font-size: 11px; cursor: pointer;">🖤 Pitch Black</button>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+              <!-- Left Card Customization -->
+              <div style="background: #111; border: 1px solid #262626; border-radius: 4px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;">
+                <div style="font-size: 12px; font-weight: 700; color: #C5A059; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid #222; padding-bottom: 4px;">
+                  Left Contact Card
+                </div>
+                <div>
+                  <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px;">Card Background Color</label>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="color" id="cfg-card-bg-picker" value="${curCardBg}" style="width: 36px; height: 30px; border: 1px solid #333; background: none; cursor: pointer; border-radius: 2px;">
+                    <input type="text" id="cfg-card-bg-text" value="${curCardBg}" style="flex: 1; background: #000; border: 1px solid #333; color: #fff; padding: 5px 8px; font-size: 11px; border-radius: 2px;">
+                  </div>
+                </div>
+                <div>
+                  <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px;">Card Text Color</label>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="color" id="cfg-card-color-picker" value="${curCardColor}" style="width: 36px; height: 30px; border: 1px solid #333; background: none; cursor: pointer; border-radius: 2px;">
+                    <input type="text" id="cfg-card-color-text" value="${curCardColor}" style="flex: 1; background: #000; border: 1px solid #333; color: #fff; padding: 5px 8px; font-size: 11px; border-radius: 2px;">
+                  </div>
+                </div>
+                <div>
+                  <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px;">Hover Animation Style</label>
+                  <select id="cfg-card-hover-select" style="width: 100%; background: #000; border: 1px solid #333; color: #fff; padding: 6px 8px; font-size: 11px; border-radius: 2px; cursor: pointer;">
+                    <option value="lift" ${curHover === "lift" ? "selected" : ""}>Elevate & Luminous Glow (Default)</option>
+                    <option value="scale" ${curHover === "scale" ? "selected" : ""}>Subtle Scale (+3%)</option>
+                    <option value="glow" ${curHover === "glow" ? "selected" : ""}>Luminous Glow Only</option>
+                    <option value="none" ${curHover === "none" ? "selected" : ""}>None (Static)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Right Form & Button Customization -->
+              <div style="background: #111; border: 1px solid #262626; border-radius: 4px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;">
+                <div style="font-size: 12px; font-weight: 700; color: #C5A059; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid #222; padding-bottom: 4px;">
+                  Right Form & Button
+                </div>
+                <div>
+                  <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px;">Submit Button Background</label>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="color" id="cfg-btn-bg-picker" value="${curBtnBg}" style="width: 36px; height: 30px; border: 1px solid #333; background: none; cursor: pointer; border-radius: 2px;">
+                    <input type="text" id="cfg-btn-bg-text" value="${curBtnBg}" style="flex: 1; background: #000; border: 1px solid #333; color: #fff; padding: 5px 8px; font-size: 11px; border-radius: 2px;">
+                  </div>
+                </div>
+                <div>
+                  <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px;">Submit Button Text Color</label>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="color" id="cfg-btn-color-picker" value="${curBtnColor}" style="width: 36px; height: 30px; border: 1px solid #333; background: none; cursor: pointer; border-radius: 2px;">
+                    <input type="text" id="cfg-btn-color-text" value="${curBtnColor}" style="flex: 1; background: #000; border: 1px solid #333; color: #fff; padding: 5px 8px; font-size: 11px; border-radius: 2px;">
+                  </div>
+                </div>
+                <div>
+                  <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px;">Form Input Border Color</label>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="color" id="cfg-border-picker" value="${curBorder}" style="width: 36px; height: 30px; border: 1px solid #333; background: none; cursor: pointer; border-radius: 2px;">
+                    <input type="text" id="cfg-border-text" value="${curBorder}" style="flex: 1; background: #000; border: 1px solid #333; color: #fff; padding: 5px 8px; font-size: 11px; border-radius: 2px;">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Live Interactive Preview -->
+            <div style="background: #080808; border: 1px solid #222; border-radius: 4px; padding: 12px 14px;">
+              <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #888; margin-bottom: 8px;">
+                👁️ Live Interactive Preview (Hover over card)
+              </div>
+              <div style="display: flex; align-items: center; justify-content: center; gap: 20px; padding: 16px; background: #000; border: 1px dashed #2a2a2a; border-radius: 3px;">
+                <div id="cfg-preview-card" style="background-color: ${curCardBg}; color: ${curCardColor}; width: 140px; padding: 12px; box-sizing: border-box; transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1); cursor: pointer; font-size: 10px;">
+                  <div style="font-size: 14px; font-weight: bold; margin-bottom: 4px;">Hello,</div>
+                  <div style="opacity: 0.85; line-height: 1.3; font-size: 9px;">Got a story that needs a cover? I'd love to hear from you.</div>
+                  <div style="margin-top: 8px; font-size: 8px; opacity: 0.8;">souravmitra045@...</div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px; width: 160px;">
+                  <div id="cfg-preview-input1" style="height: 18px; background: #000; border: 1px solid ${curBorder}; transition: all 0.2s ease;"></div>
+                  <div id="cfg-preview-input2" style="height: 32px; background: #000; border: 1px solid ${curBorder}; transition: all 0.2s ease;"></div>
+                  <div id="cfg-preview-btn" style="background-color: ${curBtnBg}; color: ${curBtnColor}; text-align: center; font-size: 10px; font-weight: 600; padding: 5px; transition: all 0.2s ease; cursor: pointer;">
+                    Send
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid #222;">
+              <button type="button" id="cfg-btn-reset" style="background: none; border: 1px solid #444; color: #aaa; padding: 6px 14px; font-size: 11px; border-radius: 2px; cursor: pointer;">Reset to Default</button>
+              <div style="display: flex; gap: 10px;">
+                <button type="button" id="cfg-btn-cancel" style="background: #222; border: 1px solid #444; color: #fff; padding: 6px 14px; font-size: 11px; border-radius: 2px; cursor: pointer;">Cancel</button>
+                <button type="button" id="cfg-btn-apply" style="background: #C5A059; border: none; color: #000; font-weight: 700; padding: 6px 18px; font-size: 11px; border-radius: 2px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.08em;">Save & Apply Colors</button>
+              </div>
+            </div>
+          `;
+
+          // DOM Element references inside modal
+          const cardBgPicker = container.querySelector("#cfg-card-bg-picker") as HTMLInputElement;
+          const cardBgText = container.querySelector("#cfg-card-bg-text") as HTMLInputElement;
+          const cardColorPicker = container.querySelector("#cfg-card-color-picker") as HTMLInputElement;
+          const cardColorText = container.querySelector("#cfg-card-color-text") as HTMLInputElement;
+          const hoverSelect = container.querySelector("#cfg-card-hover-select") as HTMLSelectElement;
+
+          const btnBgPicker = container.querySelector("#cfg-btn-bg-picker") as HTMLInputElement;
+          const btnBgText = container.querySelector("#cfg-btn-bg-text") as HTMLInputElement;
+          const btnColorPicker = container.querySelector("#cfg-btn-color-picker") as HTMLInputElement;
+          const btnColorText = container.querySelector("#cfg-btn-color-text") as HTMLInputElement;
+          const borderPicker = container.querySelector("#cfg-border-picker") as HTMLInputElement;
+          const borderText = container.querySelector("#cfg-border-text") as HTMLInputElement;
+
+          const previewCard = container.querySelector("#cfg-preview-card") as HTMLElement;
+          const previewInput1 = container.querySelector("#cfg-preview-input1") as HTMLElement;
+          const previewInput2 = container.querySelector("#cfg-preview-input2") as HTMLElement;
+          const previewBtn = container.querySelector("#cfg-preview-btn") as HTMLElement;
+
+          const updatePreview = () => {
+            if (previewCard) {
+              previewCard.style.backgroundColor = cardBgText.value;
+              previewCard.style.color = cardColorText.value;
+            }
+            if (previewInput1) previewInput1.style.borderColor = borderText.value;
+            if (previewInput2) previewInput2.style.borderColor = borderText.value;
+            if (previewBtn) {
+              previewBtn.style.backgroundColor = btnBgText.value;
+              previewBtn.style.color = btnColorText.value;
+            }
+          };
+
+          const setAll = (
+            cBg: string,
+            cCol: string,
+            bBg: string,
+            bCol: string,
+            iBord: string,
+            hov = "lift",
+          ) => {
+            cardBgPicker.value = cBg;
+            cardBgText.value = cBg;
+            cardColorPicker.value = cCol;
+            cardColorText.value = cCol;
+            btnBgPicker.value = bBg;
+            btnBgText.value = bBg;
+            btnColorPicker.value = bCol;
+            btnColorText.value = bCol;
+            borderPicker.value = iBord;
+            borderText.value = iBord;
+            hoverSelect.value = hov;
+            updatePreview();
+          };
+
+          // Synchronize pickers and text inputs
+          cardBgPicker.oninput = () => {
+            cardBgText.value = cardBgPicker.value;
+            updatePreview();
+          };
+          cardBgText.oninput = () => {
+            if (/^#[0-9A-Fa-f]{6}$/.test(cardBgText.value)) {
+              cardBgPicker.value = cardBgText.value;
+            }
+            updatePreview();
+          };
+
+          cardColorPicker.oninput = () => {
+            cardColorText.value = cardColorPicker.value;
+            updatePreview();
+          };
+          cardColorText.oninput = () => {
+            if (/^#[0-9A-Fa-f]{6}$/.test(cardColorText.value)) {
+              cardColorPicker.value = cardColorText.value;
+            }
+            updatePreview();
+          };
+
+          btnBgPicker.oninput = () => {
+            btnBgText.value = btnBgPicker.value;
+            updatePreview();
+          };
+          btnBgText.oninput = () => {
+            if (/^#[0-9A-Fa-f]{6}$/.test(btnBgText.value)) {
+              btnBgPicker.value = btnBgText.value;
+            }
+            updatePreview();
+          };
+
+          btnColorPicker.oninput = () => {
+            btnColorText.value = btnColorPicker.value;
+            updatePreview();
+          };
+          btnColorText.oninput = () => {
+            if (/^#[0-9A-Fa-f]{6}$/.test(btnColorText.value)) {
+              btnColorPicker.value = btnColorText.value;
+            }
+            updatePreview();
+          };
+
+          borderPicker.oninput = () => {
+            borderText.value = borderPicker.value;
+            updatePreview();
+          };
+          borderText.oninput = () => {
+            if (/^#[0-9A-Fa-f]{6}$/.test(borderText.value)) {
+              borderPicker.value = borderText.value;
+            }
+            updatePreview();
+          };
+
+          // Preview Card Interactive Hover
+          if (previewCard) {
+            previewCard.onmouseenter = () => {
+              const hov = hoverSelect.value;
+              if (hov === "lift") {
+                previewCard.style.transform = "translateY(-6px)";
+                previewCard.style.boxShadow = "0 12px 24px -6px rgba(255, 255, 255, 0.25), 0 0 15px rgba(255, 255, 255, 0.1)";
+              } else if (hov === "scale") {
+                previewCard.style.transform = "scale(1.05)";
+                previewCard.style.boxShadow = "0 12px 24px -6px rgba(255, 255, 255, 0.25)";
+              } else if (hov === "glow") {
+                previewCard.style.transform = "none";
+                previewCard.style.boxShadow = "0 0 25px 2px rgba(255, 255, 255, 0.4)";
+              }
+            };
+            previewCard.onmouseleave = () => {
+              previewCard.style.transform = "none";
+              previewCard.style.boxShadow = "none";
+            };
+          }
+
+          // Quick Preset Buttons
+          const presetRow = container.querySelector("#cfg-presets-row");
+          presetRow?.querySelectorAll("button")?.forEach((btn) => {
+            btn.onclick = () => {
+              const p = btn.getAttribute("data-preset");
+              if (p === "default") {
+                setAll("#DBDBDB", "#000000", "#DBDBDB", "#000000", "#FFFFFF", "lift");
+              } else if (p === "dark") {
+                setAll("#181818", "#FFFFFF", "#C5A059", "#000000", "#555555", "lift");
+              } else if (p === "gold") {
+                setAll("#C5A059", "#000000", "#C5A059", "#000000", "#C5A059", "glow");
+              } else if (p === "white") {
+                setAll("#FFFFFF", "#000000", "#FFFFFF", "#000000", "#FFFFFF", "lift");
+              } else if (p === "black") {
+                setAll("#0A0A0A", "#FFFFFF", "#FFFFFF", "#000000", "#FFFFFF", "glow");
+              }
+            };
+          });
+
+          // Reset Defaults
+          const resetBtn = container.querySelector("#cfg-btn-reset") as HTMLElement;
+          if (resetBtn) {
+            resetBtn.onclick = () => {
+              setAll("#DBDBDB", "#000000", "#DBDBDB", "#000000", "#FFFFFF", "lift");
+            };
+          }
+
+          // Cancel
+          const cancelBtn = container.querySelector("#cfg-btn-cancel") as HTMLElement;
+          if (cancelBtn) {
+            cancelBtn.onclick = () => {
+              modal.close();
+            };
+          }
+
+          // Save & Apply
+          const applyBtn = container.querySelector("#cfg-btn-apply") as HTMLElement;
+          if (applyBtn) {
+            applyBtn.onclick = () => {
+              const finalCardBg = cardBgText.value.trim() || "#DBDBDB";
+              const finalCardColor = cardColorText.value.trim() || "#000000";
+              const finalBtnBg = btnBgText.value.trim() || "#DBDBDB";
+              const finalBtnColor = btnColorText.value.trim() || "#000000";
+              const finalBorder = borderText.value.trim() || "#FFFFFF";
+              const finalHover = hoverSelect.value || "lift";
+
+              if (cardComp) {
+                cardComp.addStyle({
+                  "background-color": finalCardBg,
+                  color: finalCardColor,
+                  width: "100%",
+                  "max-width": "340px",
+                  "min-width": "280px",
+                  flex: "0 1 340px",
+                  padding: "2.5rem 2.25rem",
+                  display: "flex",
+                  "flex-direction": "column",
+                  "justify-content": "space-between",
+                  "box-sizing": "border-box",
+                  cursor: "pointer",
+                });
+                cardComp.addAttributes({
+                  "data-component": "contact-card",
+                  "data-card-bg": finalCardBg,
+                  "data-card-color": finalCardColor,
+                  "data-card-hover": finalHover,
+                  style: `background-color: ${finalCardBg}; color: ${finalCardColor}; width: 100%; max-width: 340px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 2.5rem 2.25rem;`,
+                });
+                cardComp.addClass?.("contact-card");
+
+                // Update text child elements so headings, copy and email link reflect chosen text color
+                const textNodes = cardComp.find?.("h1, h2, h3, p, div, a") || [];
+                if (textNodes && textNodes.length > 0) {
+                  textNodes.forEach((child: Component) => {
+                    const cls = child.getClasses?.() || [];
+                    if (!cls.includes("contact-social-icon")) {
+                      child.addStyle({ color: finalCardColor });
+                      child.addAttributes({ style: `color: ${finalCardColor};` });
+                    }
+                  });
+                }
+              }
+
+              // Ensure parentWrap is identified
+              if (!parentWrap && cardComp) {
+                parentWrap =
+                  cardComp.closest?.(".contact-page-wrapper") ||
+                  cardComp.closest?.("[data-component='contact-wrapper']") ||
+                  null;
+              }
+              if (!parentWrap && formComp) {
+                parentWrap =
+                  formComp.closest?.(".contact-page-wrapper") ||
+                  formComp.closest?.("[data-component='contact-wrapper']") ||
+                  null;
+              }
+              if (!parentWrap && wrapper) {
+                const found =
+                  wrapper.find?.(".contact-page-wrapper") ||
+                  wrapper.find?.("[data-component='contact-wrapper']") ||
+                  [];
+                if (found.length > 0) parentWrap = found[0];
+              }
+
+              // Ensure formComp is NEVER parentWrap
+              if (formComp === parentWrap && parentWrap) {
+                const children = (parentWrap.components?.() as { models?: Component[] })?.models || [];
+                const nonCard = children.find(
+                  (c: Component) => c !== cardComp && !c.getClasses?.()?.includes("contact-card"),
+                );
+                if (nonCard) {
+                  formComp = nonCard;
+                  formComp.addClass?.("contact-form-container");
+                } else {
+                  formComp = null;
+                }
+              }
+
+              // Apply 2-column flex container styling to parent wrapper
+              if (parentWrap) {
+                parentWrap.addStyle({
+                  width: "100%",
+                  "max-width": "960px",
+                  margin: "2rem auto",
+                  padding: "1rem",
+                  "box-sizing": "border-box",
+                  display: "flex",
+                  "flex-direction": "row",
+                  "flex-wrap": "wrap",
+                  gap: "2rem",
+                  "justify-content": "center",
+                  "align-items": "stretch",
+                  background: "transparent",
+                });
+                parentWrap.addAttributes({
+                  "data-component": "contact-wrapper",
+                  "data-card-bg": finalCardBg,
+                  "data-card-color": finalCardColor,
+                  "data-card-hover": finalHover,
+                  "data-btn-bg": finalBtnBg,
+                  "data-btn-color": finalBtnColor,
+                  "data-input-border": finalBorder,
+                });
+                parentWrap.addClass?.("contact-page-wrapper");
+                if (parentWrap.getAttributes?.()["data-cms-block"] === "contact-form") {
+                  parentWrap.removeAttributes?.("data-cms-block");
+                }
+              }
+
+              // Apply styling to right form container (MUST NOT BE parentWrap)
+              if (formComp && formComp !== parentWrap) {
+                formComp.addStyle({
+                  width: "100%",
+                  "max-width": "450px",
+                  display: "flex",
+                  "flex-direction": "column",
+                  gap: "1rem",
+                  "box-sizing": "border-box",
+                  "justify-content": "center",
+                  flex: "1 1 380px",
+                });
+                formComp.addAttributes({
+                  "data-cms-block": "contact-form",
+                  "data-btn-bg": finalBtnBg,
+                  "data-btn-color": finalBtnColor,
+                  "data-input-border": finalBorder,
+                });
+                formComp.addClass?.("contact-form-container");
+
+                const subBtn = formComp.find?.("[data-submit-btn]")?.[0];
+                if (subBtn) {
+                  subBtn.addStyle({
+                    "background-color": finalBtnBg,
+                    color: finalBtnColor,
+                  });
+                  subBtn.addAttributes({
+                    style: `background-color: ${finalBtnBg}; color: ${finalBtnColor};`,
+                  });
+                }
+                const inputs = formComp.find?.(".contact-mock-input, .contact-mock-textarea") || [];
+                inputs.forEach((inp: Component) => {
+                  inp.addStyle({ "border-color": finalBorder });
+                  inp.addAttributes({
+                    style: `background: #000000; border: 1px solid ${finalBorder};`,
+                  });
+                });
+                const radioDots = formComp.find?.(".contact-radio-dot") || [];
+                radioDots.forEach((dot: Component) => {
+                  dot.addStyle({ "border-color": finalBorder });
+                });
+              }
+
+              editor.trigger("change:canvas");
+              modal.close();
+            };
+          }
+
+          modal.setContent(container);
+          modal.open();
+        },
+      });
+
+      /*
+       * Redirect old open-card-traits command to the new visual customizer modal
+       */
+      editor.Commands.add("open-card-traits", {
+        run: () => {
+          editor.runCommand("open-contact-card-customizer");
+        },
+      });
+
       editor.Commands.add("preview-counter-animation", {
         run: () => {
           const doc = editor.Canvas.getDocument();
@@ -3910,19 +5301,69 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         category: "Portfolio",
 
         content: `
-        <div
-          data-cms-block="contact-form"
-          class="p-12 bg-[#080808] text-white border border-[#222] max-w-xl mx-auto my-12 text-center"
-        >
-          <h3 class="text-2xl font-serif text-white mb-2">
-            Live Contact Form
-          </h3>
-
-          <p class="text-xs text-gray-400 uppercase tracking-widest">
-            Shows a placeholder here — the real form (posting to /api/contact) appears on the live site
-          </p>
+        <div class="contact-page-wrapper" data-component="contact-wrapper" data-card-bg="#DBDBDB" data-card-color="#000000" data-card-hover="lift" data-btn-bg="#DBDBDB" data-btn-color="#000000" data-input-border="#FFFFFF" style="width: 100%; max-width: 960px; margin: 2rem auto; padding: 1rem; box-sizing: border-box; display: flex; flex-direction: row; flex-wrap: wrap; gap: 2rem; justify-content: center; align-items: stretch; font-family: sans-serif;">
+          <!-- Left Card -->
+          <div class="contact-card" data-component="contact-card" data-card-bg="#DBDBDB" data-card-color="#000000" data-card-hover="lift" style="background-color: #DBDBDB; color: #000000; padding: 2.5rem 2.25rem; width: 100%; max-width: 340px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; border-radius: 0; cursor: pointer;">
+            <div>
+              <h1 style="font-size: 2.25rem; font-weight: 500; margin: 0 0 1.25rem 0; line-height: 1.15; color: inherit;">Hello,</h1>
+              <div style="font-size: 0.85rem; line-height: 1.6; margin: 0 0 1.5rem 0; color: inherit; opacity: 0.9;">
+                <p style="margin: 0 0 1rem 0;">
+                  Got a story that needs a<br>cover? An idea you'd like<br>illustrated? Or just want to<br>share what you felt looking at<br>my work?
+                </p>
+                <p style="margin: 0;">I'd love to hear from you.</p>
+              </div>
+            </div>
+            <div style="margin-top: 2rem;">
+              <p style="font-size: 0.85rem; margin: 0 0 1rem 0; color: inherit; font-weight: 400;">
+                <a href="mailto:souravmitra045@gmail.com" style="color: inherit; text-decoration: none;">souravmitra045@gmail.com</a>
+              </p>
+              <div class="contact-social-icons-row" style="display: flex; gap: 0.5rem; align-items: center;">
+                <a href="#" class="contact-social-icon" style="display: inline-flex; width: 24px; height: 24px; background: #000000; border-radius: 50%; align-items: center; justify-content: center; color: #FFFFFF; font-size: 11px; font-weight: bold; text-decoration: none;">f</a>
+                <a href="#" class="contact-social-icon" style="display: inline-flex; width: 24px; height: 24px; background: #000000; border-radius: 50%; align-items: center; justify-content: center; color: #FFFFFF; font-size: 11px; font-weight: bold; text-decoration: none;">ig</a>
+                <a href="#" class="contact-social-icon" style="display: inline-flex; width: 24px; height: 24px; background: #000000; border-radius: 50%; align-items: center; justify-content: center; color: #FFFFFF; font-size: 11px; font-weight: bold; text-decoration: none;">Bē</a>
+                <a href="#" class="contact-social-icon" style="display: inline-flex; width: 24px; height: 24px; background: #000000; border-radius: 50%; align-items: center; justify-content: center; color: #FFFFFF; font-size: 11px; font-weight: bold; text-decoration: none;">in</a>
+                <a href="#" class="contact-social-icon" style="display: inline-flex; width: 24px; height: 24px; background: #000000; border-radius: 50%; align-items: center; justify-content: center; color: #FFFFFF; font-size: 11px; font-weight: bold; text-decoration: none;">𝕏</a>
+                <a href="#" class="contact-social-icon" style="display: inline-flex; width: 24px; height: 24px; background: #000000; border-radius: 50%; align-items: center; justify-content: center; color: #FFFFFF; font-size: 11px; font-weight: bold; text-decoration: none;">P</a>
+              </div>
+            </div>
+          </div>
+          <!-- Right Form Container -->
+          <div class="contact-form-container" data-cms-block="contact-form" data-btn-bg="#DBDBDB" data-btn-color="#000000" data-input-border="#FFFFFF" style="width: 100%; max-width: 450px; display: flex; flex-direction: column; gap: 1rem; box-sizing: border-box; justify-content: center;">
+            <div class="contact-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+              <div>
+                <label class="contact-form-label" data-label-first-name style="display: block; color: #FFFFFF; font-size: 0.8rem; margin-bottom: 0.35rem;">First Name *</label>
+                <div class="contact-mock-input" style="background: #000000; border: 1px solid #FFFFFF; height: 34px; width: 100%; box-sizing: border-box; display: block;"></div>
+              </div>
+              <div>
+                <label class="contact-form-label" data-label-last-name style="display: block; color: #FFFFFF; font-size: 0.8rem; margin-bottom: 0.35rem;">Last Name *</label>
+                <div class="contact-mock-input" style="background: #000000; border: 1px solid #FFFFFF; height: 34px; width: 100%; box-sizing: border-box; display: block;"></div>
+              </div>
+            </div>
+            <div>
+              <label class="contact-form-label" data-label-email style="display: block; color: #FFFFFF; font-size: 0.8rem; margin-bottom: 0.35rem;">Email *</label>
+              <div class="contact-mock-input" style="background: #000000; border: 1px solid #FFFFFF; height: 34px; width: 100%; box-sizing: border-box; display: block;"></div>
+            </div>
+            <div>
+              <label class="contact-form-label" data-label-message style="display: block; color: #FFFFFF; font-size: 0.8rem; margin-bottom: 0.35rem;">Message</label>
+              <div class="contact-mock-textarea" style="background: #000000; border: 1px solid #FFFFFF; height: 75px; width: 100%; box-sizing: border-box; display: block;"></div>
+            </div>
+            <div class="contact-roles-row" style="display: flex; justify-content: center; align-items: center; gap: 1.5rem; padding: 0.25rem 0;">
+              <span class="contact-role-item" data-role-option style="color: #FFFFFF; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.4rem;">
+                <span class="contact-radio-dot" style="display: inline-block; width: 13px; height: 13px; border-radius: 50%; border: 1px solid #FFFFFF;"></span> Publisher
+              </span>
+              <span class="contact-role-item" data-role-option style="color: #FFFFFF; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.4rem;">
+                <span class="contact-radio-dot" style="display: inline-block; width: 13px; height: 13px; border-radius: 50%; border: 1px solid #FFFFFF;"></span> Writer
+              </span>
+              <span class="contact-role-item" data-role-option style="color: #FFFFFF; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.4rem;">
+                <span class="contact-radio-dot" style="display: inline-block; width: 13px; height: 13px; border-radius: 50%; border: 1px solid #FFFFFF;"></span> Individual
+              </span>
+            </div>
+            <div class="contact-submit-btn" data-submit-btn style="background-color: #DBDBDB; color: #000000; text-align: center; padding: 0.65rem 1rem; font-size: 0.85rem; font-weight: 500; cursor: pointer; width: 100%; display: block; box-sizing: border-box;">
+              Send
+            </div>
+          </div>
         </div>
-      `,
+        `,
       });
 
       /*
@@ -4422,6 +5863,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       }
 
       syncAllCounters(editor);
+      syncContactCardDataAttributes(editor);
 
       const projectData = editor.getProjectData();
 
@@ -4964,6 +6406,18 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               <span>
                 Fonts {customFonts.length > 0 && `(${customFonts.length})`}
               </span>
+            </button>
+
+            {/* Contact Card & Form Colors Customizer Trigger */}
+            <button
+              type="button"
+              onClick={() => {
+                editorRef.current?.runCommand("open-contact-card-customizer");
+              }}
+              title="Customize Contact Card Colors, Button & Hover Style"
+              className="px-2.5 py-1.5 border border-[#333] hover:border-[#C5A059] text-[#C5A059] hover:text-white bg-[#141414] rounded transition-colors text-[11px] font-bold tracking-wider flex items-center gap-1.5 cursor-pointer">
+              <span>🎨</span>
+              <span>Card Colors</span>
             </button>
 
             <div className="h-4 w-px bg-[#262626]" />

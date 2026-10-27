@@ -66,3 +66,217 @@ textarea::placeholder {
     animation: none;
   }
 }
+
+/* Contact Page Layout & Base Styles (Live Site & CMS) */
+.contact-page-wrapper,
+[data-component="contact-wrapper"] {
+  width: 100% !important;
+  max-width: 960px !important;
+  margin: 2rem auto !important;
+  padding: 1rem !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  gap: 2rem !important;
+  justify-content: center !important;
+  align-items: stretch !important;
+}
+
+.contact-card,
+[data-component="contact-card"] {
+  color: #000000;
+  width: 100% !important;
+  max-width: 340px !important;
+  min-width: 280px !important;
+  padding: 2.5rem 2.25rem !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  border-radius: 0px !important;
+  cursor: pointer !important;
+  flex: 0 1 340px !important;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s ease, filter 0.35s ease !important;
+  will-change: transform, box-shadow;
+}
+
+.contact-card h1 {
+  font-size: 2.25rem !important;
+  font-weight: 500 !important;
+  margin: 0 0 1.25rem 0 !important;
+  line-height: 1.15 !important;
+  color: inherit;
+  font-family: sans-serif !important;
+}
+
+.contact-card p,
+.contact-card div {
+  font-size: 0.85rem !important;
+  line-height: 1.6 !important;
+  color: inherit;
+}
+
+.contact-card a[href^="mailto:"] {
+  font-size: 0.85rem !important;
+  color: inherit;
+  text-decoration: none !important;
+  display: inline-block !important;
+  margin-bottom: 1.25rem !important;
+}
+
+.contact-form-container,
+[data-cms-block="contact-form"]:not(.contact-page-wrapper):not([data-component="contact-wrapper"]) {
+  width: 100% !important;
+  max-width: 450px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1rem !important;
+  box-sizing: border-box !important;
+  justify-content: center !important;
+  flex: 1 1 380px !important;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  will-change: transform, box-shadow;
+}
+
+.contact-form-grid-2 {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 0.75rem !important;
+}
+
+.contact-form-label {
+  display: block !important;
+  color: #FFFFFF !important;
+  font-size: 0.8rem !important;
+  margin-bottom: 0.35rem !important;
+  font-weight: normal !important;
+  font-family: sans-serif !important;
+}
+
+.contact-mock-input {
+  background: #000000 !important;
+  border: 1px solid #FFFFFF !important;
+  height: 34px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  display: block !important;
+  border-radius: 0px !important;
+}
+
+.contact-mock-textarea {
+  background: #000000 !important;
+  border: 1px solid #FFFFFF !important;
+  height: 75px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  display: block !important;
+  border-radius: 0px !important;
+}
+
+.contact-roles-row {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 1.5rem !important;
+  padding: 0.25rem 0 !important;
+}
+
+.contact-role-item {
+  color: #FFFFFF !important;
+  font-size: 0.8rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.4rem !important;
+  font-family: sans-serif !important;
+}
+
+.contact-radio-dot {
+  display: inline-block !important;
+  width: 13px !important;
+  height: 13px !important;
+  border-radius: 50% !important;
+  border: 1px solid #FFFFFF !important;
+}
+
+.contact-social-icons-row {
+  display: flex !important;
+  gap: 0.5rem !important;
+  align-items: center !important;
+}
+
+.contact-social-icon {
+  display: inline-flex !important;
+  width: 24px !important;
+  height: 24px !important;
+  background: #000000 !important;
+  border-radius: 50% !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #FFFFFF !important;
+  font-size: 11px !important;
+  font-weight: bold !important;
+  text-decoration: none !important;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.25s ease, opacity 0.25s ease, box-shadow 0.25s ease !important;
+  will-change: transform;
+}
+
+.contact-social-icon:hover {
+  transform: translateY(-3px) scale(1.22) !important;
+  opacity: 0.95 !important;
+  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.35) !important;
+}
+
+.contact-submit-btn,
+[data-submit-btn] {
+  text-align: center !important;
+  padding: 0.65rem 1rem !important;
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  width: 100% !important;
+  display: block !important;
+  box-sizing: border-box !important;
+  border-radius: 0px !important;
+  font-family: sans-serif !important;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, filter 0.25s ease !important;
+}
+
+.contact-card:hover {
+  transform: translateY(-8px) !important;
+  box-shadow: 0 20px 40px -10px rgba(255, 255, 255, 0.22), 0 0 30px rgba(255, 255, 255, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.35) !important;
+}
+
+.contact-card[data-card-hover="scale"]:hover {
+  transform: scale(1.03) !important;
+  box-shadow: 0 20px 40px -10px rgba(255, 255, 255, 0.22), 0 0 30px rgba(255, 255, 255, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.35) !important;
+}
+
+.contact-card[data-card-hover="glow"]:hover {
+  transform: none !important;
+  box-shadow: 0 0 40px 4px rgba(255, 255, 255, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.5) !important;
+}
+
+.contact-card[data-card-hover="none"]:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.contact-form-container:hover {
+  transform: translateY(-4px) !important;
+}
+
+.contact-form-container input:hover,
+.contact-form-container textarea:hover,
+.contact-form-container input:focus,
+.contact-form-container textarea:focus {
+  border-color: #ffffff !important;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.28) !important;
+}
+
+.contact-form-container button[type="submit"]:hover,
+[data-submit-btn]:hover {
+  transform: translateY(-2.5px) scale(1.01) !important;
+  filter: brightness(1.12) !important;
+  box-shadow: 0 10px 25px -4px rgba(255, 255, 255, 0.35), 0 0 15px rgba(255, 255, 255, 0.15) !important;
+}

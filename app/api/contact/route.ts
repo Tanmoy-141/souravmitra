@@ -37,14 +37,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
-  const { name, email, company, projectType, message } = result.data;
+  const parsed = result.data;
+  const fullName =
+    parsed.name?.trim() ||
+    [parsed.firstName?.trim(), parsed.lastName?.trim()].filter(Boolean).join(" ") ||
+    "Visitor";
+  const role =
+    parsed.role ||
+    parsed.userType ||
+    parsed.projectType ||
+    parsed.company ||
+    "Individual";
+  const message = parsed.message?.trim() || "(No message provided)";
 
   try {
     await db.insert(inquiries).values({
-      name,
-      email,
-      company: company || null,
-      projectType: projectType || null,
+      name: fullName,
+      email: parsed.email,
+      company: role,
+      projectType: role,
       message,
       ipAddress: ip,
     });
@@ -60,8 +71,8 @@ export async function POST(req: NextRequest) {
   try {
     await sendEmail({
       to: ownerEmail,
-      subject: `New inquiry from ${name}${projectType ? ` (${projectType})` : ""}`,
-      text: `New portfolio inquiry received:\n\nName: ${name}\nEmail: ${email}\nCompany: ${company || "N/A"}\nProject Type: ${projectType || "N/A"}\n\nMessage:\n${message}`,
+      subject: `New inquiry from ${fullName} (${role})`,
+      text: `New portfolio inquiry received:\n\nName: ${fullName}\nEmail: ${parsed.email}\nRole: ${role}\n\nMessage:\n${message}`,
     });
   } catch (err) {
     console.error("[contact] failed to send email notification:", err);

@@ -691,11 +691,123 @@ export function CmsDynamicBlockPortal({
           ),
         });
       } else if (block === "contact-form") {
-        element.replaceChildren();
+        // Always locate nodes strictly in the live DOM (containerRef.current or element)
+        // to avoid referencing detached nodes from parsedDoc
+        const liveWrapper =
+          (element.classList?.contains("contact-page-wrapper") || element.getAttribute("data-component") === "contact-wrapper")
+            ? element
+            : (element.closest(".contact-page-wrapper, [data-component='contact-wrapper']") as HTMLElement | null);
+
+        const liveCard =
+          (liveWrapper ? liveWrapper.querySelector<HTMLElement>(".contact-card, [data-component='contact-card']") : null) ||
+          element.querySelector<HTMLElement>(".contact-card, [data-component='contact-card']");
+
+        const liveFormContainer =
+          (element.classList?.contains("contact-form-container") ? element : null) ||
+          element.querySelector<HTMLElement>(".contact-form-container") ||
+          (liveWrapper ? liveWrapper.querySelector<HTMLElement>(".contact-form-container") : null) ||
+          (liveCard && (liveCard.nextElementSibling as HTMLElement | null)) ||
+          (!element.classList?.contains("contact-page-wrapper") ? element : null);
+
+        const hasCard = Boolean(liveCard);
+        // If a card exists alongside the form, target ONLY the form container so the
+        // user's edited card HTML, custom colors, fonts and hover effects stay intact in the DOM.
+        const targetEl = hasCard ? (liveFormContainer || element) : (liveWrapper || element);
+
+        const cardTextColor =
+          liveCard?.getAttribute("data-card-color") ||
+          liveWrapper?.getAttribute("data-card-color") ||
+          undefined;
+
+        const cardBgColor =
+          liveCard?.getAttribute("data-card-bg") ||
+          liveWrapper?.getAttribute("data-card-bg") ||
+          undefined;
+
+        // Honor the card's active background and text colors without overwriting saved styles with stale fallbacks
+        if (liveCard) {
+          if (!liveCard.style.backgroundColor && cardBgColor) {
+            liveCard.style.backgroundColor = cardBgColor;
+          }
+          if (!liveCard.style.color && cardTextColor) {
+            liveCard.style.color = cardTextColor;
+          }
+        }
+
+        const firstNameLabel =
+          sourceEl.querySelector("[data-label-first-name]")?.textContent?.trim() ||
+          element.querySelector("[data-label-first-name]")?.textContent?.trim() ||
+          undefined;
+        const lastNameLabel =
+          sourceEl.querySelector("[data-label-last-name]")?.textContent?.trim() ||
+          element.querySelector("[data-label-last-name]")?.textContent?.trim() ||
+          undefined;
+        const emailLabel =
+          sourceEl.querySelector("[data-label-email]")?.textContent?.trim() ||
+          element.querySelector("[data-label-email]")?.textContent?.trim() ||
+          undefined;
+        const messageLabel =
+          sourceEl.querySelector("[data-label-message]")?.textContent?.trim() ||
+          element.querySelector("[data-label-message]")?.textContent?.trim() ||
+          undefined;
+        const submitButtonText =
+          sourceEl.querySelector("[data-submit-btn]")?.textContent?.trim() ||
+          element.querySelector("[data-submit-btn]")?.textContent?.trim() ||
+          undefined;
+
+        const submitButtonBg =
+          sourceEl.getAttribute("data-btn-bg") ||
+          element.getAttribute("data-btn-bg") ||
+          liveWrapper?.getAttribute("data-btn-bg") ||
+          sourceEl.querySelector<HTMLElement>("[data-submit-btn]")?.style?.backgroundColor ||
+          element.querySelector<HTMLElement>("[data-submit-btn]")?.style?.backgroundColor ||
+          undefined;
+
+        const submitButtonTextColor =
+          sourceEl.getAttribute("data-btn-color") ||
+          element.getAttribute("data-btn-color") ||
+          liveWrapper?.getAttribute("data-btn-color") ||
+          sourceEl.querySelector<HTMLElement>("[data-submit-btn]")?.style?.color ||
+          element.querySelector<HTMLElement>("[data-submit-btn]")?.style?.color ||
+          undefined;
+
+        const inputBorderColor =
+          sourceEl.getAttribute("data-input-border") ||
+          element.getAttribute("data-input-border") ||
+          liveWrapper?.getAttribute("data-input-border") ||
+          undefined;
+
+        const roleEls = Array.from(
+          (sourceEl || element).querySelectorAll("[data-role-option]"),
+        );
+        const roles =
+          roleEls.length > 0
+            ? roleEls
+                .map((el) => el.textContent?.trim())
+                .filter((t): t is string => Boolean(t))
+            : undefined;
+
+        // Replace mock inputs with the real interactive React contact form
+        targetEl.replaceChildren();
         newTargets.push({
-          element,
+          element: targetEl,
           key: `portal-contact-${index}`,
-          node: <ContactFormClient />,
+          node: (
+            <ContactFormClient
+              renderMode={hasCard ? "form-only" : "full"}
+              cardBg={cardBgColor}
+              cardTextColor={cardTextColor}
+              firstNameLabel={firstNameLabel}
+              lastNameLabel={lastNameLabel}
+              emailLabel={emailLabel}
+              messageLabel={messageLabel}
+              submitButtonText={submitButtonText}
+              submitButtonBg={submitButtonBg}
+              submitButtonTextColor={submitButtonTextColor}
+              inputBorderColor={inputBorderColor}
+              roles={roles}
+            />
+          ),
         });
       } else if (block === "project-grid") {
         element.replaceChildren();
@@ -879,6 +991,117 @@ export function CmsDynamicBlockPortal({
           background: transparent !important;
           border: none !important;
           box-shadow: none !important;
+        }
+        .contact-page-wrapper,
+        [data-component="contact-wrapper"] {
+          width: 100% !important;
+          max-width: 960px !important;
+          margin: 2rem auto !important;
+          padding: 1rem !important;
+          box-sizing: border-box !important;
+          display: flex !important;
+          flex-direction: row !important;
+          flex-wrap: wrap !important;
+          gap: 2rem !important;
+          justify-content: center !important;
+          align-items: stretch !important;
+        }
+        .contact-card,
+        [data-component="contact-card"] {
+          color: #000000;
+          width: 100% !important;
+          max-width: 340px !important;
+          min-width: 280px !important;
+          padding: 2.5rem 2.25rem !important;
+          box-sizing: border-box !important;
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: space-between !important;
+          border-radius: 0px !important;
+          flex: 0 1 340px !important;
+          transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s ease, filter 0.35s ease !important;
+          will-change: transform, box-shadow;
+          cursor: pointer !important;
+        }
+        .contact-card h1 {
+          font-size: 2.25rem !important;
+          font-weight: 500 !important;
+          margin: 0 0 1.25rem 0 !important;
+          line-height: 1.15 !important;
+          color: inherit;
+          font-family: sans-serif !important;
+        }
+        .contact-card p,
+        .contact-card div {
+          font-size: 0.85rem !important;
+          line-height: 1.6 !important;
+          color: inherit;
+        }
+        .contact-card a[href^="mailto:"] {
+          font-size: 0.85rem !important;
+          color: inherit;
+          text-decoration: none !important;
+          display: inline-block !important;
+          margin-bottom: 1.25rem !important;
+        }
+        .contact-card:hover {
+          transform: translateY(-8px) !important;
+          box-shadow: 0 20px 40px -10px rgba(255, 255, 255, 0.22), 0 0 30px rgba(255, 255, 255, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.35) !important;
+        }
+        .contact-card[data-card-hover="scale"]:hover {
+          transform: scale(1.03) !important;
+          box-shadow: 0 20px 40px -10px rgba(255, 255, 255, 0.22), 0 0 30px rgba(255, 255, 255, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.35) !important;
+        }
+        .contact-card[data-card-hover="glow"]:hover {
+          transform: none !important;
+          box-shadow: 0 0 40px 4px rgba(255, 255, 255, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.5) !important;
+        }
+        .contact-card[data-card-hover="none"]:hover {
+          transform: none !important;
+          box-shadow: none !important;
+        }
+        .contact-form-container,
+        [data-cms-block="contact-form"]:not(.contact-page-wrapper):not([data-component="contact-wrapper"]) {
+          width: 100% !important;
+          max-width: 450px !important;
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 1rem !important;
+          box-sizing: border-box !important;
+          justify-content: center !important;
+          flex: 1 1 380px !important;
+          transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+          will-change: transform, box-shadow;
+        }
+        .contact-form-container:hover {
+          transform: translateY(-4px) !important;
+        }
+        .contact-form-container input:hover,
+        .contact-form-container textarea:hover,
+        .contact-form-container input:focus,
+        .contact-form-container textarea:focus {
+          border-color: #ffffff !important;
+          box-shadow: 0 0 12px rgba(255, 255, 255, 0.28) !important;
+        }
+        .contact-social-icon {
+          transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.25s ease, opacity 0.25s ease, box-shadow 0.25s ease !important;
+          will-change: transform;
+        }
+        .contact-social-icon:hover {
+          transform: translateY(-3px) scale(1.22) !important;
+          opacity: 0.95 !important;
+          box-shadow: 0 4px 14px rgba(255, 255, 255, 0.35) !important;
+        }
+        .contact-form-container button[type="submit"],
+        [data-submit-btn] {
+          transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, filter 0.25s ease !important;
+          cursor: pointer !important;
+        }
+        .contact-form-container button[type="submit"]:hover,
+        [data-submit-btn]:hover {
+          transform: translateY(-2.5px) scale(1.01) !important;
+          filter: brightness(1.12) !important;
+          box-shadow: 0 10px 25px -4px rgba(255, 255, 255, 0.35), 0 0 15px rgba(255, 255, 255, 0.15) !important;
         }
         @media (max-width: 768px) {
           [data-cms-block],

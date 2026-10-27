@@ -557,9 +557,69 @@ async function seedAllPages() {
       title: "Contact",
       status: "published" as const,
       htmlCache: `
-        <div class="px-10 py-16 max-w-2xl mx-auto text-center bg-black text-white">
-          <h1 class="text-4xl font-serif text-white mb-4">Let's Connect!</h1>
-          <p class="text-gray-400 mb-8">Ready to collaborate or commission a custom piece? Send an inquiry below and let's bring your vision to life.</p>
+        <div class="w-full max-w-4xl mx-auto py-6 sm:py-8 px-4" style="width: 100%; max-width: 900px; margin: 0 auto; box-sizing: border-box; font-family: sans-serif;">
+          <div style="display: flex; flex-wrap: wrap; gap: 2rem; justify-content: center; align-items: stretch;">
+            <!-- Left Card -->
+            <div class="contact-card" style="background-color: #DBDBDB; color: #000000; padding: 2.25rem 2rem; width: 100%; max-width: 340px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; border-radius: 0;">
+              <div>
+                <h1 style="font-size: 2.25rem; font-weight: 500; margin: 0 0 1.25rem 0; line-height: 1.15; color: #000000;">Hello,</h1>
+                <div style="font-size: 0.85rem; line-height: 1.6; margin: 0 0 1.5rem 0; color: #111111;">
+                  <p style="margin: 0 0 1rem 0;">
+                    Got a story that needs a<br>cover? An idea you'd like<br>illustrated? Or just want to<br>share what you felt looking at<br>my work?
+                  </p>
+                  <p style="margin: 0;">I'd love to hear from you.</p>
+                </div>
+              </div>
+              <div style="margin-top: 2rem;">
+                <p style="font-size: 0.85rem; margin: 0 0 1rem 0; color: #000000; font-weight: 400;">
+                  <a href="mailto:souravmitra045@gmail.com" style="color: #000000; text-decoration: none;">souravmitra045@gmail.com</a>
+                </p>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                  <a href="#" style="display: inline-flex; width: 22px; height: 22px; background: #000000; border-radius: 50%; align-items: center; justify-content: center; color: #FFFFFF; font-size: 10px; font-weight: bold; text-decoration: none;">f</a>
+                  <a href="#" style="display: inline-flex; width: 22px; height: 22px; background: #000000; border-radius: 50%; align-items: center; justify-content: center; color: #FFFFFF; font-size: 10px; font-weight: bold; text-decoration: none;">ig</a>
+                  <a href="#" style="display: inline-flex; width: 22px; height: 22px; background: #000000; border-radius: 50%; align-items: center; justify-content: center; color: #FFFFFF; font-size: 10px; font-weight: bold; text-decoration: none;">Bē</a>
+                  <a href="#" style="display: inline-flex; width: 22px; height: 22px; background: #000000; border-radius: 50%; align-items: center; justify-content: center; color: #FFFFFF; font-size: 10px; font-weight: bold; text-decoration: none;">in</a>
+                  <a href="#" style="display: inline-flex; width: 22px; height: 22px; background: #000000; border-radius: 50%; align-items: center; justify-content: center; color: #FFFFFF; font-size: 10px; font-weight: bold; text-decoration: none;">𝕏</a>
+                  <a href="#" style="display: inline-flex; width: 22px; height: 22px; background: #000000; border-radius: 50%; align-items: center; justify-content: center; color: #FFFFFF; font-size: 10px; font-weight: bold; text-decoration: none;">P</a>
+                </div>
+              </div>
+            </div>
+            <!-- Right Form Container -->
+            <div data-cms-block="contact-form" style="width: 100%; max-width: 450px; display: flex; flex-direction: column; gap: 0.9rem; box-sizing: border-box; justify-content: center;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                <div>
+                  <label data-label-first-name style="display: block; color: #FFFFFF; font-size: 0.8rem; margin-bottom: 0.35rem;">First Name *</label>
+                  <div style="background: #000000; border: 1px solid #FFFFFF; height: 32px; box-sizing: border-box;"></div>
+                </div>
+                <div>
+                  <label data-label-last-name style="display: block; color: #FFFFFF; font-size: 0.8rem; margin-bottom: 0.35rem;">Last Name *</label>
+                  <div style="background: #000000; border: 1px solid #FFFFFF; height: 32px; box-sizing: border-box;"></div>
+                </div>
+              </div>
+              <div>
+                <label data-label-email style="display: block; color: #FFFFFF; font-size: 0.8rem; margin-bottom: 0.35rem;">Email *</label>
+                <div style="background: #000000; border: 1px solid #FFFFFF; height: 32px; box-sizing: border-box;"></div>
+              </div>
+              <div>
+                <label data-label-message style="display: block; color: #FFFFFF; font-size: 0.8rem; margin-bottom: 0.35rem;">Message</label>
+                <div style="background: #000000; border: 1px solid #FFFFFF; height: 70px; box-sizing: border-box;"></div>
+              </div>
+              <div style="display: flex; justify-content: center; gap: 1.5rem; padding: 0.25rem 0;">
+                <span data-role-option style="color: #FFFFFF; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.4rem;">
+                  <span style="display: inline-block; width: 13px; height: 13px; border-radius: 50%; border: 1px solid #FFFFFF;"></span> Publisher
+                </span>
+                <span data-role-option style="color: #FFFFFF; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.4rem;">
+                  <span style="display: inline-block; width: 13px; height: 13px; border-radius: 50%; border: 1px solid #FFFFFF;"></span> Writer
+                </span>
+                <span data-role-option style="color: #FFFFFF; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.4rem;">
+                  <span style="display: inline-block; width: 13px; height: 13px; border-radius: 50%; border: 1px solid #FFFFFF;"></span> Individual
+                </span>
+              </div>
+              <div data-submit-btn style="background-color: #DBDBDB; color: #000000; text-align: center; padding: 0.6rem 1rem; font-size: 0.85rem; font-weight: 500; cursor: pointer;">
+                Send
+              </div>
+            </div>
+          </div>
         </div>
       `,
     },
@@ -746,6 +806,33 @@ async function seedAllPages() {
       );
     } else {
       console.log("Homepage testimonials are already converted.");
+    }
+  }
+
+  const [contactPage] = await db
+    .select()
+    .from(pages)
+    .where(eq(pages.slug, "contact"))
+    .limit(1);
+
+  if (contactPage) {
+    const isOldPlaceholder =
+      !contactPage.htmlCache ||
+      contactPage.htmlCache.includes('<div data-cms-block="contact-form"></div>') ||
+      !contactPage.htmlCache.includes("contact-card");
+
+    if (isOldPlaceholder) {
+      const newContactHtml = corePages.find((p) => p.slug === "contact")?.htmlCache;
+      if (newContactHtml) {
+        await db
+          .update(pages)
+          .set({
+            htmlCache: newContactHtml,
+            updatedAt: new Date(),
+          })
+          .where(eq(pages.id, contactPage.id));
+        console.log("Updated contact page with editable two-column layout.");
+      }
     }
   }
 

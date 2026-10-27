@@ -1,13 +1,26 @@
 import { z } from "zod";
 
-export const ContactSchema = z.object({
-  name: z.string().trim().min(1).max(100),
-  email: z.string().email().max(255),
-  company: z.string().trim().max(100).optional(),
-  projectType: z.string().trim().max(100).optional(),
-  message: z.string().trim().min(1).max(5000),
-  hp_company: z.string().max(0).optional().default(""),
-});
+export const ContactSchema = z
+  .object({
+    name: z.string().trim().max(100).optional(),
+    firstName: z.string().trim().max(100).optional(),
+    lastName: z.string().trim().max(100).optional(),
+    email: z.string().email().max(255),
+    company: z.string().trim().max(100).optional(),
+    projectType: z.string().trim().max(100).optional(),
+    role: z.string().trim().max(100).optional(),
+    userType: z.string().trim().max(100).optional(),
+    message: z.string().trim().max(5000).optional().default(""),
+    hp_company: z.string().max(0).optional().default(""),
+  })
+  .refine(
+    (data) =>
+      Boolean(
+        (data.name && data.name.trim().length > 0) ||
+          (data.firstName && data.firstName.trim().length > 0),
+      ),
+    { message: "Name is required", path: ["firstName"] },
+  );
 
 export const LoginSchema = z.object({
   action: z.literal("login"),
@@ -88,4 +101,3 @@ export const ProjectCommentSchema = z.object({
     .max(2000, "Comment must be under 2000 characters"),
   hp_website: z.string().max(0).optional().default(""), // Honeypot field: must be empty
 });
-

@@ -5,6 +5,7 @@ import { sanitizeHtml, safeCssForStyleTag } from "@/lib/sanitize";
 import ContactFormClient from "@/components/cms/ContactFormClient";
 import CmsDynamicBlockPortal from "@/components/cms/CmsDynamicBlockPortal";
 import { splitDynamicBlocks } from "@/lib/dynamic-blocks";
+import { DEFAULT_CONTACT_PAGE_HTML } from "@/lib/contact-template";
 
 export const dynamic = "force-dynamic";
 
@@ -21,13 +22,30 @@ export default async function ContactPage() {
     )
     .limit(1);
 
-  const page = pageResult[0];
+  let page = pageResult[0];
+
+  // If no contact page exists at all in the database, seed the initial default template
+  if (!page) {
+    try {
+      const [inserted] = await db
+        .insert(pages)
+        .values({
+          slug: "contact",
+          title: "Contact",
+          status: "published",
+          htmlCache: DEFAULT_CONTACT_PAGE_HTML,
+        })
+        .returning();
+      if (inserted) page = inserted;
+    } catch (e) {
+      console.error("Failed to insert contact page:", e);
+    }
+  }
 
   const safeHtml = page && page.htmlCache ? sanitizeHtml(page.htmlCache) : null;
 
-  // If the friend has already dropped a "Contact Form" block somewhere in
-  // the page while designing it, render it in place instead of forcing a
-  // second copy at the bottom.
+  // If the page already includes a "Contact Form" block in its CMS design,
+  // render it in place instead of appending a second copy.
   const hasInlineContactForm =
     safeHtml !== null &&
     splitDynamicBlocks(safeHtml).some(
@@ -35,21 +53,23 @@ export default async function ContactPage() {
     );
 
   return (
-    <main className="min-h-screen pb-24">
+    <div className="min-h-[75vh] flex flex-col justify-center items-center py-10 sm:py-14 md:py-18 px-4 sm:px-6">
       {page?.cssCache && <style>{safeCssForStyleTag(page.cssCache)}</style>}
       {safeHtml ? (
-        <div className="max-w-4xl mx-auto py-12 px-6">
+        <div className="w-full max-w-5xl mx-auto">
           <div
             id="cms-page-content"
-            className="w-full mb-12"
+            className="w-full"
             suppressHydrationWarning>
             <CmsDynamicBlockPortal html={safeHtml} />
           </div>
           {hasInlineContactForm ? null : <ContactFormClient />}
         </div>
       ) : (
-        <ContactFormClient />
+        <div className="w-full max-w-5xl mx-auto">
+          <ContactFormClient />
+        </div>
       )}
-    </main>
+    </div>
   );
 }

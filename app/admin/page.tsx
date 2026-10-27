@@ -10,6 +10,7 @@ import GrapesEditor, {
 } from "@/components/cms/GrapesEditor";
 import { CustomPage, Block } from "@/data/cms";
 import { generateProjectDetailHtml } from "@/lib/project-detail-template";
+import { DEFAULT_CONTACT_PAGE_HTML } from "@/lib/contact-template";
 import type { Project } from "@/db/schema";
 
 type CmsPage = CustomPage & {
@@ -1680,15 +1681,21 @@ export default function AdminDashboard() {
 
           {/* GrapesJS Visual Builder Canvas */}
           <main className="flex-1 flex flex-col overflow-hidden bg-black">
-            <GrapesEditor
-              ref={editorRef}
-              key={activePage?.id || activePage?.slug}
-              initialData={activePage?.gjsData}
-              initialHtml={activePageWithCache?.htmlCache}
-              initialCss={activePageWithCache?.cssCache}
-              onSave={handleSaveDraft}
-              onPublish={handlePublishPage}
-            />
+            {(() => {
+              const isContactPage = (activePage?.slug || "").replace(/^\/+|\/+$/g, "") === "contact";
+
+              return (
+                <GrapesEditor
+                  ref={editorRef}
+                  key={activePage?.id || activePage?.slug}
+                  initialData={activePage?.gjsData}
+                  initialHtml={activePageWithCache?.htmlCache || (isContactPage ? DEFAULT_CONTACT_PAGE_HTML : undefined)}
+                  initialCss={activePageWithCache?.cssCache}
+                  onSave={handleSaveDraft}
+                  onPublish={handlePublishPage}
+                />
+              );
+            })()}
           </main>
         </div>
       )}

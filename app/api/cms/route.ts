@@ -351,27 +351,6 @@ export async function PUT(req: NextRequest) {
         existing.cssCache.trim().length > 50
       ) {
         sanitizedCss = existing.cssCache;
-      } else if (
-        sanitizedCss !== undefined &&
-        existing.cssCache &&
-        existing.cssCache.trim().length > 50
-      ) {
-        const existingBlocks = existing.cssCache.split("}");
-        for (const block of existingBlocks) {
-          const trimmed = block.trim();
-          if (!trimmed) continue;
-          const openBrace = trimmed.indexOf("{");
-          if (openBrace === -1) continue;
-          const selector = trimmed.substring(0, openBrace).trim();
-          if (
-            selector &&
-            !sanitizedCss.includes(selector) &&
-            !selector.startsWith("*") &&
-            !selector.startsWith("body")
-          ) {
-            sanitizedCss += `\n${trimmed}}`;
-          }
-        }
       }
     }
 

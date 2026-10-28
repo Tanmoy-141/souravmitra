@@ -603,6 +603,567 @@ function registerCmsDynamicBlockTypes(editorInstance: Editor) {
   });
 }
 
+interface FilterSliderDef {
+  key: string;
+  label: string;
+  fn: string;
+  unit: string;
+  min: number;
+  max: number;
+  step: number;
+  defaultValue: number;
+}
+
+const FILTER_SLIDERS: FilterSliderDef[] = [
+  { key: "blur", label: "Blur", fn: "blur", unit: "px", min: 0, max: 25, step: 0.5, defaultValue: 0 },
+  { key: "brightness", label: "Brightness", fn: "brightness", unit: "%", min: 0, max: 200, step: 5, defaultValue: 100 },
+  { key: "contrast", label: "Contrast", fn: "contrast", unit: "%", min: 0, max: 200, step: 5, defaultValue: 100 },
+  { key: "grayscale", label: "Grayscale", fn: "grayscale", unit: "%", min: 0, max: 100, step: 5, defaultValue: 0 },
+  { key: "sepia", label: "Sepia", fn: "sepia", unit: "%", min: 0, max: 100, step: 5, defaultValue: 0 },
+  { key: "saturate", label: "Saturate", fn: "saturate", unit: "%", min: 0, max: 250, step: 5, defaultValue: 100 },
+  { key: "hueRotate", label: "Hue Rotate", fn: "hue-rotate", unit: "deg", min: 0, max: 360, step: 5, defaultValue: 0 },
+  { key: "invert", label: "Invert", fn: "invert", unit: "%", min: 0, max: 100, step: 5, defaultValue: 0 },
+];
+
+const FILTER_PRESETS: { id: string; label: string }[] = [
+  { id: "none", label: "None (Full Color)" },
+  { id: "grayscale(100%)", label: "Monochrome (B&W 100%)" },
+  { id: "grayscale(50%)", label: "Muted B&W (50%)" },
+  { id: "sepia(40%)", label: "Vintage Sepia" },
+  { id: "contrast(125%) brightness(105%)", label: "Punchy High Contrast" },
+  { id: "blur(4px)", label: "Soft Focus Blur (4px)" },
+  { id: "contrast(120%) saturate(125%) hue-rotate(190deg)", label: "Cinematic Cool" },
+  { id: "sepia(60%) contrast(110%) brightness(95%)", label: "Warm Amber Vintage" },
+  { id: "invert(100%)", label: "Invert Colors" },
+];
+
+function normalizeFilterStr(str: string): string {
+  if (!str || str.trim() === "" || str.trim().toLowerCase() === "none") return "none";
+  return str.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function parseCssFilter(str: string): Record<string, number> {
+  const values: Record<string, number> = {};
+  FILTER_SLIDERS.forEach((s) => {
+    values[s.key] = s.defaultValue;
+  });
+
+  if (!str || str.trim() === "" || str.trim().toLowerCase() === "none") {
+    return values;
+  }
+
+  FILTER_SLIDERS.forEach((s) => {
+    const regex = new RegExp(`${s.fn}\\s*\\(\\s*([+-]?[\\d.]+)\\s*(%|px|deg)?\\s*\\)`, "i");
+    const match = str.match(regex);
+    if (match) {
+      let num = parseFloat(match[1]);
+      const unit = match[2];
+      if (s.unit === "%" && unit !== "%" && num <= 2.5) {
+        num = Math.round(num * 100);
+      }
+      values[s.key] = num;
+    }
+  });
+
+  return values;
+}
+
+function composeFilterString(
+  currentText: string,
+  sliderValues: Map<string, number>,
+): string {
+  let customParts = (currentText || "").trim();
+  if (customParts.toLowerCase() === "none") customParts = "";
+
+  FILTER_SLIDERS.forEach((s) => {
+    const re = new RegExp(`\\b${s.fn}\\s*\\([^)]*\\)`, "gi");
+    customParts = customParts.replace(re, " ");
+  });
+  customParts = customParts.trim().replace(/\s+/g, " ");
+
+  const parts: string[] = [];
+  if (customParts) {
+    parts.push(customParts);
+  }
+
+  FILTER_SLIDERS.forEach((s) => {
+    const val = sliderValues.get(s.key);
+    if (val !== undefined && val !== s.defaultValue) {
+      parts.push(`${s.fn}(${val}${s.unit})`);
+    }
+  });
+
+  return parts.length > 0 ? parts.join(" ") : "none";
+}
+
+function registerCustomStyleTypes(editorInstance: Editor) {
+  editorInstance.StyleManager.addType("custom-filter", {
+    create(data: unknown) {
+      const { property: propModel, updateStyle: updateStyleCb } = (data || {}) as {
+        property?: { upValue?: (v: string, opts?: { partial?: boolean }) => void };
+        updateStyle?: (val: string | Record<string, string>, opts?: { partial?: boolean }) => void;
+      };
+
+      let isInteracting = false;
+      let resetInteractingTimer: ReturnType<typeof setTimeout> | null = null;
+
+      function setInteracting(val: boolean, delayMs = 0) {
+        if (resetInteractingTimer) {
+          clearTimeout(resetInteractingTimer);
+          resetInteractingTimer = null;
+        }
+        if (!val && delayMs > 0) {
+          resetInteractingTimer = setTimeout(() => {
+            isInteracting = false;
+          }, delayMs);
+        } else {
+          isInteracting = val;
+        }
+      }
+
+      function applyFilterToTarget(val: string, partial: boolean) {
+        const normVal = val.trim() || "none";
+        const filterCss = normVal === "none" ? "" : normVal;
+
+        // 1. Official GrapesJS StyleManager target application (updates active CSS Rule or Component)
+        try {
+          if (normVal === "none") {
+            const allTargets = editorInstance.StyleManager?.getSelectedAll() || [];
+            allTargets.forEach((t: unknown) => {
+              (t as { removeStyle?: (p: string) => void })?.removeStyle?.("filter");
+            });
+            editorInstance.StyleManager?.addStyleTargets(
+              { filter: "" },
+              { avoidStore: partial }
+            );
+          } else {
+            editorInstance.StyleManager?.addStyleTargets(
+              { filter: normVal },
+              { avoidStore: partial }
+            );
+          }
+        } catch (e) {
+          console.warn("addStyleTargets error:", e);
+        }
+
+        // 2. Update StyleManager Property model and updateStyle callback so traits/undo stay consistent
+        try {
+          if (typeof updateStyleCb === "function") {
+            updateStyleCb(normVal === "none" ? "" : normVal, { partial });
+          }
+          if (propModel && typeof propModel.upValue === "function") {
+            propModel.upValue(normVal, { partial });
+          } else {
+            const prop = editorInstance.StyleManager?.getProperty("Background & Effects", "filter");
+            if (prop && typeof prop.upValue === "function") {
+              prop.upValue(normVal, { partial });
+            }
+          }
+        } catch {
+          // ignore
+        }
+
+        // 3. Persist on selected component model
+        try {
+          const selected = editorInstance.getSelected();
+          if (selected) {
+            if (normVal === "none") {
+              selected.removeStyle?.("filter");
+            } else {
+              selected.addStyle?.({ filter: normVal });
+            }
+          }
+
+          // 4. Direct canvas DOM update with !important for immediate 60fps preview
+          const canvasDoc = editorInstance.Canvas?.getDocument();
+          const domTargets: HTMLElement[] = [];
+
+          if (selected) {
+            const primaryEl = selected.getEl?.() || (selected.getView?.()?.el as HTMLElement | undefined);
+            if (primaryEl) domTargets.push(primaryEl);
+
+            const compId = selected.getId?.();
+            if (canvasDoc && compId) {
+              const elById = canvasDoc.getElementById(compId);
+              if (elById && !domTargets.includes(elById)) domTargets.push(elById);
+            }
+
+            if (selected.find) {
+              const childImgs = (selected.find("img") || []) as Component[];
+              childImgs.forEach((c) => {
+                const imgEl = c.getEl?.() || (c.getView?.()?.el as HTMLElement | undefined);
+                if (imgEl && !domTargets.includes(imgEl)) domTargets.push(imgEl);
+              });
+            }
+          }
+
+          domTargets.forEach((el) => {
+            try {
+              if (normVal === "none") {
+                el.style.removeProperty("filter");
+              } else {
+                el.style.setProperty("filter", filterCss, "important");
+              }
+            } catch {}
+          });
+        } catch (e) {
+          console.warn("Direct comp styling error:", e);
+        }
+      }
+
+      const container = document.createElement("div");
+      container.className = "gjs-custom-filter-root";
+      container.style.cssText =
+        "display: flex; flex-direction: column; gap: 8px; width: 100%; box-sizing: border-box; background: #1c1c1c; border: 1px solid #333; border-radius: 6px; padding: 10px;";
+
+      // Prevent any click/change inside this component from bubbling to GrapesJS PropertyView
+      container.onclick = (e) => e.stopPropagation();
+      container.onchange = (e) => e.stopPropagation();
+
+      // Row 1: Preset dropdown + Reset button
+      const row1 = document.createElement("div");
+      row1.style.cssText = "display: flex; gap: 6px; align-items: center; width: 100%;";
+
+      const presetSelect = document.createElement("select");
+      presetSelect.className = "gjs-filter-preset-select";
+      presetSelect.style.cssText =
+        "flex: 1; min-width: 0; background: #262626; color: #fff; border: 1px solid #444; border-radius: 4px; padding: 5px 8px; font-size: 11px; cursor: pointer; outline: none;";
+
+      FILTER_PRESETS.forEach((p) => {
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = p.label;
+        presetSelect.appendChild(opt);
+      });
+
+      const customOpt = document.createElement("option");
+      customOpt.value = "__custom__";
+      customOpt.textContent = "✏️ Custom Manual Filter";
+      presetSelect.appendChild(customOpt);
+
+      const resetBtn = document.createElement("button");
+      resetBtn.type = "button";
+      resetBtn.textContent = "↺ Reset";
+      resetBtn.title = "Reset filter to none";
+      resetBtn.style.cssText =
+        "background: #262626; color: #aaa; border: 1px solid #444; border-radius: 4px; padding: 5px 9px; font-size: 11px; cursor: pointer; white-space: nowrap; transition: all 0.15s;";
+      resetBtn.onmouseenter = () => {
+        resetBtn.style.color = "#fff";
+        resetBtn.style.borderColor = "#666";
+        resetBtn.style.background = "#333";
+      };
+      resetBtn.onmouseleave = () => {
+        resetBtn.style.color = "#aaa";
+        resetBtn.style.borderColor = "#444";
+        resetBtn.style.background = "#262626";
+      };
+
+      row1.appendChild(presetSelect);
+      row1.appendChild(resetBtn);
+      container.appendChild(row1);
+
+      // Row 2: Manual Text Input with label
+      const textRow = document.createElement("div");
+      textRow.style.cssText = "display: flex; flex-direction: column; gap: 4px; width: 100%;";
+
+      const textLabelRow = document.createElement("div");
+      textLabelRow.style.cssText = "display: flex; justify-content: space-between; align-items: center;";
+
+      const textLabel = document.createElement("span");
+      textLabel.textContent = "CSS FILTER VALUE";
+      textLabel.style.cssText = "font-size: 9px; font-weight: 700; letter-spacing: 0.05em; color: #888;";
+
+      const textHint = document.createElement("span");
+      textHint.textContent = "Type directly or drag sliders below";
+      textHint.style.cssText = "font-size: 9px; color: #666;";
+
+      textLabelRow.appendChild(textLabel);
+      textLabelRow.appendChild(textHint);
+      textRow.appendChild(textLabelRow);
+
+      const textInput = document.createElement("input");
+      textInput.type = "text";
+      textInput.className = "gjs-filter-manual-input";
+      textInput.placeholder = "none";
+      textInput.spellcheck = false;
+      textInput.style.cssText =
+        "width: 100%; box-sizing: border-box; background: #111; color: #64d2ff; border: 1px solid #3d3d3d; border-radius: 4px; padding: 6px 8px; font-size: 11px; font-family: monospace; outline: none; transition: border-color 0.15s;";
+      textInput.onfocus = () => {
+        setInteracting(true);
+        textInput.style.borderColor = "#C5A059";
+      };
+      textInput.onblur = () => {
+        setInteracting(false, 80);
+        textInput.style.borderColor = "#3d3d3d";
+      };
+
+      textRow.appendChild(textInput);
+      container.appendChild(textRow);
+
+      // Row 3: Sliders drawer toggle button
+      const toggleBtn = document.createElement("button");
+      toggleBtn.type = "button";
+      toggleBtn.style.cssText =
+        "width: 100%; display: flex; justify-content: space-between; align-items: center; background: #242424; border: 1px solid #383838; border-radius: 4px; padding: 5px 8px; font-size: 11px; color: #ddd; cursor: pointer; transition: background 0.15s;";
+      toggleBtn.innerHTML = `<span>🎚️ Fine-Tune Sliders (Blur, Contrast...)</span><span class="gjs-filter-chevron" style="font-size: 10px; color: #888; transition: transform 0.2s;">▾</span>`;
+      toggleBtn.onmouseenter = () => {
+        toggleBtn.style.background = "#2d2d2d";
+      };
+      toggleBtn.onmouseleave = () => {
+        toggleBtn.style.background = "#242424";
+      };
+
+      container.appendChild(toggleBtn);
+
+      // Row 4: Sliders Container
+      const slidersContainer = document.createElement("div");
+      slidersContainer.className = "gjs-filter-sliders-container";
+      slidersContainer.style.cssText =
+        "display: flex; flex-direction: column; gap: 7px; width: 100%; box-sizing: border-box; background: #141414; border: 1px solid #2a2a2a; border-radius: 4px; padding: 8px;";
+
+      let slidersOpen = true;
+      toggleBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        slidersOpen = !slidersOpen;
+        slidersContainer.style.display = slidersOpen ? "flex" : "none";
+        const chevron = toggleBtn.querySelector(".gjs-filter-chevron") as HTMLElement | null;
+        if (chevron) {
+          chevron.textContent = slidersOpen ? "▾" : "▸";
+        }
+      };
+
+      const sliderInputs: Map<string, HTMLInputElement> = new Map();
+      const badgeElements: Map<string, HTMLElement> = new Map();
+
+      const syncPresetDropdown = (val: string) => {
+        const norm = normalizeFilterStr(val);
+        const match = FILTER_PRESETS.find((p) => normalizeFilterStr(p.id) === norm);
+        if (match) {
+          presetSelect.value = match.id;
+        } else {
+          presetSelect.value = "__custom__";
+        }
+      };
+
+      const applyValuesToSliders = (vals: Record<string, number>) => {
+        FILTER_SLIDERS.forEach((s) => {
+          const inputEl = sliderInputs.get(s.key);
+          const badgeEl = badgeElements.get(s.key);
+          const val = vals[s.key] ?? s.defaultValue;
+          if (inputEl) inputEl.value = String(val);
+          if (badgeEl) badgeEl.textContent = `${val}${s.unit}`;
+        });
+      };
+
+      const getActiveSliderValues = (): Map<string, number> => {
+        const map = new Map<string, number>();
+        FILTER_SLIDERS.forEach((s) => {
+          const inputEl = sliderInputs.get(s.key);
+          if (inputEl) {
+            map.set(s.key, parseFloat(inputEl.value));
+          } else {
+            map.set(s.key, s.defaultValue);
+          }
+        });
+        return map;
+      };
+
+      FILTER_SLIDERS.forEach((s) => {
+        const sRow = document.createElement("div");
+        sRow.style.cssText =
+          "display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%;";
+
+        const sLabel = document.createElement("span");
+        sLabel.textContent = s.label;
+        sLabel.style.cssText = "width: 68px; font-size: 10.5px; color: #aaa; flex-shrink: 0;";
+
+        const sInput = document.createElement("input");
+        sInput.type = "range";
+        sInput.min = String(s.min);
+        sInput.max = String(s.max);
+        sInput.step = String(s.step);
+        sInput.value = String(s.defaultValue);
+        sInput.style.cssText = "flex: 1; min-width: 0; height: 4px; accent-color: #C5A059; cursor: pointer;";
+
+        const sBadge = document.createElement("span");
+        sBadge.textContent = `${s.defaultValue}${s.unit}`;
+        sBadge.style.cssText =
+          "width: 44px; text-align: right; font-size: 10px; font-family: monospace; color: #C5A059; font-weight: 600; flex-shrink: 0;";
+
+        sliderInputs.set(s.key, sInput);
+        badgeElements.set(s.key, sBadge);
+
+        const syncFromSlider = (e: Event, partial: boolean) => {
+          e.stopPropagation();
+          setInteracting(true);
+          const num = parseFloat(sInput.value);
+          sBadge.textContent = `${num}${s.unit}`;
+
+          const sliderVals = getActiveSliderValues();
+          sliderVals.set(s.key, num);
+
+          const newFilterStr = composeFilterString(textInput.value, sliderVals);
+          textInput.value = newFilterStr;
+          syncPresetDropdown(newFilterStr);
+          applyFilterToTarget(newFilterStr, partial);
+        };
+
+        sInput.onpointerdown = (e) => {
+          e.stopPropagation();
+          setInteracting(true);
+        };
+        sInput.onmousedown = (e) => {
+          e.stopPropagation();
+          setInteracting(true);
+        };
+        sInput.oninput = (e) => syncFromSlider(e, true);
+        sInput.onchange = (e) => {
+          e.stopPropagation();
+          syncFromSlider(e, false);
+          setInteracting(false, 80);
+        };
+        sInput.onpointerup = (e) => {
+          e.stopPropagation();
+          setInteracting(false, 80);
+        };
+        sInput.onmouseup = (e) => {
+          e.stopPropagation();
+          setInteracting(false, 80);
+        };
+
+        sRow.appendChild(sLabel);
+        sRow.appendChild(sInput);
+        sRow.appendChild(sBadge);
+        slidersContainer.appendChild(sRow);
+      });
+
+      container.appendChild(slidersContainer);
+
+      // Text input event handlers
+      textInput.oninput = (e) => {
+        e.stopPropagation();
+        setInteracting(true);
+        const rawVal = textInput.value.trim() || "none";
+        const parsed = parseCssFilter(rawVal);
+        applyValuesToSliders(parsed);
+        syncPresetDropdown(rawVal);
+        applyFilterToTarget(rawVal, true);
+      };
+
+      textInput.onchange = (e) => {
+        e.stopPropagation();
+        setInteracting(false, 80);
+        const rawVal = textInput.value.trim() || "none";
+        applyFilterToTarget(rawVal, false);
+      };
+
+      textInput.onkeydown = (e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") {
+          e.preventDefault();
+          textInput.blur();
+        }
+      };
+
+      // Preset select handler
+      presetSelect.onfocus = () => setInteracting(true);
+      presetSelect.onchange = (e) => {
+        e.stopPropagation();
+        setInteracting(true);
+        const selectedVal = presetSelect.value;
+        if (selectedVal === "__custom__") {
+          setInteracting(false, 80);
+          return;
+        }
+        textInput.value = selectedVal;
+        const parsed = parseCssFilter(selectedVal);
+        applyValuesToSliders(parsed);
+        applyFilterToTarget(selectedVal, false);
+        setInteracting(false, 80);
+      };
+
+      // Reset button handler
+      resetBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setInteracting(false, 0);
+        textInput.value = "none";
+        presetSelect.value = "none";
+        applyValuesToSliders(parseCssFilter("none"));
+        applyFilterToTarget("none", false);
+      };
+
+      // Attach data to container for update()
+      (container as unknown as Record<string, unknown>).__customFilterData = {
+        textInput,
+        presetSelect,
+        applyValuesToSliders,
+        syncPresetDropdown,
+        getIsInteracting: () => isInteracting,
+      };
+
+      return container;
+    },
+
+    emit() {
+      // Prevents GrapesJS default PropertyView.inputValueChanged from running
+    },
+
+    update(data: unknown) {
+      const { value, createdEl } = data as { value?: string; createdEl?: HTMLElement };
+      if (!createdEl) return;
+      const refData = (createdEl as unknown as Record<string, unknown>).__customFilterData as
+        | {
+            textInput: HTMLInputElement;
+            presetSelect: HTMLSelectElement;
+            applyValuesToSliders: (vals: Record<string, number>) => void;
+            syncPresetDropdown: (val: string) => void;
+            getIsInteracting: () => boolean;
+          }
+        | undefined;
+
+      if (!refData) return;
+
+      // If user is actively typing or dragging a slider, do not clobber/revert
+      if (refData.getIsInteracting && refData.getIsInteracting()) return;
+      if (document.activeElement === refData.textInput) return;
+
+      let currentVal = "";
+      if (value && typeof value === "string" && value.trim()) {
+        currentVal = value.trim();
+      }
+
+      if (!currentVal) {
+        try {
+          const smSelected = editorInstance.StyleManager?.getSelected();
+          const smStyle = smSelected?.getStyle?.()?.filter;
+          if (smStyle && typeof smStyle === "string") currentVal = smStyle.trim();
+        } catch {}
+      }
+
+      if (!currentVal) {
+        try {
+          const selected = editorInstance.getSelected();
+          const compStyle = selected?.getStyle?.()?.filter;
+          if (compStyle && typeof compStyle === "string") currentVal = compStyle.trim();
+        } catch {}
+      }
+
+      if (!currentVal || currentVal.toLowerCase() === "none") {
+        currentVal = "none";
+      }
+
+      refData.textInput.value = currentVal;
+      const parsed = parseCssFilter(currentVal);
+      refData.applyValuesToSliders(parsed);
+      refData.syncPresetDropdown(currentVal);
+    },
+
+    destroy() {},
+  });
+}
+
 const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
   function GrapesEditor(
     { initialData, initialHtml, initialCss, onSave, onPublish },
@@ -915,7 +1476,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           btn.type = "button";
           btn.innerHTML = "+ Custom Font";
           btn.title =
-            "Install Google Font, Web Font URL, or upload .woff2 font file";
+            "Install Google Font, Web Font URL, or upload .woff2, .otf, .ttf font file";
           btn.style.cssText =
             "margin-left: auto; padding: 2px 7px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; background: #1c1508; color: #C5A059; border: 1px solid rgba(197,160,89,0.4); border-radius: 2px; cursor: pointer; transition: all 0.2s;";
           btn.onmouseenter = () => {
@@ -1001,7 +1562,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           componentFirst: true,
         },
 
-        plugins: [registerCmsDynamicBlockTypes],
+        plugins: [registerCmsDynamicBlockTypes, registerCustomStyleTypes],
 
         assetManager: {
           upload: "/api/media",
@@ -2057,19 +2618,13 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                 {
                   name: "Image / Color Filter",
                   property: "filter",
-                  type: "select",
+                  type: "custom-filter",
                   defaults: "none",
-                  options: [
-                    { id: "none", label: "None (Full Color)" },
-                    { id: "grayscale(100%)", label: "Monochrome (B&W 100%)" },
-                    { id: "grayscale(50%)", label: "Muted B&W (50%)" },
-                    { id: "sepia(40%)", label: "Vintage Sepia" },
-                    {
-                      id: "contrast(125%) brightness(105%)",
-                      label: "Punchy High Contrast",
-                    },
-                    { id: "blur(4px)", label: "Soft Focus Blur (4px)" },
-                  ],
+                  full: true,
+                  parseValue: ({ value }: { value: string }) => ({
+                    value: value || "none",
+                    functionName: "",
+                  }),
                 },
                 {
                   name: "Hover Scale & Float",
@@ -2217,6 +2772,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
        */
       editor.on("component:selected", (component) => {
         setHasSelectedElement(true);
+        (editor as unknown as Record<string, unknown>).__lastSelectedImageComponent = null;
 
         // Enable on-canvas interactive resize handles (tl, tc, tr, cl, cr, bl, bc, br) on selected element
         if (component && !component.get("resizable")) {
@@ -2247,6 +2803,8 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             component.get("tagName")?.toLowerCase() === "img"
               ? component
               : component.find("img")[0];
+          (editor as unknown as Record<string, unknown>).__lastSelectedImageComponent =
+            lastSelectedImageComponent;
 
           setActiveRightTab("traits");
           const defaultToolbar = (component.get("toolbar") ||
@@ -2538,6 +3096,9 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
 
       editor.on("component:deselected", () => {
         setHasSelectedElement(Boolean(editor.getSelected()));
+        if (!editor.getSelected()) {
+          (editor as unknown as Record<string, unknown>).__lastSelectedImageComponent = null;
+        }
         syncAllCounters(editor);
       });
 

@@ -3,7 +3,7 @@ export interface CustomFont {
   family: string;
   type: "google" | "url" | "upload";
   url: string;
-  format?: "woff2" | "woff" | "truetype" | "opentype";
+  format?: "woff2" | "woff" | "truetype" | "opentype" | "otf";
   category?: "serif" | "sans-serif" | "display" | "handwriting" | "monospace";
   createdAt: number;
 }
@@ -28,7 +28,16 @@ export function buildGoogleFontUrl(familyName: string): string {
 export function formatFontFaceCss(font: CustomFont): string {
   if (font.type !== "upload") return "";
   const cleanFamily = sanitizeFontFamily(font.family);
-  const format = font.format || "woff2";
+  let format = font.format || "woff2";
+  if (format === "otf") {
+    format = "opentype";
+  } else if (!font.format) {
+    const lowerUrl = font.url.toLowerCase();
+    if (lowerUrl.includes(".woff2")) format = "woff2";
+    else if (lowerUrl.includes(".woff")) format = "woff";
+    else if (lowerUrl.includes(".ttf")) format = "truetype";
+    else if (lowerUrl.includes(".otf")) format = "opentype";
+  }
   return `@font-face {
   font-family: '${cleanFamily}';
   src: url('${font.url}') format('${format}');

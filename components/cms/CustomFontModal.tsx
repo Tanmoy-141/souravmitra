@@ -327,12 +327,24 @@ export default function CustomFontModal({
       });
 
       const mediaData = await mediaRes.json();
-      if (!mediaRes.ok || !mediaData.assets || mediaData.assets.length === 0) {
-        throw new Error(mediaData.message || "Failed to upload font file.");
-      }
+      const uploadedAsset =
+        mediaData.asset ||
+        (Array.isArray(mediaData.assets) && mediaData.assets.length > 0
+          ? mediaData.assets[0]
+          : null) ||
+        (Array.isArray(mediaData.data) && mediaData.data.length > 0
+          ? { blobUrl: mediaData.data[0]?.src }
+          : null);
 
-      const uploadedAsset = mediaData.assets[0];
-      const fontUrl = uploadedAsset.blobUrl;
+      const fontUrl = uploadedAsset?.blobUrl || uploadedAsset?.src;
+
+      if (!mediaRes.ok || !fontUrl) {
+        throw new Error(
+          mediaData.message ||
+            mediaData.error ||
+            "Failed to upload font file.",
+        );
+      }
 
       // 2. Register font in /api/cms/fonts
       const fontRes = await fetch("/api/cms/fonts", {
@@ -475,7 +487,7 @@ export default function CustomFontModal({
                 : "border-transparent text-gray-400 hover:text-white hover:bg-[#151515]"
             }`}>
             <span>📁</span>
-            <span>Upload Font File (.woff2 / .ttf)</span>
+            <span>Upload Font File (.woff2 / .otf / .ttf)</span>
           </button>
 
           <button
@@ -919,7 +931,7 @@ export default function CustomFontModal({
                   <p className="text-xs text-gray-400 max-w-sm mx-auto">
                     You can install any Google Font by name, add a custom web
                     font stylesheet URL, or upload your own font files (.woff2,
-                    .ttf).
+                    .woff, .ttf, .otf).
                   </p>
                   <button
                     type="button"

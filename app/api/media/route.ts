@@ -42,12 +42,15 @@ const ALLOWED_TYPES = new Set([
   "font/woff",
   "font/ttf",
   "font/otf",
+  "font/opentype",
   "application/font-woff",
   "application/font-woff2",
   "application/x-font-woff",
   "application/x-font-ttf",
   "application/x-font-truetype",
   "application/x-font-opentype",
+  "application/vnd.ms-opentype",
+  "application/font-sfnt",
 ]);
 
 /** Normalizes the MIME type based on file extension and provided type */
@@ -236,6 +239,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     success: true,
     asset: savedAssets[0],
+    assets: savedAssets,
     data: savedAssets.map((a) => ({
       src: a.blobUrl,
       name: a.name,

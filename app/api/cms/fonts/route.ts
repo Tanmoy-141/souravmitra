@@ -94,7 +94,13 @@ export async function POST(req: NextRequest) {
         );
       }
     } else if (type === "upload") {
-      if (!url || (!url.startsWith("/uploads/") && !isSafeUrl(url))) {
+      const isAllowedUploadUrl =
+        url.startsWith("/uploads/") ||
+        url.startsWith("data:font/") ||
+        url.startsWith("data:application/") ||
+        isSafeUrl(url);
+
+      if (!url || !isAllowedUploadUrl) {
         return NextResponse.json(
           { error: "A valid uploaded font file URL is required" },
           { status: 400 },
@@ -102,22 +108,25 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const lowerUrl = url.toLowerCase();
+    const resolvedFormat: CustomFont["format"] =
+      (format === "otf" ? "opentype" : (format as CustomFont["format"])) ||
+      (lowerUrl.includes(".woff2")
+        ? "woff2"
+        : lowerUrl.includes(".woff")
+          ? "woff"
+          : lowerUrl.includes(".ttf")
+            ? "truetype"
+            : lowerUrl.includes(".otf")
+              ? "opentype"
+              : undefined);
+
     const newFont: CustomFont = {
       id: `font_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       family,
       type,
       url,
-      format:
-        format ||
-        (url.endsWith(".woff2")
-          ? "woff2"
-          : url.endsWith(".woff")
-            ? "woff"
-            : url.endsWith(".ttf")
-              ? "truetype"
-              : url.endsWith(".otf")
-                ? "opentype"
-                : undefined),
+      format: resolvedFormat,
       category: category || "sans-serif",
       createdAt: Date.now(),
     };

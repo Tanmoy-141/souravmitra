@@ -8,6 +8,7 @@ import { isSafeUrl } from "@/lib/sanitize";
 const SOCIAL_LINK_KEYS = [
   "facebook",
   "instagram",
+  "threads",
   "behance",
   "pinterest",
   "linkedin",

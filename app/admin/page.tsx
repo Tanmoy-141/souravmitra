@@ -34,7 +34,7 @@ type CmsApiResponse = {
 const SOCIAL_LINK_FIELDS = [
   ["facebook", "Facebook"],
   ["instagram", "Instagram"],
-  ["behance", "Behance"],
+  ["threads", "Threads"],
   ["pinterest", "Pinterest"],
   ["linkedin", "LinkedIn"],
   ["x", "X"],

@@ -106,8 +106,8 @@ export function generateProjectDetailHtml(project: Project): string {
           <a href="https://pinterest.com" target="_blank" rel="noopener noreferrer" style="padding: 8px 16px; background: #161616; border: 1px solid #2a2a2a; border-radius: 6px; color: #ccc; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; text-decoration: none;">
             Pinterest
           </a>
-          <a href="https://behance.net" target="_blank" rel="noopener noreferrer" style="padding: 8px 16px; background: #161616; border: 1px solid #2a2a2a; border-radius: 6px; color: #C5A059; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; text-decoration: none;">
-            Behance
+          <a href="https://threads.net" target="_blank" rel="noopener noreferrer" style="padding: 8px 16px; background: #161616; border: 1px solid #2a2a2a; border-radius: 6px; color: #C5A059; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; text-decoration: none;">
+            Threads
           </a>
         </div>
       </div>

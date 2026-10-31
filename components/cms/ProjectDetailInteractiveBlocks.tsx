@@ -84,10 +84,11 @@ export function ProjectShareBlock() {
         window.open("https://www.instagram.com", "_blank");
         setTimeout(() => setCopiedPlatform(null), 3000);
         break;
+      case "threads":
       case "behance":
         await copyToClipboard(shareUrl);
-        setCopiedPlatform("Behance");
-        window.open("https://www.behance.net", "_blank");
+        setCopiedPlatform("Threads");
+        window.open("https://www.threads.net", "_blank");
         setTimeout(() => setCopiedPlatform(null), 3000);
         break;
       case "copy":
@@ -131,7 +132,7 @@ export function ProjectShareBlock() {
               { id: "facebook", label: "Facebook" },
               { id: "instagram", label: "Instagram" },
               { id: "twitter", label: "Twitter (X)" },
-              { id: "behance", label: "Behance" },
+              { id: "threads", label: "Threads" },
               { id: "pinterest", label: "Pinterest" },
               { id: "copy", label: "Copy Link" },
             ].map((p) => (

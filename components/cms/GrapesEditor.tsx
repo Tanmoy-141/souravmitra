@@ -8021,8 +8021,8 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               ArtStation
             </a>
             <span style="color: #333;">&bull;</span>
-            <a href="https://behance.net" target="_blank" rel="noopener noreferrer" style="color: #999; text-decoration: none; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em;">
-              Behance
+            <a href="https://threads.net" target="_blank" rel="noopener noreferrer" style="color: #999; text-decoration: none; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em;">
+              Threads
             </a>
             <span style="color: #333;">&bull;</span>
             <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" style="color: #999; text-decoration: none; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em;">

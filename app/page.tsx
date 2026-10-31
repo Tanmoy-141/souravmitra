@@ -1,12 +1,13 @@
 import { db } from "@/db";
 import { pages } from "@/db/schema";
-import { eq, and, isNull, or } from "drizzle-orm";
+import { eq, and, isNull, or, desc } from "drizzle-orm";
 import { sanitizeHtml, safeCssForStyleTag } from "@/lib/sanitize";
 import { Button } from "@/components/Button";
 import Image from "next/image";
 import Link from "next/link";
 import TestimonialsSection from "@/components/TestimonialsSection";
 import Counter from "@/components/Counter";
+import ClientsSection from "@/components/ClientsSection";
 import CmsDynamicBlockPortal from "@/components/cms/CmsDynamicBlockPortal";
 
 // Always read the latest published content from the DB — this route has no
@@ -25,6 +26,7 @@ export default async function Home() {
         isNull(pages.deletedAt),
       ),
     )
+    .orderBy(desc(pages.updatedAt))
     .limit(1);
 
   const page = pageResult[0];
@@ -116,6 +118,9 @@ export default async function Home() {
           </Link>
         </div>
       </section>
+
+      {/* Client Logos Section (Animated & Customizable) — placed at the bottom, just above the footer */}
+      <ClientsSection />
     </div>
   );
 }

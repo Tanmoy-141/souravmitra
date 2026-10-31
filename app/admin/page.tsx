@@ -216,7 +216,7 @@ export default function AdminDashboard() {
   const [activePage, setActivePage] = useState<CustomPage | null>(null);
 
   const editorRef = useRef<GrapesEditorHandle>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const toggleSidebar = () => {
     setSidebarOpen((prev) => {
@@ -1011,19 +1011,19 @@ export default function AdminDashboard() {
             <button
               type="button"
               onClick={toggleSidebar}
-              className={`p-2 rounded border transition-all duration-300 flex items-center justify-center shrink-0 cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded border transition-all duration-300 flex items-center justify-center shrink-0 cursor-pointer gap-1.5 text-xs font-semibold ${
                 sidebarOpen
                   ? "border-[#333] hover:border-[#C5A059] bg-[#111] hover:bg-[#1a1a1a] text-gray-300 hover:text-[#C5A059]"
                   : "border-[#C5A059] bg-[#C5A059] text-black shadow-[0_0_15px_rgba(197,160,89,0.35)]"
               }`}
               title={
                 sidebarOpen
-                  ? "Maximize Visual Editor (Hide Sidebar)"
-                  : "Restore Sidebar Controls"
+                  ? "Maximize Visual Editor (Expand Broad Canvas)"
+                  : "Show Page Settings Sidebar"
               }
-              aria-label="Toggle visual editor maximized view">
+              aria-label="Toggle visual editor broad canvas view">
               <svg
-                className="w-4 h-4"
+                className="w-3.5 h-3.5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -1034,6 +1034,7 @@ export default function AdminDashboard() {
                   d="M4 6h16M4 12h16M4 18h16"
                 />
               </svg>
+              <span>{sidebarOpen ? "◀ Broad View" : "▶ Page Settings"}</span>
             </button>
           )}
 

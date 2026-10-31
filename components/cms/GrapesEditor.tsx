@@ -48,7 +48,7 @@ function isProjectData(value: unknown): value is GrapesProjectData {
 
 function registerCmsDynamicBlockTypes(editorInstance: Editor) {
   const dynamicBlockDefaults = {
-    droppable: true,
+    droppable: false,
     editable: true,
     draggable: true,
     removable: true,
@@ -143,6 +143,146 @@ function registerCmsDynamicBlockTypes(editorInstance: Editor) {
             label: "Projects Carousel",
             text: "🖼️ Edit Carousel Heading",
             command: "open-project-carousel-editor",
+          },
+        ],
+      },
+    },
+  });
+
+  editorInstance.Components.addType("clients-section", {
+    isComponent: (el: HTMLElement) =>
+      el.getAttribute?.("data-cms-block") === "clients-section" ||
+      el.getAttribute?.("data-cms-block") === "client-logos" ||
+      el.classList?.contains?.("clients-section")
+        ? { type: "clients-section" }
+        : undefined,
+    model: {
+      defaults: {
+        ...dynamicBlockDefaults,
+        selectable: true,
+        hoverable: true,
+        draggable: true,
+        droppable: false,
+        removable: true,
+        copyable: true,
+        attributes: {
+          "data-cms-block": "clients-section",
+          "data-anim-type": "marquee",
+          "data-anim-speed": "normal",
+          "data-anim-direction": "left",
+          "data-anim-pause": "true",
+          "data-hover-effect": "scale",
+          "data-logo-height": "44px",
+          "data-section-height": "auto",
+        },
+        traits: [
+          {
+            type: "button",
+            name: "edit_clients_modal_btn",
+            label: "Client Section & Logos",
+            text: "✨ Edit Client Logos & Animation",
+            command: "open-client-animation-customizer",
+          },
+          {
+            type: "select",
+            name: "data-logo-height",
+            label: "Logo Size / Height",
+            options: [
+              { id: "32px", label: "Compact (32px)" },
+              { id: "44px", label: "Standard (44px)" },
+              { id: "56px", label: "Medium (56px)" },
+              { id: "72px", label: "Large (72px)" },
+              { id: "88px", label: "Extra Large (88px)" },
+              { id: "100px", label: "Hero / Giant (100px)" },
+            ],
+          },
+          {
+            type: "select",
+            name: "data-section-height",
+            label: "Section Spacing / Height",
+            options: [
+              { id: "auto", label: "Auto Spacing (Standard py-16)" },
+              { id: "220px", label: "Compact Height (220px)" },
+              { id: "320px", label: "Standard Height (320px)" },
+              { id: "420px", label: "Spacious Height (420px)" },
+              { id: "550px", label: "Hero Height (550px)" },
+            ],
+          },
+          {
+            type: "select",
+            name: "data-anim-type",
+            label: "Animation Style",
+            options: [
+              { id: "marquee", label: "Infinite Marquee (Ticker)" },
+              { id: "fade", label: "Staggered Fade & Slide In" },
+              { id: "pulse", label: "Soft Breathing Pulse" },
+              { id: "float", label: "Floating Wave" },
+              { id: "none", label: "Static Grid" },
+            ],
+          },
+          {
+            type: "select",
+            name: "data-anim-speed",
+            label: "Motion Speed",
+            options: [
+              { id: "slow", label: "Slow (38s / Gentle)" },
+              { id: "normal", label: "Normal (22s / Standard)" },
+              { id: "fast", label: "Fast (14s / Brisk)" },
+            ],
+          },
+          {
+            type: "select",
+            name: "data-anim-direction",
+            label: "Scroll Direction",
+            options: [
+              { id: "left", label: "◄ Left (Forward)" },
+              { id: "right", label: "Right ► (Reverse)" },
+            ],
+          },
+          {
+            type: "select",
+            name: "data-anim-pause",
+            label: "Pause on Hover",
+            options: [
+              { id: "true", label: "Yes (Pause on hover)" },
+              { id: "false", label: "No (Always moving)" },
+            ],
+          },
+          {
+            type: "select",
+            name: "data-hover-effect",
+            label: "Logo Hover Effect",
+            options: [
+              { id: "scale", label: "Lift & Scale (110%)" },
+              { id: "glow", label: "Golden Ambient Glow" },
+              { id: "brightness", label: "Brighten & Focus" },
+              { id: "none", label: "Standard" },
+            ],
+          },
+          {
+            type: "text",
+            name: "data-heading",
+            label: "Heading Text",
+            placeholder: "Clients",
+          },
+          {
+            type: "select",
+            name: "data-heading-font",
+            label: "Heading Font Family",
+            options: [
+              { id: "", label: "Default Site Font" },
+              { id: "'Italiana', 'Didot', serif", label: "Italiana (Luxury Serif)" },
+              { id: "'Playfair Display', Georgia, serif", label: "Playfair Display (Editorial Serif)" },
+              { id: "'Cinzel', 'Times New Roman', serif", label: "Cinzel (Cinematic Classical)" },
+              { id: "'Bodoni Moda', 'Didot', serif", label: "Bodoni Moda (High Fashion Serif)" },
+              { id: "'Cormorant Garamond', Garamond, serif", label: "Cormorant Garamond (Graceful Serif)" },
+              { id: "'EB Garamond', Georgia, serif", label: "EB Garamond (Traditional Literary)" },
+              { id: "'Syne', sans-serif", label: "Syne (Bold Expressive)" },
+              { id: "'Space Grotesk', sans-serif", label: "Space Grotesk (Tech Modern)" },
+              { id: "'Poppins', sans-serif", label: "Poppins (Clean Geometric)" },
+              { id: "'Montserrat', sans-serif", label: "Montserrat (Modern Sans)" },
+              { id: "'Inter', -apple-system, sans-serif", label: "Inter (Contemporary Clean)" },
+            ],
           },
         ],
       },
@@ -754,7 +894,36 @@ function registerCustomStyleTypes(editorInstance: Editor) {
           if (propModel && typeof propModel.upValue === "function") {
             propModel.upValue(normVal, { partial });
           } else {
-            const prop = editorInstance.StyleManager?.getProperty("Background & Effects", "filter");
+            interface FilterPropertyLike {
+              upValue?: (val: string, opts?: { partial?: boolean }) => void;
+              get?: (key: string) => unknown;
+              property?: string;
+            }
+            interface FilterSectorLike {
+              getProperties?: () => { models?: FilterPropertyLike[] } | FilterPropertyLike[];
+              properties?: FilterPropertyLike[];
+            }
+            interface FilterStyleManagerLike {
+              getSectors?: () => { models?: FilterSectorLike[] } | FilterSectorLike[];
+            }
+
+            const sm = editorInstance.StyleManager as unknown as FilterStyleManagerLike | undefined;
+            let prop: FilterPropertyLike | null = null;
+            if (sm) {
+              const sectors = typeof sm.getSectors === "function" ? sm.getSectors() : [];
+              const sectorList = (sectors && "models" in sectors && Array.isArray(sectors.models)) ? sectors.models : (Array.isArray(sectors) ? sectors : []);
+              for (const sec of sectorList) {
+                const props = typeof sec.getProperties === "function" ? sec.getProperties() : (sec.properties || []);
+                const propList = (props && "models" in props && Array.isArray(props.models)) ? props.models : (Array.isArray(props) ? props : []);
+                const found = propList.find(
+                  (p: FilterPropertyLike) => (typeof p.get === "function" ? p.get("property") : p.property) === "filter",
+                );
+                if (found) {
+                  prop = found;
+                  break;
+                }
+              }
+            }
             if (prop && typeof prop.upValue === "function") {
               prop.upValue(normVal, { partial });
             }
@@ -1189,6 +1358,19 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
     const [customFonts, setCustomFonts] = useState<CustomFont[]>([]);
     const [hasSelectedElement, setHasSelectedElement] = useState(false);
     const [isFreeformDrag, setIsFreeformDrag] = useState(false);
+    const [showLeftBlocks, setShowLeftBlocks] = useState(true);
+    const [showRightInspector, setShowRightInspector] = useState(true);
+    const [isBroadView, setIsBroadView] = useState(false);
+    const [showSectionsModal, setShowSectionsModal] = useState(false);
+    const [pageSections, setPageSections] = useState<
+      Array<{
+        id: string;
+        title: string;
+        cid: string;
+        index: number;
+        tagName: string;
+      }>
+    >([]);
     const customFontsRef = useRef<CustomFont[]>([]);
     customFontsRef.current = customFonts;
 
@@ -1196,10 +1378,179 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       setIsFreeformDrag((prev) => {
         const next = !prev;
         if (editorRef.current) {
-          editorRef.current.setDragMode(next ? "absolute" : "translate");
+          // GrapesJS default flow drag mode is empty string ""
+          editorRef.current.setDragMode(next ? "absolute" : "");
         }
         return next;
       });
+    };
+
+    const toggleBroadView = () => {
+      setIsBroadView((prev) => {
+        const next = !prev;
+        if (next) {
+          setShowLeftBlocks(false);
+          setShowRightInspector(false);
+        } else {
+          setShowLeftBlocks(true);
+          setShowRightInspector(true);
+        }
+        return next;
+      });
+    };
+
+    const refreshPageSections = (editorInstance?: Editor) => {
+      const ed = editorInstance || editorRef.current;
+      if (!ed) return;
+      const wrapper = ed.getWrapper();
+      if (!wrapper) return;
+
+      const wrapperModels = wrapper.components().models;
+      const rootContainer =
+        wrapperModels.length === 1 &&
+        wrapperModels[0].get("tagName")?.toLowerCase() === "div"
+          ? wrapperModels[0]
+          : wrapper;
+
+      const topComps = rootContainer.components().models;
+      const sections: Array<{
+        id: string;
+        title: string;
+        cid: string;
+        index: number;
+        tagName: string;
+      }> = [];
+
+      topComps.forEach((comp, idx) => {
+        const type = (comp.get?.("type") || "").toLowerCase();
+        const tag = (comp.get?.("tagName") || "").toLowerCase();
+        // Skip comment nodes, text nodes, and non-visual/empty nodes
+        if (
+          type === "comment" ||
+          type === "textnode" ||
+          tag === "comment" ||
+          tag === "textnode" ||
+          !tag
+        ) {
+          return;
+        }
+
+        const compId = comp.getId?.() || comp.getAttributes?.()?.id || "";
+        const blockType = comp.getAttributes?.()?.["data-cms-block"] || "";
+        const classes = typeof comp.getClasses === "function" ? comp.getClasses() : [];
+
+        let title = "";
+        if (
+          compId === "hero" ||
+          comp.getAttributes?.()?.["data-section"] === "hero"
+        ) {
+          title = "Hero & Header Banner";
+        } else if (
+          compId === "clients" ||
+          blockType === "clients-section" ||
+          blockType === "client-logos" ||
+          classes.includes("clients-section")
+        ) {
+          title = "Client Logos & Collaborators";
+        } else if (
+          blockType === "project-carousel" ||
+          blockType === "gallery-carousel" ||
+          blockType === "all-projects-carousel"
+        ) {
+          title = "Projects Carousel";
+        } else if (
+          blockType === "testimonials-carousel" ||
+          classes.includes("testimonials-section")
+        ) {
+          title = "Testimonials & Reviews";
+        } else if (
+          compId === "works" ||
+          compId === "portfolio" ||
+          comp.getAttributes?.()?.["data-section"] === "works" ||
+          blockType === "project-grid"
+        ) {
+          title = "Portfolio & Artworks Showcase";
+        } else if (compId === "about" || compId === "story") {
+          title = "About & Artist Bio";
+        } else if (
+          compId === "contact" ||
+          comp.getAttributes?.()?.["data-component"] === "contact-wrapper" ||
+          blockType === "contact-form"
+        ) {
+          title = "Contact & Inquiries";
+        } else if (classes.includes("c6304") || tag === "hr") {
+          title = "Horizontal Divider";
+        } else {
+          let headingText = "";
+          try {
+            const el = typeof comp.getEl === "function" ? comp.getEl() : null;
+            if (el && typeof el.querySelector === "function") {
+              const headingEl = el.querySelector("h1, h2, h3");
+              if (headingEl?.textContent) {
+                headingText = headingEl.textContent.trim().slice(0, 35);
+              }
+            } else if (typeof comp.find === "function") {
+              const found = comp.find("h1, h2, h3");
+              if (found && found.length > 0 && typeof found[0]?.getEl === "function") {
+                headingText = (found[0].getEl()?.textContent || "").trim().slice(0, 35);
+              }
+            }
+          } catch {
+            // Ignore non-element nodes
+          }
+
+          if (headingText) {
+            title = headingText;
+          } else if (compId) {
+            title = compId
+              .replace(/[-_]/g, " ")
+              .replace(/\b\w/g, (c: string) => c.toUpperCase());
+          } else {
+            title = `${tag.toUpperCase()} Section (${idx + 1})`;
+          }
+        }
+
+        sections.push({
+          id: compId || `section-${idx + 1}`,
+          title,
+          cid: comp.cid,
+          index: idx,
+          tagName: tag,
+        });
+      });
+
+      setPageSections(sections);
+    };
+
+    const moveSectionByIndex = (fromIdx: number, toIdx: number) => {
+      const ed = editorRef.current;
+      if (!ed) return;
+      const wrapper = ed.getWrapper();
+      if (!wrapper) return;
+
+      const wrapperModels = wrapper.components().models;
+      const rootContainer =
+        wrapperModels.length === 1 &&
+        wrapperModels[0].get("tagName")?.toLowerCase() === "div"
+          ? wrapperModels[0]
+          : wrapper;
+
+      const comps = rootContainer.components();
+      if (
+        fromIdx < 0 ||
+        fromIdx >= comps.length ||
+        toIdx < 0 ||
+        toIdx >= comps.length
+      )
+        return;
+
+      const comp = comps.at(fromIdx);
+      if (!comp) return;
+
+      comps.remove(comp);
+      comps.add(comp, { at: toIdx });
+      ed.select(comp);
+      refreshPageSections(ed);
     };
 
     const exportCleanCss = (editor: Editor): string => {
@@ -1367,7 +1718,8 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
     const injectFontIntoDocumentAndCanvas = (font: CustomFont, ed: Editor) => {
       // 1. Host document head injection (for modal specimens & UI previews)
       const hostId = `custom-font-style-${font.id}`;
-      if (!document.getElementById(hostId)) {
+      const existingHostEl = document.getElementById(hostId);
+      if (!existingHostEl) {
         if (font.type === "upload") {
           const style = document.createElement("style");
           style.id = hostId;
@@ -1380,23 +1732,30 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           link.href = font.url;
           document.head.appendChild(link);
         }
+      } else if (font.type === "upload") {
+        existingHostEl.textContent = formatFontFaceCss(font);
       }
 
       // 2. Editor Canvas iframe document head injection
       try {
         const canvasDoc = ed.Canvas?.getDocument();
-        if (canvasDoc && canvasDoc.head && !canvasDoc.getElementById(hostId)) {
-          if (font.type === "upload") {
-            const style = canvasDoc.createElement("style");
-            style.id = hostId;
-            style.textContent = formatFontFaceCss(font);
-            canvasDoc.head.appendChild(style);
-          } else {
-            const link = canvasDoc.createElement("link");
-            link.id = hostId;
-            link.rel = "stylesheet";
-            link.href = font.url;
-            canvasDoc.head.appendChild(link);
+        if (canvasDoc && canvasDoc.head) {
+          const existingCanvasEl = canvasDoc.getElementById(hostId);
+          if (!existingCanvasEl) {
+            if (font.type === "upload") {
+              const style = canvasDoc.createElement("style");
+              style.id = hostId;
+              style.textContent = formatFontFaceCss(font);
+              canvasDoc.head.appendChild(style);
+            } else {
+              const link = canvasDoc.createElement("link");
+              link.id = hostId;
+              link.rel = "stylesheet";
+              link.href = font.url;
+              canvasDoc.head.appendChild(link);
+            }
+          } else if (font.type === "upload") {
+            existingCanvasEl.textContent = formatFontFaceCss(font);
           }
         }
       } catch (err) {
@@ -1407,19 +1766,44 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       try {
         interface StyleManagerProperty {
           getOptions?: () => Array<{ id?: string; label?: string } | string>;
-          get?: (propName: string) => Array<{ id?: string; label?: string } | string> | undefined;
+          get?: (propName: string) => Array<{ id?: string; label?: string } | string> | string | undefined;
           addOption?: (opt: { id: string; label: string }) => void;
           set?: (propName: string, value: unknown) => void;
+          property?: string;
+          id?: string;
+        }
+
+        interface SectorLike {
+          getProperties?: () => { models?: StyleManagerProperty[] } | StyleManagerProperty[];
+          properties?: StyleManagerProperty[];
         }
 
         interface StyleManagerLike {
-          getProperty: (sectorOrName: string, prop?: string) => unknown;
+          getSectors?: () => { models?: SectorLike[] } | SectorLike[];
+          getProperty?: (sectorOrName: string, prop?: string) => unknown;
         }
 
         const sm = ed.StyleManager as unknown as StyleManagerLike | undefined;
         if (sm) {
-          const fontProp = (sm.getProperty("Typography", "font-family") ||
-            sm.getProperty("font-family")) as StyleManagerProperty | null | undefined;
+          let fontProp: StyleManagerProperty | null | undefined = null;
+          try {
+            const sectors = typeof sm.getSectors === "function" ? sm.getSectors() : [];
+            const sectorList = (sectors && "models" in sectors && Array.isArray(sectors.models)) ? sectors.models : (Array.isArray(sectors) ? sectors : []);
+            for (const sec of sectorList) {
+              const props = typeof sec.getProperties === "function" ? sec.getProperties() : (sec.properties || []);
+              const propList = (props && "models" in props && Array.isArray(props.models)) ? props.models : (Array.isArray(props) ? props : []);
+              const found = propList.find(
+                (p: StyleManagerProperty) =>
+                  (typeof p.get === "function" ? (p.get("property") as string) || (p.get("id") as string) : p.property || p.id) === "font-family",
+              );
+              if (found) {
+                fontProp = found;
+                break;
+              }
+            }
+          } catch {
+            // fallback
+          }
           if (fontProp) {
             const fontId = `'${font.family}', sans-serif`;
             const fontLabel = `✨ ${font.family} (${
@@ -1429,10 +1813,11 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   ? "Uploaded"
                   : "Custom"
             })`;
-            const currentOpts =
+            const rawOpts =
               (typeof fontProp.getOptions === "function"
                 ? fontProp.getOptions()
                 : fontProp.get?.("options")) || [];
+            const currentOpts = Array.isArray(rawOpts) ? rawOpts : [];
 
             const exists = currentOpts.some((opt: { id?: string } | string | null | undefined) => {
               const optId = typeof opt === "string" ? opt : opt?.id;
@@ -1749,6 +2134,40 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   display: block !important;
                   box-sizing: border-box !important;
                 }
+                @keyframes client-marquee-slide-left {
+                  0% { transform: translate3d(0, 0, 0); }
+                  100% { transform: translate3d(-50%, 0, 0); }
+                }
+                @keyframes client-marquee-slide-right {
+                  0% { transform: translate3d(-50%, 0, 0); }
+                  100% { transform: translate3d(0, 0, 0); }
+                }
+                @keyframes client-fade-in-up {
+                  0% { opacity: 0; transform: translate3d(0, 16px, 0); }
+                  100% { opacity: 1; transform: translate3d(0, 0, 0); }
+                }
+                @keyframes client-pulse-subtle {
+                  0%, 100% { opacity: 0.7; transform: scale(0.97); }
+                  50% { opacity: 1; transform: scale(1.03); }
+                }
+                @keyframes client-float-wave {
+                  0%, 100% { transform: translate3d(0, 0, 0); }
+                  50% { transform: translate3d(0, -8px, 0); }
+                }
+                .client-marquee-track {
+                  display: flex !important;
+                  width: max-content !important;
+                  will-change: transform;
+                }
+                .client-marquee-track.anim-left {
+                  animation: client-marquee-slide-left 22s linear infinite !important;
+                }
+                .client-marquee-track.anim-right {
+                  animation: client-marquee-slide-right 22s linear infinite !important;
+                }
+                .client-marquee-wrapper:hover .client-marquee-track.pause-on-hover {
+                  animation-play-state: paused !important;
+                }
               `),
           ],
         },
@@ -2020,6 +2439,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               ],
             },
             {
+              id: "typography",
               name: "Typography",
               open: false,
               properties: [
@@ -2488,6 +2908,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             },
 
             {
+              id: "background-effects",
               name: "Background & Effects",
               open: false,
               properties: [
@@ -2793,10 +3214,78 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           });
         }
 
-        if (
+        const isClientComponent = Boolean(
+          component.is("clients-section") ||
+          component.getAttributes?.()["data-cms-block"] === "clients-section" ||
+          component.getAttributes?.()["data-cms-block"] === "client-logos" ||
+          component.closest?.('[data-cms-block="clients-section"]') ||
+          component.closest?.('[data-cms-block="client-logos"]') ||
+          component.closest?.(".clients-section")
+        );
+
+        if (isClientComponent) {
+          const target = (component.is("clients-section") || component.getAttributes?.()["data-cms-block"] === "clients-section")
+            ? component
+            : component.closest?.('[data-cms-block="clients-section"]') ||
+              component.closest?.('[data-cms-block="client-logos"]') ||
+              component.closest?.(".clients-section");
+          if (target) {
+            const defaultToolbar = (target.get("toolbar") || []) as ToolbarButtonProps[];
+            if (!defaultToolbar.some((item) => item.command === "open-client-animation-customizer")) {
+              target.set("toolbar", [
+                {
+                  id: "client-anim-btn",
+                  attributes: { title: "Manage Client Logos, Brands & Motion" },
+                  command: "open-client-animation-customizer",
+                  label: "✨ Edit Client Logos",
+                },
+                ...defaultToolbar,
+              ]);
+            }
+          }
+
+          // If specifically an image inside the client section is selected
+          if (component.is("image") || component.get("tagName")?.toLowerCase() === "img") {
+            lastSelectedImageComponent = component;
+            (editor as unknown as Record<string, unknown>).__lastSelectedImageComponent =
+              lastSelectedImageComponent;
+            const childToolbar = (component.get("toolbar") || []) as ToolbarButtonProps[];
+            if (!childToolbar.some((item) => item.command === "open-client-animation-customizer")) {
+              const filteredDefaults = childToolbar.filter(
+                (item) =>
+                  item.command !== "core:component-delete" &&
+                  item.command !== "tlb-delete"
+              );
+              component.set("toolbar", [
+                {
+                  id: "client-modal-btn",
+                  attributes: { title: "Manage All Client Logos & Animation" },
+                  command: "open-client-animation-customizer",
+                  label: "✨ Manage Logos",
+                },
+                {
+                  id: "change-image",
+                  attributes: { title: "Pick or Upload Replacement Logo" },
+                  command: "open-assets",
+                  label: "🖼️ Change Logo",
+                },
+                ...filteredDefaults,
+                {
+                  id: "remove-image",
+                  attributes: { title: "Remove Logo" },
+                  command: "remove-image-component",
+                  label: "🗑️ Remove",
+                },
+              ]);
+            }
+          }
+          setActiveRightTab("traits");
+        } else if (
           component.is("image") ||
           component.get("tagName")?.toLowerCase() === "img" ||
-          (component.find && component.find("img").length > 0)
+          (!component.getAttributes?.()["data-cms-block"] &&
+           component.get("tagName")?.toLowerCase() !== "section" &&
+           component.find && component.find("img").length > 0)
         ) {
           lastSelectedImageComponent =
             component.is("image") ||
@@ -2958,6 +3447,25 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           }
         }
 
+        // Detect if this component is a top-level section or direct child of the canvas wrapper
+        const wrapper = editor.getWrapper();
+        let sectionTarget: Component | undefined = component;
+        while (
+          sectionTarget &&
+          typeof sectionTarget.parent === "function" &&
+          sectionTarget.parent() &&
+          sectionTarget.parent() !== wrapper &&
+          (sectionTarget.get("tagName") || "").toLowerCase() !== "section"
+        ) {
+          sectionTarget = sectionTarget.parent();
+        }
+        const isSection =
+          Boolean(sectionTarget) &&
+          ((typeof sectionTarget?.parent === "function" &&
+            sectionTarget.parent() === wrapper) ||
+            (sectionTarget?.get?.("tagName") || "").toLowerCase() === "section" ||
+            Boolean(sectionTarget?.getClasses?.().includes("page-section")));
+
         // Attach on-canvas Alignment & Anchoring buttons to EVERY selected component
         const curToolbar = (component.get("toolbar") || []) as ToolbarButtonProps[];
         if (!curToolbar.some((item) => item.command === "anchor-center")) {
@@ -2993,8 +3501,93 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             },
           ];
 
-          component.set("toolbar", [...alignTools, ...curToolbar]);
+          // If it's a section, prepend section ordering buttons (▲ Move Up, ▼ Move Down, 📑 Sections)
+          const sectionTools: ToolbarButtonProps[] = isSection
+            ? [
+                {
+                  id: "move-sec-up",
+                  attributes: { title: "Move Section Higher on Page (▲ Up)" },
+                  command: "move-section-up",
+                  label: "▲ Up",
+                },
+                {
+                  id: "move-sec-down",
+                  attributes: { title: "Move Section Lower on Page (▼ Down)" },
+                  command: "move-section-down",
+                  label: "▼ Down",
+                },
+                {
+                  id: "reorder-sections",
+                  attributes: { title: "Open Page Sections Manager (📑 Reorder)" },
+                  command: "open-sections-reorder",
+                  label: "📑 Sections",
+                },
+              ]
+            : [];
+
+          component.set("toolbar", [...sectionTools, ...alignTools, ...curToolbar]);
         }
+      });
+
+      // Free Drag & Section Safeguard: Prevent sections from disappearing or collapsing when dragged
+      editor.on("component:drag:end", (draggedModel: unknown) => {
+        const model = draggedModel as Component | undefined;
+        if (!model || typeof model.get !== "function") return;
+        const tagName = (model.get("tagName") || "").toLowerCase();
+        const isSection =
+          tagName === "section" ||
+          (typeof model.getClasses === "function" &&
+            model.getClasses().includes("page-section")) ||
+          Boolean(model.getAttributes?.()["data-section"]) ||
+          Boolean(model.getAttributes?.()["data-cms-block"]);
+
+        const wrapper = editor.getWrapper();
+        if (!wrapper) return;
+
+        const wrapperModels = wrapper.components().models;
+        const rootContainer =
+          wrapperModels.length === 1 &&
+          wrapperModels[0].get("tagName")?.toLowerCase() === "div"
+            ? wrapperModels[0]
+            : wrapper;
+
+        if (isSection) {
+          // If the section was dropped inside a nested leaf node or another section, hoist it back to rootContainer
+          const parent =
+            typeof model.parent === "function" ? model.parent() : null;
+          if (parent && parent !== rootContainer && parent !== wrapper) {
+            let topAncestor: Component | undefined = parent;
+            while (
+              topAncestor &&
+              typeof topAncestor.parent === "function" &&
+              topAncestor.parent() &&
+              topAncestor.parent() !== rootContainer &&
+              topAncestor.parent() !== wrapper
+            ) {
+              topAncestor = topAncestor.parent();
+            }
+            const targetIdx = topAncestor
+              ? topAncestor.index() + 1
+              : rootContainer.components().length;
+            rootContainer.append(model, { at: targetIdx });
+          }
+
+          // Ensure proper block-level visibility and full width so sections never vanish
+          if (typeof model.addStyle === "function") {
+            model.addStyle({
+              position: "relative",
+              width: "100%",
+              display: "block",
+              visibility: "visible",
+              opacity: "1",
+              left: "auto",
+              top: "auto",
+              right: "auto",
+              bottom: "auto",
+            });
+          }
+        }
+        refreshPageSections(editor);
       });
 
       // Dynamically attach resizer handles to all components
@@ -3029,9 +3622,111 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             if (curStyle.width && curStyle.width !== "auto") {
               component.addStyle({ "max-width": "none" });
             }
+
+            // Handle resizing on client section or client logos
+            const isClientSec =
+              component.is("clients-section") ||
+              component.getAttributes?.()["data-cms-block"] === "clients-section" ||
+              component.getAttributes?.()["data-cms-block"] === "client-logos" ||
+              component.getClasses?.()?.includes("clients-section");
+
+            const parentClientSec = isClientSec
+              ? component
+              : component.closest?.('[data-cms-block="clients-section"]') ||
+                component.closest?.('[data-cms-block="client-logos"]') ||
+                component.closest?.(".clients-section") ||
+                null;
+
+            if (parentClientSec) {
+              if (component.is("image") || component.get("tagName")?.toLowerCase() === "img") {
+                const imgHeight =
+                  curStyle.height ||
+                  (component.getAttributes() as Record<string, string>)?.style?.match(/height:\s*([^;]+)/)?.[1];
+                if (imgHeight) {
+                  parentClientSec.addAttributes({ "data-logo-height": imgHeight });
+                  const allImgs = parentClientSec.find("img");
+                  allImgs.forEach((img) => {
+                    img.addStyle({ height: imgHeight, "max-height": imgHeight, width: "auto" });
+                  });
+                }
+              } else if (isClientSec) {
+                const secHeight = curStyle.height;
+                if (secHeight && secHeight !== "auto") {
+                  parentClientSec.addAttributes({ "data-section-height": secHeight });
+                  parentClientSec.addStyle({
+                    display: "flex",
+                    "flex-direction": "column",
+                    "justify-content": "center",
+                  });
+                }
+              }
+
+              if (onSaveRef.current) {
+                onSaveRef.current(
+                  editor.getProjectData(),
+                  editor.getHtml() ?? "",
+                  editor.getCss() ?? "",
+                );
+              }
+            }
           }
         },
       );
+
+      // Listen for dynamic trait updates on client section
+      editor.on("component:update:attributes:data-logo-height", (component: Component) => {
+        const height = component.getAttributes()?.["data-logo-height"];
+        if (height) {
+          const allImgs = component.find("img");
+          allImgs.forEach((img) => {
+            img.addStyle({ height, "max-height": height, width: "auto" });
+          });
+          editor.trigger("change:canvas");
+        }
+      });
+
+      editor.on("component:update:attributes:data-section-height", (component: Component) => {
+        const height = component.getAttributes()?.["data-section-height"];
+        if (height && height !== "auto") {
+          component.addStyle({
+            height,
+            "min-height": height,
+            display: "flex",
+            "flex-direction": "column",
+            "justify-content": "center",
+          });
+        } else if (height === "auto") {
+          component.removeStyle("height");
+          component.removeStyle("min-height");
+        }
+        editor.trigger("change:canvas");
+      });
+
+      // Listen for dynamic heading font updates on client section
+      editor.on("component:update:attributes:data-heading-font", (component: Component) => {
+        const font = component.getAttributes()?.["data-heading-font"];
+        const hComp = component.find?.("h1, h2, h3")?.[0];
+        if (hComp) {
+          if (font) {
+            hComp.addStyle({ "font-family": font });
+          } else {
+            hComp.removeStyle("font-family");
+          }
+        }
+        editor.trigger("change:canvas");
+      });
+
+      // Listen for dynamic heading text updates on client section
+      editor.on("component:update:attributes:data-heading", (component: Component) => {
+        const headingText = component.getAttributes()?.["data-heading"];
+        if (typeof headingText === "string") {
+          const hComp = component.find?.("h1, h2, h3")?.[0];
+          if (hComp) {
+            hComp.components(headingText);
+          }
+          editor.trigger("change:canvas");
+        }
+      });
 
       // When width style is changed via Style Manager, clear max-width constraint
       editor.on("styleable:change:width", () => {
@@ -3051,6 +3746,67 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           const curStyle = selected.getStyle() || {};
           if (curStyle.height && curStyle.height !== "auto" && !curStyle["max-height"]) {
             selected.addStyle({ "max-height": "none" });
+          }
+
+          const isClientSec =
+            selected.is("clients-section") ||
+            selected.getAttributes?.()["data-cms-block"] === "clients-section" ||
+            selected.getAttributes?.()["data-cms-block"] === "client-logos" ||
+            selected.getClasses?.()?.includes("clients-section");
+
+          const parentClientSec = isClientSec
+            ? selected
+            : selected.closest?.('[data-cms-block="clients-section"]') ||
+              selected.closest?.('[data-cms-block="client-logos"]') ||
+              selected.closest?.(".clients-section") ||
+              null;
+
+          if (parentClientSec) {
+            if (selected.is("image") || selected.get("tagName")?.toLowerCase() === "img") {
+              const imgHeight = curStyle.height;
+              if (imgHeight) {
+                parentClientSec.addAttributes({ "data-logo-height": imgHeight });
+                const allImgs = parentClientSec.find("img");
+                allImgs.forEach((img) => {
+                  img.addStyle({ height: imgHeight, "max-height": imgHeight, width: "auto" });
+                });
+              }
+            } else if (isClientSec) {
+              if (curStyle.height && curStyle.height !== "auto") {
+                parentClientSec.addAttributes({ "data-section-height": curStyle.height });
+              }
+            }
+          }
+        }
+      });
+
+      // When font-family style is changed via Style Manager, sync with client section data-heading-font
+      editor.on("styleable:change:font-family", () => {
+        const selected = editor.getSelected();
+        if (selected) {
+          const curStyle = selected.getStyle() || {};
+          const curFont = curStyle["font-family"];
+          if (curFont) {
+            const isClientSec =
+              selected.is("clients-section") ||
+              selected.getAttributes?.()["data-cms-block"] === "clients-section" ||
+              selected.getAttributes?.()["data-cms-block"] === "client-logos" ||
+              selected.getClasses?.()?.includes("clients-section");
+
+            const parentClientSec = isClientSec
+              ? selected
+              : selected.closest?.('[data-cms-block="clients-section"]') ||
+                selected.closest?.('[data-cms-block="client-logos"]') ||
+                selected.closest?.(".clients-section") ||
+                null;
+
+            if (parentClientSec) {
+              parentClientSec.addAttributes({ "data-heading-font": curFont });
+              const hComp = parentClientSec.find?.("h1, h2, h3")?.[0];
+              if (hComp && hComp !== selected) {
+                hComp.addStyle({ "font-family": curFont });
+              }
+            }
           }
         }
       });
@@ -3120,6 +3876,13 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           component.closest?.('[data-cms-block="contact-form"], .contact-form-container')
         ) {
           editor.runCommand("open-contact-card-customizer");
+        } else if (
+          component.is("clients-section") ||
+          component.closest?.('[data-cms-block="clients-section"]') ||
+          component.closest?.('[data-cms-block="client-logos"]') ||
+          component.closest?.(".clients-section")
+        ) {
+          editor.runCommand("open-client-animation-customizer");
         }
       });
 
@@ -3218,6 +3981,71 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             });
           }
           ed.trigger("change:canvas");
+        },
+      });
+
+      /*
+       * Section Reordering Commands: Move Up / Move Down safely within wrapper components
+       */
+      editor.Commands.add("move-section-up", {
+        run: (ed) => {
+          const selected = ed.getSelected();
+          if (!selected) return;
+          const wrapper = ed.getWrapper();
+          if (!wrapper) return;
+          let target: Component | undefined = selected;
+          while (
+            target &&
+            typeof target.parent === "function" &&
+            target.parent() &&
+            target.parent() !== wrapper
+          ) {
+            target = target.parent();
+          }
+          if (!target || target.parent() !== wrapper) return;
+          const curIdx = target.index();
+          if (curIdx > 0) {
+            wrapper.components().remove(target);
+            wrapper.components().add(target, { at: curIdx - 1 });
+            ed.select(target);
+            refreshPageSections(ed);
+            target.getEl()?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        },
+      });
+
+      editor.Commands.add("move-section-down", {
+        run: (ed) => {
+          const selected = ed.getSelected();
+          if (!selected) return;
+          const wrapper = ed.getWrapper();
+          if (!wrapper) return;
+          let target: Component | undefined = selected;
+          while (
+            target &&
+            typeof target.parent === "function" &&
+            target.parent() &&
+            target.parent() !== wrapper
+          ) {
+            target = target.parent();
+          }
+          if (!target || target.parent() !== wrapper) return;
+          const comps = wrapper.components();
+          const curIdx = target.index();
+          if (curIdx < comps.length - 1) {
+            comps.remove(target);
+            comps.add(target, { at: curIdx + 1 });
+            ed.select(target);
+            refreshPageSections(ed);
+            target.getEl()?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        },
+      });
+
+      editor.Commands.add("open-sections-reorder", {
+        run: (ed) => {
+          refreshPageSections(ed);
+          setShowSectionsModal(true);
         },
       });
 
@@ -3353,6 +4181,29 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         if (comp) {
           comp.set("src", finalSrc);
           comp.addAttributes({ src: finalSrc });
+
+          // Synchronize data-clients if this image is a client logo
+          const clientSec =
+            comp.closest?.('[data-cms-block="clients-section"]') ||
+            comp.closest?.('[data-cms-block="client-logos"]') ||
+            comp.closest?.(".clients-section");
+          if (clientSec) {
+            const imgComps = clientSec.find?.("img") || [];
+            const seenSrc = new Set<string>();
+            const logos: Array<{ name: string; logo: string }> = [];
+            for (const img of imgComps) {
+              const s = img.getAttributes?.()?.src || img.get?.("src") || "";
+              const a =
+                img.getAttributes?.()?.alt || img.get?.("alt") || "Client";
+              if (s && !seenSrc.has(s)) {
+                seenSrc.add(s);
+                logos.push({ name: a, logo: s });
+              }
+            }
+            if (logos.length > 0) {
+              clientSec.addAttributes({ "data-clients": JSON.stringify(logos) });
+            }
+          }
         }
         editor.trigger("change:canvas");
 
@@ -4178,6 +5029,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         setTimeout(setupTypographyCustomFontButton, 250);
         injectEditorResetStyles();
         repairContactPageLayout(editor);
+        refreshPageSections(editor);
       });
 
       editor.on("canvas:frame:load", () => {
@@ -4816,6 +5668,823 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       editor.Commands.add("open-card-traits", {
         run: () => {
           editor.runCommand("open-contact-card-customizer");
+        },
+      });
+
+      /*
+       * Client Logos & Animation visual customizer command (CMS only)
+       */
+      editor.Commands.add("open-client-animation-customizer", {
+        run: () => {
+          const selected = editor.getSelected();
+          let target: Component | null = null;
+          if (selected) {
+            if (
+              selected.is("clients-section") ||
+              selected.getAttributes?.()["data-cms-block"] === "clients-section" ||
+              selected.getAttributes?.()["data-cms-block"] === "client-logos" ||
+              selected.getClasses?.()?.includes("clients-section")
+            ) {
+              target = selected;
+            } else {
+              target =
+                selected.closest?.('[data-cms-block="clients-section"]') ||
+                selected.closest?.('[data-cms-block="client-logos"]') ||
+                selected.closest?.(".clients-section") ||
+                null;
+            }
+          }
+          if (!target) {
+            const found =
+              editor.getWrapper()?.find?.('[data-cms-block="clients-section"], [data-cms-block="client-logos"], .clients-section') || [];
+            if (found.length > 0) target = found[0];
+          }
+
+          if (!target) {
+            alert("No Client Section found on this page. You can add one from the Page Blocks panel.");
+            return;
+          }
+
+          // Read current attributes
+          const attrs = (target.getAttributes?.() || {}) as Record<string, string>;
+          const curAnimType = attrs["data-anim-type"] || "marquee";
+          const curSpeed = attrs["data-anim-speed"] || "normal";
+          const curDirection = attrs["data-anim-direction"] || "left";
+          const curPause = attrs["data-anim-pause"] !== "false";
+          const curHover = attrs["data-hover-effect"] || "scale";
+          const curLogoHeight = attrs["data-logo-height"] || "44px";
+          const curSectionHeight = attrs["data-section-height"] || "auto";
+
+          const headingComp = target.find?.("h2, h3")?.[0];
+          const curHeading = attrs["data-heading"] || headingComp?.get("content") || "Clients";
+          const headingInlineStyle = headingComp?.getEl?.()?.getAttribute?.("style") || "";
+          const inlineFontMatch = headingInlineStyle.match(/font-family:\s*([^;]+)/i);
+          const curHeadingFont =
+            attrs["data-heading-font"] ||
+            inlineFontMatch?.[1]?.trim() ||
+            (headingComp?.getStyle?.()["font-family"] as string) ||
+            (target.getStyle?.()["font-family"] as string) ||
+            "";
+
+          // Extract existing logos
+          let logos: Array<{ name: string; logo: string }> = [];
+          const rawClientsAttr = attrs["data-clients"];
+          if (rawClientsAttr) {
+            try {
+              const parsed = JSON.parse(rawClientsAttr);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                const seenByName = new Map<string, { name: string; logo: string }>();
+                for (const item of parsed) {
+                  const n = String(item?.name || "Client").trim();
+                  const l = String(item?.logo || "").trim();
+                  if (l) {
+                    seenByName.set(n.toLowerCase(), { name: n, logo: l });
+                  }
+                }
+                logos = Array.from(seenByName.values());
+              }
+            } catch (err) {
+              console.warn("Could not parse data-clients attribute:", err);
+            }
+          }
+
+          if (logos.length === 0) {
+            const imgComps = target.find?.("img") || [];
+            const seenByName = new Map<string, { name: string; logo: string }>();
+            for (const img of imgComps) {
+              const src = (img.getAttributes?.()?.src || img.get?.("src") || "").trim();
+              const alt = (img.getAttributes?.()?.alt || img.get?.("alt") || "Client").trim();
+              if (src) {
+                seenByName.set(alt.toLowerCase(), { name: alt, logo: src });
+              }
+            }
+            logos = Array.from(seenByName.values());
+          }
+
+          if (logos.length === 0) {
+            logos = [
+              {
+                name: "Signet",
+                logo: "https://nyj2ucc9ur7y9rzh.public.blob.vercel-storage.com/39179fee_signet3-T4qa3Gb9M1P98UOpZlewVnBXaPxqgP.jpg",
+              },
+              { name: "talo", logo: "/clients/talo.png" },
+              { name: "SOLID STATE", logo: "/clients/solid_state.png" },
+              { name: "NOTED", logo: "/clients/noted.png" },
+              { name: "GOAN", logo: "/clients/goan.png" },
+              { name: "MOWI", logo: "/clients/mowi.png" },
+            ];
+          }
+
+          const escapeHtml = (str: string) =>
+            str
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;");
+
+          const modal = editor.Modal;
+          modal.setTitle("✨ Client Section & Logos Studio");
+
+          const container = document.createElement("div");
+          container.style.cssText =
+            "display: flex; flex-direction: column; gap: 14px; color: #fff; max-height: 80vh; overflow-y: auto; padding: 4px 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; box-sizing: border-box; width: 100%; min-width: 620px;";
+
+          // Modal Tabs Bar
+          const tabsBar = document.createElement("div");
+          tabsBar.style.cssText =
+            "display: flex; gap: 4px; border-bottom: 1px solid #333; margin-bottom: 2px;";
+          tabsBar.innerHTML = `
+            <button type="button" id="tab-btn-logos" style="background: #1e1e1e; color: #C5A059; border: 1px solid #333; border-bottom: 2px solid #C5A059; padding: 8px 18px; font-size: 12px; font-weight: 700; cursor: pointer; border-radius: 4px 4px 0 0; text-transform: uppercase; letter-spacing: 0.05em;">
+              🏢 Client Logos (<span id="client-tab-badge-count">${logos.length}</span>)
+            </button>
+            <button type="button" id="tab-btn-motion" style="background: transparent; color: #888; border: 1px solid transparent; border-bottom: 2px solid transparent; padding: 8px 18px; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 4px 4px 0 0; text-transform: uppercase; letter-spacing: 0.05em;">
+              ⚡ Animation & Motion
+            </button>
+          `;
+          container.appendChild(tabsBar);
+
+          // Content Wrapper
+          const contentWrapper = document.createElement("div");
+          contentWrapper.style.cssText = "display: flex; flex-direction: column; gap: 12px;";
+          container.appendChild(contentWrapper);
+
+          // Tab 1: Logos Manager Panel
+          const tabLogosPane = document.createElement("div");
+          tabLogosPane.id = "tab-pane-logos";
+          tabLogosPane.style.cssText = "display: flex; flex-direction: column; gap: 12px;";
+
+          // Tab 1 Top Toolbar
+          const logosTopBar = document.createElement("div");
+          logosTopBar.style.cssText =
+            "display: flex; justify-content: space-between; align-items: center; background: #161616; border: 1px solid #282828; padding: 10px 14px; border-radius: 4px;";
+          logosTopBar.innerHTML = `
+            <div>
+              <div style="font-size: 12px; font-weight: 700; color: #FFFFFF;">
+                Brand & Partner Logos
+              </div>
+              <div style="font-size: 11px; color: #888; margin-top: 2px;">
+                Add brand logos, upload artwork, edit titles, or reorder the ticker display.
+              </div>
+            </div>
+            <button type="button" id="btn-add-client-logo" style="background: #C5A059; color: #000; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 6px 14px; border: none; border-radius: 3px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+              <span>+</span> Add Client Logo
+            </button>
+          `;
+          tabLogosPane.appendChild(logosTopBar);
+
+          // Logos List Container
+          const logosListContainer = document.createElement("div");
+          logosListContainer.id = "client-logos-cards-list";
+          logosListContainer.style.cssText = "display: flex; flex-direction: column; gap: 10px;";
+          tabLogosPane.appendChild(logosListContainer);
+
+          // Tip note
+          const logosTip = document.createElement("div");
+          logosTip.style.cssText =
+            "background: #111; border: 1px solid #222; border-radius: 4px; padding: 10px 12px; font-size: 11px; color: #888; line-height: 1.5;";
+          logosTip.innerHTML = `
+            💡 <strong style="color: #C5A059;">Pro Tip:</strong> Transparent SVG or monochrome PNG logos render best against dark themes. Logos appear in continuous infinite loop ticker across all desktop and mobile displays.
+          `;
+          tabLogosPane.appendChild(logosTip);
+
+          contentWrapper.appendChild(tabLogosPane);
+
+          // Tab 2: Animation & Style Settings Panel
+          const tabMotionPane = document.createElement("div");
+          tabMotionPane.id = "tab-pane-motion";
+          tabMotionPane.style.cssText = "display: none; flex-direction: column; gap: 14px;";
+
+          tabMotionPane.innerHTML = `
+            <div style="background: #141414; border: 1px solid #262626; border-radius: 4px; padding: 12px 14px;">
+              <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; margin-bottom: 8px;">
+                ⚡ Quick Animation Presets
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px;" id="client-anim-presets">
+                <button type="button" data-preset="marquee" style="background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; padding: 5px 12px; font-size: 11px; cursor: pointer;">🚀 Smooth Infinite Marquee</button>
+                <button type="button" data-preset="fade" style="background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; padding: 5px 12px; font-size: 11px; cursor: pointer;">🌟 Staggered Fade & Reveal</button>
+                <button type="button" data-preset="float" style="background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; padding: 5px 12px; font-size: 11px; cursor: pointer;">🌊 Gentle Floating Wave</button>
+                <button type="button" data-preset="pulse" style="background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; padding: 5px 12px; font-size: 11px; cursor: pointer;">💫 Soft Breathing Pulse</button>
+                <button type="button" data-preset="none" style="background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; padding: 5px 12px; font-size: 11px; cursor: pointer;">⏹ Clean Static Grid</button>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+              <!-- Left Column: Motion Parameters -->
+              <div style="background: #111; border: 1px solid #262626; border-radius: 4px; padding: 12px 14px; display: flex; flex-direction: column; gap: 12px;">
+                <div style="font-size: 12px; font-weight: 700; color: #C5A059; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid #222; padding-bottom: 4px;">
+                  Motion Parameters
+                </div>
+
+                <div>
+                  <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px; font-weight: 600;">Animation Style</label>
+                  <select id="client-anim-type" style="width: 100%; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px;">
+                    <option value="marquee" ${curAnimType === "marquee" ? "selected" : ""}>Infinite Marquee (Continuous Ticker)</option>
+                    <option value="fade" ${curAnimType === "fade" ? "selected" : ""}>Staggered Fade & Slide In</option>
+                    <option value="float" ${curAnimType === "float" ? "selected" : ""}>Floating Wave (Subtle Up/Down)</option>
+                    <option value="pulse" ${curAnimType === "pulse" ? "selected" : ""}>Soft Breathing Pulse</option>
+                    <option value="none" ${curAnimType === "none" ? "selected" : ""}>Static Clean Grid (No Motion)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px; font-weight: 600;">Motion Speed</label>
+                  <select id="client-anim-speed" style="width: 100%; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px;">
+                    <option value="slow" ${curSpeed === "slow" ? "selected" : ""}>Slow & Gentle (38s Marquee / Relaxed)</option>
+                    <option value="normal" ${curSpeed === "normal" ? "selected" : ""}>Normal (22s Marquee / Standard)</option>
+                    <option value="fast" ${curSpeed === "fast" ? "selected" : ""}>Fast (14s Marquee / Dynamic)</option>
+                  </select>
+                </div>
+
+                <div id="row-marquee-dir">
+                  <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px; font-weight: 600;">Scroll Direction</label>
+                  <select id="client-anim-dir" style="width: 100%; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px;">
+                    <option value="left" ${curDirection === "left" ? "selected" : ""}>◄ Left (Forward Scroll)</option>
+                    <option value="right" ${curDirection === "right" ? "selected" : ""}>Right ► (Reverse Scroll)</option>
+                  </select>
+                </div>
+
+                <div id="row-marquee-pause">
+                  <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px; font-weight: 600;">Pause on Hover</label>
+                  <select id="client-anim-pause" style="width: 100%; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px;">
+                    <option value="true" ${curPause ? "selected" : ""}>Yes (Pause on hover so visitor can inspect logo)</option>
+                    <option value="false" ${!curPause ? "selected" : ""}>No (Always keep moving)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Right Column: Visual Style & Heading -->
+              <div style="background: #111; border: 1px solid #262626; border-radius: 4px; padding: 12px 14px; display: flex; flex-direction: column; gap: 12px;">
+                <div style="font-size: 12px; font-weight: 700; color: #C5A059; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid #222; padding-bottom: 4px;">
+                  Visual Style & Heading
+                </div>
+
+                <div>
+                  <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px; font-weight: 600;">Logo Hover Effect</label>
+                  <select id="client-hover-effect" style="width: 100%; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px;">
+                    <option value="scale" ${curHover === "scale" ? "selected" : ""}>Lift & Scale (110% Zoom)</option>
+                    <option value="glow" ${curHover === "glow" ? "selected" : ""}>Golden Ambient Glow (Warm Drop Shadow)</option>
+                    <option value="brightness" ${curHover === "brightness" ? "selected" : ""}>Brighten & Focus (Monochrome to Crisp)</option>
+                    <option value="none" ${curHover === "none" ? "selected" : ""}>Standard Subtle Opacity</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px; font-weight: 600;">Logo Display Size / Height</label>
+                  <div style="display: flex; gap: 6px;">
+                    <select id="client-logo-height" style="flex: 1; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px;">
+                      <option value="32px" ${curLogoHeight === "32px" ? "selected" : ""}>Compact (32px)</option>
+                      <option value="44px" ${curLogoHeight === "44px" ? "selected" : ""}>Standard (44px)</option>
+                      <option value="56px" ${curLogoHeight === "56px" ? "selected" : ""}>Medium (56px)</option>
+                      <option value="72px" ${curLogoHeight === "72px" ? "selected" : ""}>Large (72px)</option>
+                      <option value="88px" ${curLogoHeight === "88px" ? "selected" : ""}>Extra Large (88px)</option>
+                      <option value="100px" ${curLogoHeight === "100px" ? "selected" : ""}>Hero (100px)</option>
+                      <option value="custom" ${!["32px", "44px", "56px", "72px", "88px", "100px"].includes(curLogoHeight) ? "selected" : ""}>Custom Height...</option>
+                    </select>
+                    <input id="client-logo-height-custom" type="text" value="${escapeHtml(curLogoHeight)}" placeholder="e.g. 64px" style="width: 80px; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
+                  </div>
+                </div>
+
+                <div>
+                  <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px; font-weight: 600;">Section Spacing / Height</label>
+                  <div style="display: flex; gap: 6px;">
+                    <select id="client-sec-height" style="flex: 1; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px;">
+                      <option value="auto" ${curSectionHeight === "auto" ? "selected" : ""}>Auto Spacing (Standard py-16)</option>
+                      <option value="220px" ${curSectionHeight === "220px" ? "selected" : ""}>Compact Height (220px)</option>
+                      <option value="320px" ${curSectionHeight === "320px" ? "selected" : ""}>Standard Height (320px)</option>
+                      <option value="420px" ${curSectionHeight === "420px" ? "selected" : ""}>Spacious Height (420px)</option>
+                      <option value="550px" ${curSectionHeight === "550px" ? "selected" : ""}>Hero Height (550px)</option>
+                      <option value="custom" ${!["auto", "220px", "320px", "420px", "550px"].includes(curSectionHeight) ? "selected" : ""}>Custom Height...</option>
+                    </select>
+                    <input id="client-sec-height-custom" type="text" value="${escapeHtml(curSectionHeight)}" placeholder="e.g. 350px" style="width: 80px; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
+                  </div>
+                </div>
+
+                <div>
+                  <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px; font-weight: 600;">Section Heading</label>
+                  <input id="client-heading-input" type="text" value="${escapeHtml(curHeading)}" placeholder="Clients" style="width: 100%; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
+                </div>
+
+                <div>
+                  <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px; font-weight: 600;">Heading Typography / Font Family</label>
+                  <select id="client-heading-font-select" style="width: 100%; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px;">
+                    <option value="" ${!curHeadingFont ? "selected" : ""}>Default (Inherit Site Font)</option>
+                    <option value="'Italiana', 'Didot', serif" ${curHeadingFont.includes("Italiana") ? "selected" : ""}>Italiana (Luxury Serif)</option>
+                    <option value="'Playfair Display', Georgia, serif" ${curHeadingFont.includes("Playfair Display") ? "selected" : ""}>Playfair Display (Editorial Serif)</option>
+                    <option value="'Cinzel', 'Times New Roman', serif" ${curHeadingFont.includes("Cinzel") ? "selected" : ""}>Cinzel (Cinematic Classical)</option>
+                    <option value="'Bodoni Moda', 'Didot', serif" ${curHeadingFont.includes("Bodoni Moda") ? "selected" : ""}>Bodoni Moda (High Fashion Serif)</option>
+                    <option value="'Cormorant Garamond', Garamond, serif" ${curHeadingFont.includes("Cormorant Garamond") ? "selected" : ""}>Cormorant Garamond (Graceful Serif)</option>
+                    <option value="'EB Garamond', Georgia, serif" ${curHeadingFont.includes("EB Garamond") ? "selected" : ""}>EB Garamond (Traditional Literary)</option>
+                    <option value="'Syne', sans-serif" ${curHeadingFont.includes("Syne") ? "selected" : ""}>Syne (Bold Expressive)</option>
+                    <option value="'Space Grotesk', sans-serif" ${curHeadingFont.includes("Space Grotesk") ? "selected" : ""}>Space Grotesk (Tech Modern)</option>
+                    <option value="'Poppins', sans-serif" ${curHeadingFont.includes("Poppins") ? "selected" : ""}>Poppins (Clean Geometric)</option>
+                    <option value="'Montserrat', sans-serif" ${curHeadingFont.includes("Montserrat") ? "selected" : ""}>Montserrat (Modern Sans)</option>
+                    <option value="'Inter', -apple-system, sans-serif" ${curHeadingFont.includes("Inter") ? "selected" : ""}>Inter (Contemporary Clean)</option>
+                    <option value="custom" ${curHeadingFont && !["Italiana", "Playfair Display", "Cinzel", "Bodoni Moda", "Cormorant Garamond", "EB Garamond", "Syne", "Space Grotesk", "Poppins", "Montserrat", "Inter"].some((f) => curHeadingFont.includes(f)) ? "selected" : ""}>Custom Font Family...</option>
+                  </select>
+                  <input id="client-heading-font-custom" type="text" value="${escapeHtml(curHeadingFont)}" placeholder="e.g. 'Playfair Display', serif" style="display: ${curHeadingFont && !["Italiana", "Playfair Display", "Cinzel", "Bodoni Moda", "Cormorant Garamond", "EB Garamond", "Syne", "Space Grotesk", "Poppins", "Montserrat", "Inter"].some((f) => curHeadingFont.includes(f)) ? "block" : "none"}; margin-top: 6px; width: 100%; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
+                </div>
+
+                <div style="background: #181818; border: 1px solid #2d2d2d; border-radius: 4px; padding: 10px; margin-top: auto;">
+                  <div style="font-size: 10px; color: #888; line-height: 1.5;">
+                    💡 <strong style="color: #C5A059;">CMS Motion Control:</strong> These animation options configure how the client logos render dynamically on your live public site.
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+          contentWrapper.appendChild(tabMotionPane);
+
+          // Modal Actions Footer
+          const modalFooter = document.createElement("div");
+          modalFooter.style.cssText =
+            "display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #282828; padding-top: 12px; margin-top: 6px;";
+          modalFooter.innerHTML = `
+            <button type="button" id="client-cfg-cancel" style="background: #222; color: #bbb; border: 1px solid #444; border-radius: 3px; padding: 8px 18px; font-size: 12px; cursor: pointer;">
+              Cancel
+            </button>
+            <button type="button" id="client-cfg-save" style="background: #C5A059; color: #000; font-weight: 700; border: none; border-radius: 3px; padding: 8px 22px; font-size: 12px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em;">
+              Save & Apply to Page
+            </button>
+          `;
+          container.appendChild(modalFooter);
+
+          // Tab switching
+          const tabBtnLogos = container.querySelector("#tab-btn-logos") as HTMLButtonElement;
+          const tabBtnMotion = container.querySelector("#tab-btn-motion") as HTMLButtonElement;
+          const paneLogos = container.querySelector("#tab-pane-logos") as HTMLElement;
+          const paneMotion = container.querySelector("#tab-pane-motion") as HTMLElement;
+
+          tabBtnLogos?.addEventListener("click", () => {
+            tabBtnLogos.style.background = "#1e1e1e";
+            tabBtnLogos.style.color = "#C5A059";
+            tabBtnLogos.style.borderBottom = "2px solid #C5A059";
+            tabBtnMotion.style.background = "transparent";
+            tabBtnMotion.style.color = "#888";
+            tabBtnMotion.style.borderBottom = "2px solid transparent";
+            paneLogos.style.display = "flex";
+            paneMotion.style.display = "none";
+          });
+
+          tabBtnMotion?.addEventListener("click", () => {
+            tabBtnMotion.style.background = "#1e1e1e";
+            tabBtnMotion.style.color = "#C5A059";
+            tabBtnMotion.style.borderBottom = "2px solid #C5A059";
+            tabBtnLogos.style.background = "transparent";
+            tabBtnLogos.style.color = "#888";
+            tabBtnLogos.style.borderBottom = "2px solid transparent";
+            paneLogos.style.display = "none";
+            paneMotion.style.display = "flex";
+          });
+
+          // Toggle custom font family input
+          const fontSelect = container.querySelector("#client-heading-font-select") as HTMLSelectElement;
+          const fontCustomInput = container.querySelector("#client-heading-font-custom") as HTMLInputElement;
+          fontSelect?.addEventListener("change", () => {
+            if (fontSelect.value === "custom") {
+              fontCustomInput.style.display = "block";
+              fontCustomInput.focus();
+            } else {
+              fontCustomInput.style.display = "none";
+              fontCustomInput.value = fontSelect.value;
+            }
+          });
+
+          // Sync DOM inputs to internal logos array
+          const syncLogosFromDom = () => {
+            const cards = logosListContainer.querySelectorAll(".client-logo-card");
+            cards.forEach((card, idx) => {
+              if (idx < logos.length) {
+                const nInput = card.querySelector(".client-item-name") as HTMLInputElement;
+                const lInput = card.querySelector(".client-item-logo") as HTMLInputElement;
+                if (nInput) logos[idx].name = nInput.value;
+                if (lInput) logos[idx].logo = lInput.value;
+              }
+            });
+          };
+
+          const updateBadgeCount = () => {
+            const countEl = container.querySelector("#client-tab-badge-count");
+            if (countEl) countEl.textContent = String(logos.length);
+          };
+
+          // Render cards list
+          const renderLogosList = () => {
+            logosListContainer.innerHTML = "";
+            updateBadgeCount();
+
+            logos.forEach((item, idx) => {
+              const card = document.createElement("div");
+              card.className = "client-logo-card";
+              card.style.cssText =
+                "background: #141414; border: 1px solid #282828; border-radius: 4px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;";
+
+              card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #202020; padding-bottom: 6px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 11px; font-weight: 700; color: #C5A059; text-transform: uppercase; letter-spacing: 0.05em;">
+                      Logo #${idx + 1}
+                    </span>
+                    <span class="card-brand-label" style="font-size: 11px; color: #aaa;">
+                      ${escapeHtml(item.name || "Untitled Brand")}
+                    </span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <button type="button" class="btn-logo-up" title="Move earlier in ticker" ${idx === 0 ? "disabled" : ""} style="background: #222; color: ${idx === 0 ? "#555" : "#ddd"}; border: 1px solid #3a3a3a; padding: 2px 8px; border-radius: 3px; font-size: 10px; cursor: ${idx === 0 ? "default" : "pointer"};">
+                      ▲ Up
+                    </button>
+                    <button type="button" class="btn-logo-down" title="Move later in ticker" ${idx === logos.length - 1 ? "disabled" : ""} style="background: #222; color: ${idx === logos.length - 1 ? "#555" : "#ddd"}; border: 1px solid #3a3a3a; padding: 2px 8px; border-radius: 3px; font-size: 10px; cursor: ${idx === logos.length - 1 ? "default" : "pointer"};">
+                      ▼ Down
+                    </button>
+                    <button type="button" class="btn-logo-del" title="Delete this logo" style="background: #2a1111; color: #ff6b6b; border: 1px solid #552222; padding: 2px 8px; border-radius: 3px; font-size: 10px; cursor: pointer; margin-left: 4px;">
+                      🗑️ Delete
+                    </button>
+                  </div>
+                </div>
+
+                <div style="display: flex; gap: 12px; align-items: flex-start;">
+                  <!-- Thumbnail & Upload -->
+                  <div style="display: flex; flex-direction: column; align-items: center; width: 84px; flex-shrink: 0;">
+                    <div style="width: 84px; height: 56px; background: #0a0a0a; border: 1px solid #333; border-radius: 4px; display: flex; align-items: center; justify-content: center; padding: 4px; box-sizing: border-box; overflow: hidden; margin-bottom: 4px;">
+                      <img class="client-logo-thumb-preview" src="${escapeHtml(item.logo)}" alt="${escapeHtml(item.name)}" style="max-height: 44px; max-width: 100%; object-fit: contain; display: block;" onerror="this.style.opacity='0.25';" />
+                    </div>
+                    <label class="btn-logo-file-label" style="background: #222; color: #ccc; border: 1px solid #444; border-radius: 3px; padding: 3px 6px; font-size: 10px; cursor: pointer; text-align: center; width: 100%; box-sizing: border-box; display: block;">
+                      📁 Upload
+                      <input type="file" class="input-logo-file" accept="image/*" style="display: none;" />
+                    </label>
+                    <div class="upload-status-badge" style="font-size: 9px; color: #C5A059; margin-top: 2px; display: none;"></div>
+                  </div>
+
+                  <!-- Text Inputs & Media Picker -->
+                  <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+                    <div>
+                      <label style="display: block; font-size: 10px; color: #888; text-transform: uppercase; margin-bottom: 2px; font-weight: 600;">
+                        Brand / Company Name
+                      </label>
+                      <input type="text" class="client-item-name" value="${escapeHtml(item.name)}" placeholder="e.g. Signet, talo, Penguin..." style="width: 100%; background: #0c0c0c; border: 1px solid #333; color: #fff; padding: 6px 8px; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
+                    </div>
+
+                    <div>
+                      <label style="display: block; font-size: 10px; color: #888; text-transform: uppercase; margin-bottom: 2px; font-weight: 600;">
+                        Logo Image URL / Path
+                      </label>
+                      <div style="display: flex; gap: 6px;">
+                        <input type="text" class="client-item-logo" value="${escapeHtml(item.logo)}" placeholder="https://... or /clients/logo.png" style="flex: 1; background: #0c0c0c; border: 1px solid #333; color: #fff; padding: 6px 8px; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
+                        <button type="button" class="btn-row-media" style="background: #1c1c1c; border: 1px solid #444; color: #C5A059; padding: 6px 10px; font-size: 11px; font-weight: 600; border-radius: 3px; cursor: pointer; white-space: nowrap;">
+                          🖼️ Media Library
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Inline Media Picker Container -->
+                    <div class="row-media-picker-drawer" style="display: none; background: #0c0c0c; border: 1px solid #333; border-radius: 4px; padding: 8px; margin-top: 4px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-size: 10px; color: #C5A059; font-weight: 700; text-transform: uppercase;">Select from Uploaded Media</span>
+                        <button type="button" class="btn-close-media-drawer" style="background: none; border: none; color: #888; font-size: 11px; cursor: pointer;">✕</button>
+                      </div>
+                      <div class="row-media-picker-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; max-height: 120px; overflow-y: auto;">
+                        <div style="font-size: 11px; color: #666; grid-column: span 6; text-align: center; padding: 8px;">Loading media assets...</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              `;
+
+              // Event listeners on card
+              const thumbImg = card.querySelector(".client-logo-thumb-preview") as HTMLImageElement;
+              const nameInput = card.querySelector(".client-item-name") as HTMLInputElement;
+              const logoInput = card.querySelector(".client-item-logo") as HTMLInputElement;
+              const fileInput = card.querySelector(".input-logo-file") as HTMLInputElement;
+              const statusBadge = card.querySelector(".upload-status-badge") as HTMLElement;
+
+              // Name input sync
+              nameInput.addEventListener("input", () => {
+                logos[idx].name = nameInput.value;
+                const headerTitle = card.querySelector(".card-brand-label") as HTMLElement;
+                if (headerTitle) headerTitle.textContent = nameInput.value || "Untitled Brand";
+              });
+
+              // Logo URL input sync
+              logoInput.addEventListener("input", () => {
+                logos[idx].logo = logoInput.value;
+                if (thumbImg) {
+                  thumbImg.src = logoInput.value;
+                  thumbImg.style.opacity = "1";
+                }
+              });
+
+              // File upload
+              fileInput.addEventListener("change", async () => {
+                const file = fileInput.files?.[0];
+                if (!file) return;
+                statusBadge.style.display = "block";
+                statusBadge.textContent = "Uploading...";
+                try {
+                  const formData = new FormData();
+                  formData.append("file", file);
+                  const res = await fetch("/api/media", {
+                    method: "POST",
+                    body: formData,
+                  });
+                  const json = await res.json();
+                  const newSrc = json.asset?.blobUrl || json.data?.[0]?.src;
+                  if (newSrc) {
+                    logos[idx].logo = newSrc;
+                    logoInput.value = newSrc;
+                    if (thumbImg) {
+                      thumbImg.src = newSrc;
+                      thumbImg.style.opacity = "1";
+                    }
+                    statusBadge.textContent = "✓ Uploaded!";
+                    setTimeout(() => {
+                      statusBadge.style.display = "none";
+                    }, 2000);
+                  } else {
+                    statusBadge.textContent = "Upload failed";
+                  }
+                } catch (e) {
+                  console.error("Upload error:", e);
+                  statusBadge.textContent = "Error";
+                }
+              });
+
+              // Move Up
+              card.querySelector(".btn-logo-up")?.addEventListener("click", () => {
+                if (idx <= 0) return;
+                syncLogosFromDom();
+                const temp = logos[idx];
+                logos[idx] = logos[idx - 1];
+                logos[idx - 1] = temp;
+                renderLogosList();
+              });
+
+              // Move Down
+              card.querySelector(".btn-logo-down")?.addEventListener("click", () => {
+                if (idx >= logos.length - 1) return;
+                syncLogosFromDom();
+                const temp = logos[idx];
+                logos[idx] = logos[idx + 1];
+                logos[idx + 1] = temp;
+                renderLogosList();
+              });
+
+              // Delete
+              card.querySelector(".btn-logo-del")?.addEventListener("click", () => {
+                if (logos.length <= 1) {
+                  alert("You must keep at least 1 client logo.");
+                  return;
+                }
+                syncLogosFromDom();
+                logos.splice(idx, 1);
+                renderLogosList();
+              });
+
+              // Media Library Drawer
+              const mediaDrawer = card.querySelector(".row-media-picker-drawer") as HTMLElement;
+              const mediaGrid = card.querySelector(".row-media-picker-grid") as HTMLElement;
+              const btnMedia = card.querySelector(".btn-row-media") as HTMLButtonElement;
+              const btnCloseDrawer = card.querySelector(".btn-close-media-drawer") as HTMLButtonElement;
+
+              btnMedia.addEventListener("click", async () => {
+                if (mediaDrawer.style.display === "block") {
+                  mediaDrawer.style.display = "none";
+                  return;
+                }
+                mediaDrawer.style.display = "block";
+                try {
+                  const res = await fetch("/api/media");
+                  const json = await res.json();
+                  const assets: Array<{ blobUrl?: string; src?: string; name?: string }> = json.assets || [];
+                  if (assets.length === 0) {
+                    mediaGrid.innerHTML = `<div style="font-size: 11px; color: #777; grid-column: span 6; text-align: center; padding: 8px;">No media assets found. Use 📁 Upload above.</div>`;
+                    return;
+                  }
+                  mediaGrid.innerHTML = "";
+                  assets.forEach((asset) => {
+                    const src = asset.blobUrl || asset.src || "";
+                    if (!src) return;
+                    const itemBtn = document.createElement("button");
+                    itemBtn.type = "button";
+                    itemBtn.title = asset.name || "Media asset";
+                    itemBtn.style.cssText =
+                      "width: 100%; height: 42px; background: #161616; border: 1px solid #2a2a2a; border-radius: 2px; padding: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center; overflow: hidden;";
+                    itemBtn.innerHTML = `<img src="${src}" style="max-height: 100%; max-width: 100%; object-fit: contain;" />`;
+                    itemBtn.addEventListener("click", () => {
+                      logos[idx].logo = src;
+                      logoInput.value = src;
+                      if (thumbImg) {
+                        thumbImg.src = src;
+                        thumbImg.style.opacity = "1";
+                      }
+                      mediaDrawer.style.display = "none";
+                    });
+                    mediaGrid.appendChild(itemBtn);
+                  });
+                } catch (e) {
+                  console.error("Error loading media:", e);
+                  mediaGrid.innerHTML = `<div style="font-size: 11px; color: #e57373; grid-column: span 6; text-align: center; padding: 8px;">Failed to load media assets.</div>`;
+                }
+              });
+
+              btnCloseDrawer.addEventListener("click", () => {
+                mediaDrawer.style.display = "none";
+              });
+
+              logosListContainer.appendChild(card);
+            });
+          };
+
+          // Render initial logos list
+          renderLogosList();
+
+          // Add Logo button click
+          container.querySelector("#btn-add-client-logo")?.addEventListener("click", () => {
+            syncLogosFromDom();
+            logos.push({
+              name: `Client ${logos.length + 1}`,
+              logo: "/clients/talo.png",
+            });
+            renderLogosList();
+            setTimeout(() => {
+              logosListContainer.lastElementChild?.scrollIntoView({ behavior: "smooth" });
+            }, 50);
+          });
+
+          // Presets row click handling
+          const presetsRow = container.querySelector("#client-anim-presets");
+          presetsRow?.addEventListener("click", (e) => {
+            const btn = (e.target as HTMLElement).closest("button");
+            if (!btn) return;
+            const p = btn.dataset.preset;
+            const typeSelect = container.querySelector("#client-anim-type") as HTMLSelectElement;
+            if (typeSelect && p) {
+              typeSelect.value = p;
+            }
+          });
+
+          container.querySelector("#client-logo-height")?.addEventListener("change", (e) => {
+            const val = (e.target as HTMLSelectElement).value;
+            const customInput = container.querySelector("#client-logo-height-custom") as HTMLInputElement;
+            if (customInput && val !== "custom") customInput.value = val;
+          });
+
+          container.querySelector("#client-sec-height")?.addEventListener("change", (e) => {
+            const val = (e.target as HTMLSelectElement).value;
+            const customInput = container.querySelector("#client-sec-height-custom") as HTMLInputElement;
+            if (customInput && val !== "custom") customInput.value = val;
+          });
+
+          // Cancel
+          container.querySelector("#client-cfg-cancel")?.addEventListener("click", () => {
+            modal.close();
+          });
+
+          // Save & Apply
+          container.querySelector("#client-cfg-save")?.addEventListener("click", () => {
+            if (!target) return;
+            syncLogosFromDom();
+
+            const seenByName = new Map<string, { name: string; logo: string }>();
+            for (const c of logos) {
+              const n = c.name.trim() || "Client";
+              const l = c.logo.trim();
+              if (l) {
+                seenByName.set(n.toLowerCase(), { name: n, logo: l });
+              }
+            }
+            const validLogos = Array.from(seenByName.values());
+            if (validLogos.length === 0) {
+              alert("Please include at least one client logo with a valid image URL.");
+              return;
+            }
+
+            const typeSelect = container.querySelector("#client-anim-type") as HTMLSelectElement;
+            const speedSelect = container.querySelector("#client-anim-speed") as HTMLSelectElement;
+            const dirSelect = container.querySelector("#client-anim-dir") as HTMLSelectElement;
+            const pauseSelect = container.querySelector("#client-anim-pause") as HTMLSelectElement;
+            const hoverSelect = container.querySelector("#client-hover-effect") as HTMLSelectElement;
+            const headingInput = container.querySelector("#client-heading-input") as HTMLInputElement;
+            const logoHeightSelect = container.querySelector("#client-logo-height") as HTMLSelectElement;
+            const logoHeightCustom = container.querySelector("#client-logo-height-custom") as HTMLInputElement;
+            const secHeightSelect = container.querySelector("#client-sec-height") as HTMLSelectElement;
+            const secHeightCustom = container.querySelector("#client-sec-height-custom") as HTMLInputElement;
+
+            const finalType = typeSelect?.value || "marquee";
+            const finalSpeed = speedSelect?.value || "normal";
+            const finalDir = dirSelect?.value || "left";
+            const finalPause = pauseSelect?.value || "true";
+            const finalHover = hoverSelect?.value || "scale";
+            const finalHeading = headingInput?.value.trim() || "Clients";
+
+            const finalLogoHeight =
+              logoHeightSelect?.value === "custom" && logoHeightCustom?.value.trim()
+                ? logoHeightCustom.value.trim()
+                : (logoHeightSelect?.value || curLogoHeight || "44px");
+
+            const finalSecHeight =
+              secHeightSelect?.value === "custom" && secHeightCustom?.value.trim()
+                ? secHeightCustom.value.trim()
+                : (secHeightSelect?.value || curSectionHeight || "auto");
+
+            const fontSelectModal = container.querySelector("#client-heading-font-select") as HTMLSelectElement;
+            const fontCustomModal = container.querySelector("#client-heading-font-custom") as HTMLInputElement;
+            const finalFont =
+              fontSelectModal?.value === "custom" && fontCustomModal?.value.trim()
+                ? fontCustomModal.value.trim()
+                : (fontSelectModal?.value || "");
+
+            // Update attributes on target component
+            target.addAttributes({
+              "data-anim-type": finalType,
+              "data-anim-speed": finalSpeed,
+              "data-anim-direction": finalDir,
+              "data-anim-pause": finalPause,
+              "data-hover-effect": finalHover,
+              "data-heading": finalHeading,
+              ...(finalFont ? { "data-heading-font": finalFont } : {}),
+              "data-logo-height": finalLogoHeight,
+              "data-section-height": finalSecHeight,
+              "data-clients": JSON.stringify(validLogos),
+            });
+
+            if (!finalFont) {
+              target.removeAttributes("data-heading-font");
+            }
+
+            if (finalSecHeight && finalSecHeight !== "auto") {
+              target.addStyle({
+                height: finalSecHeight,
+                "min-height": finalSecHeight,
+                display: "flex",
+                "flex-direction": "column",
+                "justify-content": "center",
+              });
+            } else if (finalSecHeight === "auto") {
+              target.removeStyle("height");
+              target.removeStyle("min-height");
+            }
+
+            // Update heading text and typography if h2 exists
+            const hComp = target.find?.("h2, h3")?.[0];
+            if (hComp) {
+              hComp.components(finalHeading);
+              if (finalFont) {
+                hComp.addStyle({ "font-family": finalFont });
+              } else {
+                hComp.removeStyle("font-family");
+              }
+            }
+
+            // Update track classes and items in canvas
+            const trackComp = target.find?.(".client-marquee-track")?.[0];
+            if (trackComp) {
+              if (finalDir === "right") {
+                trackComp.addClass?.("anim-right");
+                trackComp.removeClass?.("anim-left");
+              } else {
+                trackComp.addClass?.("anim-left");
+                trackComp.removeClass?.("anim-right");
+              }
+              if (finalPause === "true") {
+                trackComp.addClass?.("pause-on-hover");
+              } else {
+                trackComp.removeClass?.("pause-on-hover");
+              }
+
+              // Repeat logos for smooth continuous track in editor
+              const repeatCount = validLogos.length >= 6 ? 2 : Math.max(2, Math.ceil(12 / validLogos.length));
+              let repeated: Array<{ name: string; logo: string }> = [];
+              for (let r = 0; r < repeatCount; r++) {
+                repeated = repeated.concat(validLogos);
+              }
+
+              const trackHtml = repeated
+                .map(
+                  (item) => `
+                <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;" class="transition-all duration-300 hover:scale-110">
+                  <img src="${item.logo}" alt="${item.name.replace(/"/g, "&quot;")}" style="height: ${finalLogoHeight}; max-height: ${finalLogoHeight}; width: auto; object-fit: contain; display: block; opacity: 0.85;" />
+                </div>
+              `
+                )
+                .join("");
+              trackComp.components(trackHtml);
+            }
+
+            // Persist draft immediately if onSave callback is provided
+            if (onSaveRef.current) {
+              const projectData = editor.getProjectData();
+              const html = editor.getHtml() ?? "";
+              const css = editor.getCss() ?? "";
+              onSaveRef.current(projectData, html, css);
+            }
+
+            editor.select(target);
+            setActiveRightTab("traits");
+            editor.trigger("change:canvas");
+            modal.close();
+          });
+
+          modal.setContent(container);
+          modal.open();
         },
       });
 
@@ -5957,50 +7626,109 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
        * Portfolio: Client Logos Section block (clean monochrome logos matching reference screenshot)
        */
       bm.add("client-logos-block", {
-        label: "Client Logos Section",
+        label: "Client Logos & Partners",
         category: "Portfolio",
+        media: `
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#C5A059" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+        `,
         content: `
-        <section class="py-16 border-t border-[#222]" style="background-color: #000000; width: 100%; box-sizing: border-box; padding: 4rem 1.5rem;">
-          <div style="max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; text-align: center;">
+        <section data-cms-block="clients-section" data-anim-type="marquee" data-anim-speed="normal" data-anim-direction="left" data-anim-pause="true" data-hover-effect="scale" data-heading="Clients" data-logo-height="44px" data-section-height="auto" data-clients='[{"name":"Signet","logo":"https://nyj2ucc9ur7y9rzh.public.blob.vercel-storage.com/39179fee_signet3-T4qa3Gb9M1P98UOpZlewVnBXaPxqgP.jpg"},{"name":"talo","logo":"/clients/talo.png"},{"name":"SOLID STATE","logo":"/clients/solid_state.png"},{"name":"NOTED","logo":"/clients/noted.png"},{"name":"GOAN","logo":"/clients/goan.png"},{"name":"MOWI","logo":"/clients/mowi.png"}]' class="clients-section py-16 border-t border-[#222]" style="background-color: #000000; width: 100%; box-sizing: border-box; padding: 4rem 1.5rem; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: center;">
+          <div style="max-width: 1100px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; align-items: center; text-align: center;">
             <h2 style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 1.875rem; font-weight: 700; color: #FFFFFF; margin-bottom: 0.5rem; letter-spacing: -0.01em;">
               Clients
             </h2>
             <div style="width: 2rem; height: 2px; background-color: #9CA3AF; opacity: 0.7; margin-bottom: 3.5rem;"></div>
-            <div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 3.5rem; width: 100%;">
-              <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;">
-                <img 
-                  src="/clients/talo.png" 
-                  alt="talo" 
-                  style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
-                />
-              </div>
-              <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;">
-                <img 
-                  src="/clients/solid_state.png" 
-                  alt="SOLID STATE" 
-                  style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
-                />
-              </div>
-              <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;">
-                <img 
-                  src="/clients/noted.png" 
-                  alt="NOTED" 
-                  style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
-                />
-              </div>
-              <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;">
-                <img 
-                  src="/clients/goan.png" 
-                  alt="GOAN" 
-                  style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
-                />
-              </div>
-              <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;">
-                <img 
-                  src="/clients/mowi.png" 
-                  alt="MOWI" 
-                  style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
-                />
+            <div class="client-marquee-wrapper" style="width: 100%; overflow: hidden; position: relative; mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);">
+              <div class="client-marquee-track anim-left pause-on-hover" style="display: flex; width: max-content; gap: 3.5rem; align-items: center;">
+                <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;" class="transition-all duration-300 hover:scale-110">
+                  <img 
+                    src="https://nyj2ucc9ur7y9rzh.public.blob.vercel-storage.com/39179fee_signet3-T4qa3Gb9M1P98UOpZlewVnBXaPxqgP.jpg" 
+                    alt="Signet" 
+                    style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
+                  />
+                </div>
+                <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;" class="transition-all duration-300 hover:scale-110">
+                  <img 
+                    src="/clients/talo.png" 
+                    alt="talo" 
+                    style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
+                  />
+                </div>
+                <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;" class="transition-all duration-300 hover:scale-110">
+                  <img 
+                    src="/clients/solid_state.png" 
+                    alt="SOLID STATE" 
+                    style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
+                  />
+                </div>
+                <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;" class="transition-all duration-300 hover:scale-110">
+                  <img 
+                    src="/clients/noted.png" 
+                    alt="NOTED" 
+                    style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
+                  />
+                </div>
+                <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;" class="transition-all duration-300 hover:scale-110">
+                  <img 
+                    src="/clients/goan.png" 
+                    alt="GOAN" 
+                    style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
+                  />
+                </div>
+                <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;" class="transition-all duration-300 hover:scale-110">
+                  <img 
+                    src="/clients/mowi.png" 
+                    alt="MOWI" 
+                    style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
+                  />
+                </div>
+                <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;" class="transition-all duration-300 hover:scale-110">
+                  <img 
+                    src="https://nyj2ucc9ur7y9rzh.public.blob.vercel-storage.com/39179fee_signet3-T4qa3Gb9M1P98UOpZlewVnBXaPxqgP.jpg" 
+                    alt="Signet" 
+                    style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
+                  />
+                </div>
+                <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;" class="transition-all duration-300 hover:scale-110">
+                  <img 
+                    src="/clients/talo.png" 
+                    alt="talo" 
+                    style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
+                  />
+                </div>
+                <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;" class="transition-all duration-300 hover:scale-110">
+                  <img 
+                    src="/clients/solid_state.png" 
+                    alt="SOLID STATE" 
+                    style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
+                  />
+                </div>
+                <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;" class="transition-all duration-300 hover:scale-110">
+                  <img 
+                    src="/clients/noted.png" 
+                    alt="NOTED" 
+                    style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
+                  />
+                </div>
+                <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;" class="transition-all duration-300 hover:scale-110">
+                  <img 
+                    src="/clients/goan.png" 
+                    alt="GOAN" 
+                    style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
+                  />
+                </div>
+                <div style="display: flex; align-items: center; justify-content: center; padding: 0.5rem;" class="transition-all duration-300 hover:scale-110">
+                  <img 
+                    src="/clients/mowi.png" 
+                    alt="MOWI" 
+                    style="height: 44px; width: auto; object-fit: contain; display: block; opacity: 0.85;"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -6379,9 +8107,30 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         if (applyImmediately) {
           const selected = ed.getSelected();
           if (selected) {
-            selected.addStyle({
-              "font-family": `'${font.family}', sans-serif`,
-            });
+            const fontStr = `'${font.family}', sans-serif`;
+            selected.addStyle({ "font-family": fontStr });
+
+            const isClientSec =
+              selected.is("clients-section") ||
+              selected.getAttributes?.()["data-cms-block"] === "clients-section" ||
+              selected.getAttributes?.()["data-cms-block"] === "client-logos" ||
+              selected.getClasses?.()?.includes("clients-section");
+
+            const parentClientSec = isClientSec
+              ? selected
+              : selected.closest?.('[data-cms-block="clients-section"]') ||
+                selected.closest?.('[data-cms-block="client-logos"]') ||
+                selected.closest?.(".clients-section") ||
+                null;
+
+            if (parentClientSec) {
+              parentClientSec.addAttributes({ "data-heading-font": fontStr });
+              const hComp = parentClientSec.find?.("h1, h2, h3")?.[0];
+              if (hComp && hComp !== selected) {
+                hComp.addStyle({ "font-family": fontStr });
+              }
+            }
+
             ed.trigger("component:update", selected);
           }
         }
@@ -6410,9 +8159,97 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       if (ed) {
         const selected = ed.getSelected();
         if (selected) {
-          selected.addStyle({ "font-family": `'${font.family}', sans-serif` });
+          const fontStr = `'${font.family}', sans-serif`;
+          selected.addStyle({ "font-family": fontStr });
+
+          const isClientSec =
+            selected.is("clients-section") ||
+            selected.getAttributes?.()["data-cms-block"] === "clients-section" ||
+            selected.getAttributes?.()["data-cms-block"] === "client-logos" ||
+            selected.getClasses?.()?.includes("clients-section");
+
+          const parentClientSec = isClientSec
+            ? selected
+            : selected.closest?.('[data-cms-block="clients-section"]') ||
+              selected.closest?.('[data-cms-block="client-logos"]') ||
+              selected.closest?.(".clients-section") ||
+              null;
+
+          if (parentClientSec) {
+            parentClientSec.addAttributes({ "data-heading-font": fontStr });
+            const hComp = parentClientSec.find?.("h1, h2, h3")?.[0];
+            if (hComp && hComp !== selected) {
+              hComp.addStyle({ "font-family": fontStr });
+            }
+          }
+
           ed.trigger("component:update", selected);
         }
+      }
+    };
+
+    const syncClientsSectionDataAttributes = (editor: Editor) => {
+      try {
+        const clientSections =
+          editor.getWrapper()?.find?.(
+            '[data-cms-block="clients-section"], [data-cms-block="client-logos"], .clients-section',
+          ) || [];
+
+        clientSections.forEach((sec) => {
+          const h = sec.find?.("h1, h2, h3")?.[0];
+          if (h) {
+            const hText = (h.getEl()?.textContent || h.get("content") || "").trim();
+            if (hText) sec.addAttributes({ "data-heading": hText });
+
+            const hStyle = h.getStyle?.() || {};
+            const secStyle = sec.getStyle?.() || {};
+            const attrs = (sec.getAttributes?.() || {}) as Record<string, string>;
+            const rawFont =
+              hStyle["font-family"] ||
+              secStyle["font-family"] ||
+              attrs["data-heading-font"];
+            const currentFont = typeof rawFont === "string" ? rawFont.trim() : "";
+
+            if (
+              currentFont &&
+              !currentFont.includes("-apple-system") &&
+              !currentFont.includes("BlinkMacSystemFont")
+            ) {
+              sec.addAttributes({ "data-heading-font": currentFont });
+              h.addStyle({ "font-family": currentFont });
+            }
+          }
+
+          // Ensure logos are deduplicated in data-clients
+          const attrs = (sec.getAttributes?.() || {}) as Record<string, string>;
+          const rawClients = attrs["data-clients"];
+          if (rawClients) {
+            try {
+              const parsed = JSON.parse(rawClients);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                const seenByName = new Map<string, { name: string; logo: string; href?: string }>();
+                for (const item of parsed) {
+                  if (!item?.logo || !item?.name) continue;
+                  seenByName.set(String(item.name).trim().toLowerCase(), {
+                    name: String(item.name).trim(),
+                    logo: String(item.logo).trim(),
+                    href: item.href ? String(item.href) : undefined,
+                  });
+                }
+                const byName = Array.from(seenByName.values());
+                const seenByLogo = new Set<string>();
+                const deduped = byName.filter((item) => {
+                  if (seenByLogo.has(item.logo)) return false;
+                  seenByLogo.add(item.logo);
+                  return true;
+                });
+                sec.addAttributes({ "data-clients": JSON.stringify(deduped) });
+              }
+            } catch {}
+          }
+        });
+      } catch (err) {
+        console.warn("Could not sync client section data attributes:", err);
       }
     };
 
@@ -6425,6 +8262,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
 
       syncAllCounters(editor);
       syncContactCardDataAttributes(editor);
+      syncClientsSectionDataAttributes(editor);
 
       const projectData = editor.getProjectData();
 
@@ -6900,7 +8738,70 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
+            {/* Broad View (Expansive Studio Mode) Toggle */}
+            <button
+              type="button"
+              onClick={toggleBroadView}
+              title={
+                isBroadView
+                  ? "Exit Broad View: Restore Side Panels"
+                  : "Broad View (Studio Mode): Expand Canvas to 100% Full Width"
+              }
+              className={`px-3 py-1.5 rounded text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
+                isBroadView
+                  ? "bg-[#C5A059] text-black shadow-md shadow-[#C5A059]/30 border border-[#C5A059]"
+                  : "border border-[#333] text-gray-300 hover:text-white hover:border-[#C5A059] bg-[#141414]"
+              }`}>
+              <span>🖥️</span>
+              <span>{isBroadView ? "Broad View: ON" : "Broad View"}</span>
+            </button>
+
+            {/* Blocks Panel Toggle */}
+            <button
+              type="button"
+              onClick={() => setShowLeftBlocks((prev) => !prev)}
+              title="Toggle Left Blocks Panel"
+              className={`px-2.5 py-1.5 rounded text-[11px] font-bold tracking-wider transition-all flex items-center gap-1 cursor-pointer border ${
+                showLeftBlocks
+                  ? "border-[#C5A059]/60 text-[#C5A059] bg-[#181818]"
+                  : "border-[#333] text-gray-400 hover:text-white bg-[#141414]"
+              }`}>
+              <span>◧</span>
+              <span>Blocks</span>
+            </button>
+
+            {/* Inspector Panel Toggle */}
+            <button
+              type="button"
+              onClick={() => setShowRightInspector((prev) => !prev)}
+              title="Toggle Right Styles & Settings Inspector"
+              className={`px-2.5 py-1.5 rounded text-[11px] font-bold tracking-wider transition-all flex items-center gap-1 cursor-pointer border ${
+                showRightInspector
+                  ? "border-[#C5A059]/60 text-[#C5A059] bg-[#181818]"
+                  : "border-[#333] text-gray-400 hover:text-white bg-[#141414]"
+              }`}>
+              <span>◨</span>
+              <span>Inspector</span>
+            </button>
+
+            {/* Page Sections Order Manager */}
+            <button
+              type="button"
+              onClick={() => {
+                refreshPageSections();
+                setShowSectionsModal(true);
+              }}
+              title="Safely Reorder & Organize Page Sections"
+              className="px-2.5 py-1.5 border border-[#333] hover:border-[#C5A059] text-gray-300 hover:text-white bg-[#141414] rounded transition-colors text-[11px] font-bold tracking-wider flex items-center gap-1.5 cursor-pointer">
+              <span>📑</span>
+              <span>
+                Sections {pageSections.length > 0 && `(${pageSections.length})`}
+              </span>
+            </button>
+
+            <div className="h-4 w-px bg-[#262626]" />
+
             {/* Freeform Drag Mode Toggle */}
             <button
               type="button"
@@ -6981,6 +8882,18 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               <span>Card Colors</span>
             </button>
 
+            {/* Client Section Animation Customizer Trigger */}
+            <button
+              type="button"
+              onClick={() => {
+                editorRef.current?.runCommand("open-client-animation-customizer");
+              }}
+              title="Customize Client Section Animation, Motion Speed & Hover Style"
+              className="px-2.5 py-1.5 border border-[#333] hover:border-[#C5A059] text-[#C5A059] hover:text-white bg-[#141414] rounded transition-colors text-[11px] font-bold tracking-wider flex items-center gap-1.5 cursor-pointer">
+              <span>✨</span>
+              <span>Client Animation</span>
+            </button>
+
             <div className="h-4 w-px bg-[#262626]" />
 
             <button
@@ -7000,16 +8913,73 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         </div>
 
         <div className="flex flex-1 overflow-hidden relative w-full h-[calc(100vh-8rem)]">
-          <div className="gjs-blocks-container w-56 shrink-0 overflow-y-auto border-r border-[#222] bg-[#080808]" />
-
+          {/* Collapsible Left Blocks Panel */}
           <div
-            id="gjs"
-            ref={containerRef}
-            className="flex-1 h-full w-full bg-[#111]"
-          />
+            className={`transition-all duration-300 ease-in-out shrink-0 overflow-hidden flex flex-col border-r border-[#222] bg-[#080808] ${
+              showLeftBlocks ? "w-56" : "w-0 border-r-0"
+            }`}>
+            <div className="px-3 py-2 border-b border-[#222] bg-[#0c0c0c] flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-gray-400 shrink-0">
+              <span className="text-[#C5A059]">✦ Page Blocks</span>
+              <button
+                type="button"
+                onClick={() => setShowLeftBlocks(false)}
+                title="Collapse Blocks Panel (Expands Canvas)"
+                className="hover:text-white p-0.5 rounded text-xs transition-colors">
+                ✕
+              </button>
+            </div>
+            <div className="gjs-blocks-container flex-1 overflow-y-auto" />
+          </div>
 
-          <div className="w-72 shrink-0 flex flex-col border-l border-[#222] bg-[#080808]">
-            <div className="flex border-b border-[#222] bg-[#0c0c0c] text-[10px] font-bold uppercase tracking-wider shrink-0">
+          {/* Broad Center Canvas Area */}
+          <div className="flex-1 h-full w-full bg-[#111] relative flex flex-col overflow-hidden">
+            {/* Subtle Studio Canvas Widescreen indicator pill */}
+            {isBroadView && (
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 pointer-events-none animate-in fade-in duration-300">
+                <div className="px-3.5 py-1 bg-[#121212]/95 backdrop-blur-md border border-[#C5A059]/40 rounded-full shadow-2xl flex items-center gap-2 text-[10px] font-bold tracking-widest text-[#C5A059]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#C5A059] animate-pulse" />
+                  <span>STUDIO CANVAS MODE (100% WIDESCREEN)</span>
+                </div>
+              </div>
+            )}
+
+            {/* Floating Left Drawer Handle when blocks are collapsed */}
+            {!showLeftBlocks && (
+              <button
+                type="button"
+                onClick={() => setShowLeftBlocks(true)}
+                title="Open Blocks Panel"
+                className="absolute top-1/2 -translate-y-1/2 left-0 z-20 px-1.5 py-3.5 bg-[#161616]/90 hover:bg-[#C5A059] hover:text-black text-gray-400 border border-l-0 border-[#333] hover:border-[#C5A059] rounded-r-md transition-all shadow-xl text-[10px] font-bold flex flex-col items-center gap-1 cursor-pointer group">
+                <span className="group-hover:scale-110 transition-transform">◧</span>
+                <span className="[writing-mode:vertical-lr] text-[9px] uppercase tracking-widest mt-1">Blocks</span>
+              </button>
+            )}
+
+            {/* Floating Right Drawer Handle when inspector is collapsed */}
+            {!showRightInspector && (
+              <button
+                type="button"
+                onClick={() => setShowRightInspector(true)}
+                title="Open Styles & Settings Inspector"
+                className="absolute top-1/2 -translate-y-1/2 right-0 z-20 px-1.5 py-3.5 bg-[#161616]/90 hover:bg-[#C5A059] hover:text-black text-gray-400 border border-r-0 border-[#333] hover:border-[#C5A059] rounded-l-md transition-all shadow-xl text-[10px] font-bold flex flex-col items-center gap-1 cursor-pointer group">
+                <span className="group-hover:scale-110 transition-transform">◨</span>
+                <span className="[writing-mode:vertical-lr] text-[9px] uppercase tracking-widest mt-1">Styles</span>
+              </button>
+            )}
+
+            <div
+              id="gjs"
+              ref={containerRef}
+              className="flex-1 h-full w-full bg-[#111]"
+            />
+          </div>
+
+          {/* Collapsible Right Inspector Panel */}
+          <div
+            className={`transition-all duration-300 ease-in-out shrink-0 overflow-hidden flex flex-col border-l border-[#222] bg-[#080808] ${
+              showRightInspector ? "w-72" : "w-0 border-l-0"
+            }`}>
+            <div className="flex border-b border-[#222] bg-[#0c0c0c] text-[10px] font-bold uppercase tracking-wider shrink-0 items-center">
               <button
                 type="button"
                 onClick={() => setActiveRightTab("styles")}
@@ -7039,6 +9009,13 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                     : "border-transparent text-gray-400 hover:text-white"
                 }`}>
                 Layers
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowRightInspector(false)}
+                title="Collapse Inspector (Expands Canvas)"
+                className="px-2.5 py-3 text-gray-500 hover:text-white transition-colors">
+                ✕
               </button>
             </div>
 
@@ -7117,6 +9094,116 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           installedFonts={customFonts}
           hasSelectedElement={hasSelectedElement}
         />
+
+        {/* Page Sections Order Manager Modal */}
+        {showSectionsModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+            onClick={() => setShowSectionsModal(false)}>
+            <div
+              className="bg-[#0e0e0e] border border-[#2a2a2a] rounded-xl shadow-2xl max-w-xl w-full max-h-[85vh] flex flex-col overflow-hidden text-gray-200"
+              onClick={(e) => e.stopPropagation()}>
+              <div className="px-5 py-4 border-b border-[#222] bg-[#141414] flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl">📑</span>
+                  <div>
+                    <h3 className="text-sm font-bold text-white tracking-wide uppercase">
+                      Page Sections Manager
+                    </h3>
+                    <p className="text-[11px] text-gray-400">
+                      Safely reorder sections on this page with instant live synchronization.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowSectionsModal(false)}
+                  className="w-8 h-8 rounded-lg bg-[#202020] hover:bg-[#333] text-gray-300 hover:text-white flex items-center justify-center transition-colors">
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-5 flex-1 overflow-y-auto space-y-2.5">
+                {pageSections.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 text-xs">
+                    No top-level sections found on this page.
+                  </div>
+                ) : (
+                  pageSections.map((sec, idx) => (
+                    <div
+                      key={sec.cid || idx}
+                      className="flex items-center justify-between p-3.5 bg-[#161616] hover:bg-[#1a1a1a] border border-[#282828] hover:border-[#C5A059]/40 rounded-lg transition-all group">
+                      <div className="flex items-center gap-3">
+                        <span className="w-6 h-6 rounded-md bg-[#222] text-[#C5A059] border border-[#333] flex items-center justify-center text-[11px] font-bold">
+                          {String(idx + 1).padStart(2, "0")}
+                        </span>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-200 group-hover:text-[#C5A059] transition-colors">
+                            {sec.title}
+                          </p>
+                          <span className="text-[10px] text-gray-500 font-mono">
+                            #{sec.id} &bull; &lt;{sec.tagName}&gt;
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          onClick={() => moveSectionByIndex(idx, idx - 1)}
+                          title="Move section up"
+                          className="px-2.5 py-1 bg-[#202020] hover:bg-[#C5A059] hover:text-black text-gray-300 border border-[#333] disabled:opacity-30 disabled:pointer-events-none rounded text-xs font-bold transition-all">
+                          ▲ Up
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === pageSections.length - 1}
+                          onClick={() => moveSectionByIndex(idx, idx + 1)}
+                          title="Move section down"
+                          className="px-2.5 py-1 bg-[#202020] hover:bg-[#C5A059] hover:text-black text-gray-300 border border-[#333] disabled:opacity-30 disabled:pointer-events-none rounded text-xs font-bold transition-all">
+                          ▼ Down
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (editorRef.current) {
+                              const wrapper = editorRef.current.getWrapper();
+                              const comp = wrapper?.components().at(idx);
+                              if (comp) {
+                                editorRef.current.select(comp);
+                                comp
+                                  .getEl()
+                                  ?.scrollIntoView({
+                                    behavior: "smooth",
+                                    block: "center",
+                                  });
+                              }
+                            }
+                            setShowSectionsModal(false);
+                          }}
+                          title="Select & Focus on Canvas"
+                          className="px-2.5 py-1 bg-[#1f1a10] hover:bg-[#C5A059] text-[#C5A059] hover:text-black border border-[#C5A059]/40 rounded text-xs font-bold transition-all">
+                          👁️ Focus
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="px-5 py-3 bg-[#111] border-t border-[#222] flex items-center justify-between text-[11px] text-gray-400">
+                <span>💡 Changes are applied immediately to the canvas.</span>
+                <button
+                  type="button"
+                  onClick={() => setShowSectionsModal(false)}
+                  className="px-4 py-1.5 bg-[#C5A059] text-black font-bold uppercase tracking-wider text-[11px] rounded hover:bg-white transition-colors">
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   },

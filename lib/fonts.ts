@@ -33,16 +33,21 @@ export function formatFontFaceCss(font: CustomFont): string {
     format = "opentype";
   } else if (!font.format) {
     const lowerUrl = font.url.toLowerCase();
-    if (lowerUrl.includes(".woff2")) format = "woff2";
-    else if (lowerUrl.includes(".woff")) format = "woff";
-    else if (lowerUrl.includes(".ttf")) format = "truetype";
-    else if (lowerUrl.includes(".otf")) format = "opentype";
+    if (lowerUrl.includes(".woff2") || lowerUrl.includes("font/woff2")) format = "woff2";
+    else if (lowerUrl.includes(".woff") || lowerUrl.includes("font/woff")) format = "woff";
+    else if (lowerUrl.includes(".ttf") || lowerUrl.includes("font/ttf") || lowerUrl.includes("truetype")) format = "truetype";
+    else if (lowerUrl.includes(".otf") || lowerUrl.includes("font/otf") || lowerUrl.includes("opentype")) format = "opentype";
   }
+
+  const srcFormat =
+    format === "opentype"
+      ? `url('${font.url}') format('opentype'), url('${font.url}') format('truetype')`
+      : `url('${font.url}') format('${format}')`;
+
   return `@font-face {
   font-family: '${cleanFamily}';
-  src: url('${font.url}') format('${format}');
+  src: ${srcFormat};
   font-display: swap;
-  font-weight: 100 900;
   font-style: normal;
 }`;
 }

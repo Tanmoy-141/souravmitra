@@ -51,6 +51,7 @@ const ALLOWED_TYPES = new Set([
   "application/x-font-opentype",
   "application/vnd.ms-opentype",
   "application/font-sfnt",
+  "application/octet-stream",
 ]);
 
 /** Normalizes the MIME type based on file extension and provided type */
@@ -234,6 +235,13 @@ export async function POST(req: NextRequest) {
         { status: 500 },
       );
     }
+  }
+
+  if (savedAssets.length === 0) {
+    return NextResponse.json(
+      { success: false, message: "No files were successfully processed." },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({

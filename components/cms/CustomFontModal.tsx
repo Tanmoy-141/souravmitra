@@ -53,6 +53,7 @@ export default function CustomFontModal({
   const [uploadFamily, setUploadFamily] = useState("");
   const [uploadFormat, setUploadFormat] = useState<string>("woff2");
   const [uploadedBlobUrl, setUploadedBlobUrl] = useState<string>("");
+  const [isDragging, setIsDragging] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadError, setUploadError] = useState("");
 
@@ -247,10 +248,7 @@ export default function CustomFontModal({
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processSelectedFile = (file: File) => {
     const ext = file.name.split(".").pop()?.toLowerCase();
     if (!["woff2", "woff", "ttf", "otf"].includes(ext || "")) {
       setUploadError(
@@ -262,12 +260,12 @@ export default function CustomFontModal({
     setUploadFile(file);
     setUploadError("");
 
-    // Infer family name from filename (e.g., "CinzelDecorative-Bold.woff2" -> "Cinzel Decorative")
+    // Infer family name from filename (e.g., "Gotham Regular.otf" -> "Gotham Regular")
     const baseName = file.name
       .replace(/\.[^/.]+$/, "")
       .replace(/[-_]/g, " ")
       .trim();
-    if (!uploadFamily) {
+    if (!uploadFamily.trim()) {
       setUploadFamily(baseName);
     }
 
@@ -284,8 +282,21 @@ export default function CustomFontModal({
     // Create temporary object URL for immediate live specimen preview
     const tempUrl = URL.createObjectURL(file);
     setUploadedBlobUrl(tempUrl);
+  };
 
-    // Inject temporary @font-face for preview
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processSelectedFile(file);
+    }
+  };
+
+  // Synchronize live @font-face preview whenever uploadedBlobUrl, uploadFamily, or uploadFormat changes
+  useEffect(() => {
+    if (!uploadedBlobUrl) return;
+    const cleanFamily = sanitizeFontFamily(uploadFamily || "UploadedFontPreview");
+    if (!cleanFamily) return;
+
     const styleId = "temp-uploaded-font-preview";
     let style = document.getElementById(styleId) as HTMLStyleElement | null;
     if (!style) {
@@ -293,14 +304,21 @@ export default function CustomFontModal({
       style.id = styleId;
       document.head.appendChild(style);
     }
+
+    const srcFmt =
+      uploadFormat === "opentype"
+        ? `url('${uploadedBlobUrl}') format('opentype'), url('${uploadedBlobUrl}') format('truetype')`
+        : `url('${uploadedBlobUrl}') format('${uploadFormat}')`;
+
     style.textContent = `
       @font-face {
-        font-family: '${sanitizeFontFamily(baseName)}';
-        src: url('${tempUrl}') format('${fmt}');
+        font-family: '${cleanFamily}';
+        src: ${srcFmt};
         font-display: swap;
+        font-style: normal;
       }
     `;
-  };
+  }, [uploadedBlobUrl, uploadFamily, uploadFormat]);
 
   const handleUploadAndInstallFont = async () => {
     if (!uploadFile) {
@@ -317,54 +335,30 @@ export default function CustomFontModal({
     setUploadError("");
 
     try {
-      // 1. Upload font file to /api/media
+      // 1. Direct high-performance single-request upload to /api/cms/fonts
       const formData = new FormData();
       formData.append("file", uploadFile);
+      formData.append("family", cleanFamily);
+      formData.append("format", uploadFormat);
+      formData.append("category", "sans-serif");
 
-      const mediaRes = await fetch("/api/media", {
+      const res = await fetch("/api/cms/fonts", {
         method: "POST",
         body: formData,
       });
 
-      const mediaData = await mediaRes.json();
-      const uploadedAsset =
-        mediaData.asset ||
-        (Array.isArray(mediaData.assets) && mediaData.assets.length > 0
-          ? mediaData.assets[0]
-          : null) ||
-        (Array.isArray(mediaData.data) && mediaData.data.length > 0
-          ? { blobUrl: mediaData.data[0]?.src }
-          : null);
+      const data = await res.json().catch(() => ({}));
 
-      const fontUrl = uploadedAsset?.blobUrl || uploadedAsset?.src;
-
-      if (!mediaRes.ok || !fontUrl) {
+      if (!res.ok || !data.success) {
         throw new Error(
-          mediaData.message ||
-            mediaData.error ||
-            "Failed to upload font file.",
+          data.error ||
+            data.message ||
+            `Failed to install font (${res.status} ${res.statusText}).`,
         );
       }
 
-      // 2. Register font in /api/cms/fonts
-      const fontRes = await fetch("/api/cms/fonts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          family: cleanFamily,
-          type: "upload",
-          url: fontUrl,
-          format: uploadFormat,
-        }),
-      });
-
-      const fontData = await fontRes.json();
-      if (!fontRes.ok || !fontData.success) {
-        throw new Error(fontData.error || "Failed to register custom font.");
-      }
-
       setStatusMsg(`Uploaded font "${cleanFamily}" installed successfully!`);
-      onFontInstalled(fontData.font, applyImmediately);
+      onFontInstalled(data.font, applyImmediately);
 
       // Clean up
       setUploadFile(null);
@@ -374,7 +368,79 @@ export default function CustomFontModal({
       setTimeout(() => setStatusMsg(""), 3500);
       setActiveTab("manage");
     } catch (err: unknown) {
-      setUploadError((err as Error).message || "Upload failed.");
+      console.warn(
+        "[CustomFontModal] Direct file upload failed, retrying with Data URI fallback:",
+        err,
+      );
+
+      try {
+        // Fallback: convert file to clean Base64 data URL with explicit font MIME
+        const ext = uploadFile.name.split(".").pop()?.toLowerCase();
+        const mime =
+          ext === "woff2"
+            ? "font/woff2"
+            : ext === "woff"
+              ? "font/woff"
+              : ext === "ttf"
+                ? "font/ttf"
+                : "font/otf";
+
+        const base64DataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (typeof reader.result === "string") {
+              const resStr = reader.result;
+              const fixedDataUrl =
+                resStr.startsWith("data:") && !resStr.startsWith(`data:${mime}`)
+                  ? resStr.replace(/^data:[^;]*/, `data:${mime}`)
+                  : resStr;
+              resolve(fixedDataUrl);
+            } else {
+              reject(new Error("Unable to encode font file."));
+            }
+          };
+          reader.onerror = () => reject(new Error("Failed reading font file."));
+          reader.readAsDataURL(uploadFile);
+        });
+
+        const fallbackRes = await fetch("/api/cms/fonts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            family: cleanFamily,
+            type: "upload",
+            url: base64DataUrl,
+            format: uploadFormat,
+            category: "sans-serif",
+          }),
+        });
+
+        const fallbackData = await fallbackRes.json().catch(() => ({}));
+        if (!fallbackRes.ok || !fallbackData.success) {
+          throw new Error(
+            fallbackData.error ||
+              fallbackData.message ||
+              (err as Error).message ||
+              "Failed to install font file.",
+          );
+        }
+
+        setStatusMsg(`Uploaded font "${cleanFamily}" installed successfully!`);
+        onFontInstalled(fallbackData.font, applyImmediately);
+
+        setUploadFile(null);
+        setUploadFamily("");
+        setUploadedBlobUrl("");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        setTimeout(() => setStatusMsg(""), 3500);
+        setActiveTab("manage");
+      } catch (fallbackErr: unknown) {
+        setUploadError(
+          (fallbackErr as Error).message ||
+            (err as Error).message ||
+            "Failed to install font file. Please verify file format and try again.",
+        );
+      }
     } finally {
       setUploadLoading(false);
     }
@@ -801,7 +867,35 @@ export default function CustomFontModal({
                 {/* Dropzone / File Picker */}
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-[#333] hover:border-[#C5A059] rounded-lg p-8 text-center cursor-pointer bg-[#0a0a0a] hover:bg-[#121212] transition-all group">
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDragging(true);
+                  }}
+                  onDragEnter={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDragging(false);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDragging(false);
+                    const droppedFile = e.dataTransfer.files?.[0];
+                    if (droppedFile) {
+                      processSelectedFile(droppedFile);
+                    }
+                  }}
+                  className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all group ${
+                    isDragging
+                      ? "border-[#C5A059] bg-[#1a1a1a] shadow-[0_0_15px_rgba(197,160,89,0.25)]"
+                      : "border-[#333] hover:border-[#C5A059] bg-[#0a0a0a] hover:bg-[#121212]"
+                  }`}>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -810,16 +904,18 @@ export default function CustomFontModal({
                     className="hidden"
                   />
                   <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">
-                    📤
+                    {isDragging ? "📥" : "📤"}
                   </div>
                   <p className="text-sm text-gray-200 font-semibold mb-1">
                     {uploadFile
                       ? uploadFile.name
-                      : "Click to select font file or drag & drop"}
+                      : isDragging
+                        ? "Drop font file here..."
+                        : "Click to select font file or drag & drop"}
                   </p>
                   <p className="text-xs text-gray-400">
                     Supported formats: .woff2 (recommended for web), .woff,
-                    .ttf, .otf (Max 10MB)
+                    .ttf, .otf (Max 15MB)
                   </p>
                 </div>
 

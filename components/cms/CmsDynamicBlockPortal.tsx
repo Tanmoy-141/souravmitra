@@ -8,7 +8,13 @@ import PortfolioSpotlightCarousel from "@/components/PortfolioSpotlightCarousel"
 import ContactFormClient from "@/components/cms/ContactFormClient";
 import ProjectGridSection from "@/components/cms/ProjectGridSection";
 import PortfolioCollection from "@/components/PortfolioCollection";
-import ClientsSection from "@/components/ClientsSection";
+import ClientsSection, {
+  type ClientItem,
+  type AnimationType,
+  type AnimationSpeed,
+  type AnimationDirection,
+  type HoverEffect,
+} from "@/components/ClientsSection";
 import { parseTestimonialBlock } from "@/lib/dynamic-blocks";
 import {
   ProjectShareBlock,
@@ -498,12 +504,14 @@ function extractBlockContainerStyles(
   const height = styles["height"] || undefined;
   const maxWidth = styles["max-width"] || (width ? "none" : undefined);
   const minHeight = styles["min-height"] || undefined;
+  const fontFamily = styles["font-family"] || undefined;
 
   return {
     ...(width ? { width } : {}),
     ...(height ? { height } : {}),
     ...(maxWidth ? { maxWidth } : {}),
     ...(minHeight ? { minHeight } : {}),
+    ...(fontFamily ? { fontFamily } : {}),
   };
 }
 
@@ -821,11 +829,225 @@ export function CmsDynamicBlockPortal({
           ),
         });
       } else if (block === "clients-section" || block === "client-logos") {
+        // Guard against nested blocks: if an inner clients-section is nested inside an outer one, skip the inner one
+        if (
+          element.parentElement?.closest(
+            '[data-cms-block="clients-section"], [data-cms-block="client-logos"]',
+          )
+        ) {
+          return;
+        }
+
+        const rawAnimType =
+          element.getAttribute("data-anim-type") ||
+          sourceEl.getAttribute("data-anim-type");
+        const animType: AnimationType =
+          rawAnimType === "fade" ||
+          rawAnimType === "pulse" ||
+          rawAnimType === "float" ||
+          rawAnimType === "none"
+            ? rawAnimType
+            : "marquee";
+
+        const rawSpeed =
+          element.getAttribute("data-anim-speed") ||
+          sourceEl.getAttribute("data-anim-speed");
+        const animSpeed: AnimationSpeed =
+          rawSpeed === "slow" || rawSpeed === "fast" ? rawSpeed : "normal";
+
+        const rawDir =
+          element.getAttribute("data-anim-direction") ||
+          sourceEl.getAttribute("data-anim-direction");
+        const animDirection: AnimationDirection =
+          rawDir === "right" ? "right" : "left";
+
+        const rawPause =
+          element.getAttribute("data-anim-pause") ||
+          sourceEl.getAttribute("data-anim-pause");
+        const pauseOnHover = rawPause !== "false";
+
+        const rawHover =
+          element.getAttribute("data-hover-effect") ||
+          sourceEl.getAttribute("data-hover-effect");
+        const hoverEffect: HoverEffect =
+          rawHover === "glow" || rawHover === "brightness" || rawHover === "none"
+            ? rawHover
+            : "scale";
+
+        // Extract heading text and typography properties (font-family, font-size, etc.)
+        const { text: hText, props: hProps } = extractHeadingInfo(
+          element,
+          sourceEl,
+          parsedDoc,
+        );
+
+        const heading =
+          element.getAttribute("data-heading") ||
+          sourceEl.getAttribute("data-heading") ||
+          hText ||
+          "Clients";
+
+        // Check if font-family was set on the section, heading, or data attribute
+        const sectionStyles = extractElementStyles(sourceEl || element, parsedDoc);
+        const headingEl = (sourceEl || element).querySelector("h1, h2, h3, h4, h5, h6");
+        const headingInlineStyle = headingEl?.getAttribute("style") || "";
+        const inlineFontFamilyMatch = headingInlineStyle.match(/font-family:\s*([^;]+)/i);
+
+        const isDefaultSysFont = (f?: string) =>
+          !f || f.includes("-apple-system") || f.includes("BlinkMacSystemFont");
+
+        const hPropFont = hProps?.style?.fontFamily as string | undefined;
+        const secFont = sectionStyles["font-family"];
+
+        const headingFontFamily =
+          inlineFontFamilyMatch?.[1]?.trim() ||
+          element.getAttribute("data-heading-font") ||
+          sourceEl.getAttribute("data-heading-font") ||
+          (!isDefaultSysFont(hPropFont) ? hPropFont : undefined) ||
+          (!isDefaultSysFont(secFont) ? secFont : undefined) ||
+          hPropFont ||
+          secFont ||
+          undefined;
+
+        if (hProps?.style && headingFontFamily) {
+          hProps.style.fontFamily = headingFontFamily;
+        }
+
+        // Check if an inner divider was dropped inside this section or immediately adjacent
+        const hasInnerDivider = Boolean(
+          sourceEl.querySelector("hr") ||
+          element.querySelector("hr") ||
+          sourceEl.querySelector('[data-block="divider-block"]') ||
+          element.querySelector('[data-block="divider-block"]') ||
+          sourceEl.querySelector(".divider, .c6304, .c6307") ||
+          element.querySelector(".divider, .c6304, .c6307") ||
+          sourceEl.innerHTML?.includes("<hr") ||
+          element.innerHTML?.includes("<hr"),
+        );
+
+        // Extract custom logos: first check data-clients JSON attribute, then fallback to img tags
+        let extractedClients: ClientItem[] = [];
+        const rawClientsAttr =
+          element.getAttribute("data-clients") ||
+          sourceEl.getAttribute("data-clients");
+        if (rawClientsAttr) {
+          try {
+            const parsed = JSON.parse(rawClientsAttr);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const seenNames = new Map<string, ClientItem>();
+              for (const item of parsed) {
+                if (!item?.logo || !item?.name) continue;
+                const nameKey = String(item.name).trim().toLowerCase();
+                seenNames.set(nameKey, {
+                  name: String(item.name).trim(),
+                  logo: String(item.logo).trim(),
+                  href: item.href ? String(item.href) : undefined,
+                });
+              }
+              const byName = Array.from(seenNames.values());
+              const seenLogos = new Set<string>();
+              extractedClients = byName.filter((item) => {
+                if (seenLogos.has(item.logo)) return false;
+                seenLogos.add(item.logo);
+                return true;
+              });
+            }
+          } catch {
+            // fallback to parsing img tags
+          }
+        }
+
+        if (extractedClients.length === 0) {
+          const imgEls = Array.from((sourceEl || element).querySelectorAll("img"));
+          const rawParsed: ClientItem[] = imgEls
+            .map((img) => ({
+              name: img.getAttribute("alt")?.trim() || "Client Logo",
+              logo: img.getAttribute("src")?.trim() || "",
+            }))
+            .filter((c) => Boolean(c.logo));
+
+          const seenNames = new Map<string, ClientItem>();
+          for (const item of rawParsed) {
+            seenNames.set(item.name.toLowerCase(), item);
+          }
+          const byName = Array.from(seenNames.values());
+          const seenLogos = new Set<string>();
+          extractedClients = byName.filter((item) => {
+            if (seenLogos.has(item.logo)) return false;
+            seenLogos.add(item.logo);
+            return true;
+          });
+        }
+
+        // Extract container styles (width, height, minHeight, padding)
+        const containerStyles = extractBlockContainerStyles(
+          element,
+          sourceEl,
+          parsedDoc,
+        );
+
+        // Extract custom logo height from attribute, inline style, or img tag
+        const firstImg = (sourceEl || element).querySelector("img");
+        const rawLogoHeight =
+          element.getAttribute("data-logo-height") ||
+          sourceEl.getAttribute("data-logo-height") ||
+          firstImg?.style?.height ||
+          (firstImg?.getAttribute("style")?.match(/height:\s*([^;]+)/)?.[1]) ||
+          undefined;
+
+        // Extract custom section height from attribute, container styles, or inline style
+        const rawSectionHeight =
+          element.getAttribute("data-section-height") ||
+          sourceEl.getAttribute("data-section-height") ||
+          containerStyles.height ||
+          containerStyles.minHeight ||
+          (element.style?.height ? element.style.height : undefined) ||
+          undefined;
+
         element.replaceChildren();
+
         newTargets.push({
           element,
           key: `portal-clients-${index}`,
-          node: <ClientsSection />,
+          node: (
+            <>
+              {hasInnerDivider && (
+                <div
+                  className="w-full max-w-275 mx-auto py-10 px-4 box-border"
+                  style={{
+                    width: "100%",
+                    maxWidth: "1100px",
+                    margin: "0 auto",
+                    padding: "2.5rem 0",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <hr
+                    className="border-0 border-t border-white/15 m-0"
+                    style={{
+                      border: "none",
+                      borderTop: "1px solid rgba(255, 255, 255, 0.15)",
+                      margin: 0,
+                    }}
+                  />
+                </div>
+              )}
+              <ClientsSection
+                heading={heading}
+                headingProps={hProps}
+                fontFamily={headingFontFamily}
+                clients={extractedClients.length > 0 ? extractedClients : undefined}
+                animationType={animType}
+                animationSpeed={animSpeed}
+                animationDirection={animDirection}
+                pauseOnHover={pauseOnHover}
+                hoverEffect={hoverEffect}
+                logoHeight={rawLogoHeight}
+                sectionHeight={rawSectionHeight}
+                style={containerStyles}
+              />
+            </>
+          ),
         });
       } else if (block === "project-share") {
         element.replaceChildren();

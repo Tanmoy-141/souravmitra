@@ -468,6 +468,24 @@ async function seedAllPages() {
             <h2 class="text-3xl sm:text-4xl font-serif mb-8 text-[#FFFFFF]">Let's Create Something Extraordinary Together</h2>
             <a href="/contact" class="inline-block px-8 py-3 bg-[#C5A059] text-black font-bold uppercase tracking-widest text-xs">Start a Project</a>
           </section>
+
+          <!-- Client Logos Section (Animated & Customizable) — placed at the bottom, just above the footer -->
+          <section data-cms-block="clients-section" data-anim-type="marquee" data-anim-speed="normal" data-anim-direction="left" data-anim-pause="true" data-hover-effect="scale" data-heading="Clients" data-logo-height="44px" data-section-height="auto" class="clients-section py-16 border-t border-[#222]">
+            <div class="flex flex-col items-center">
+              <h2 class="text-3xl font-bold text-white mb-2 tracking-tight">Clients</h2>
+              <div class="w-8 h-0.5 bg-gray-400 opacity-70 mb-14"></div>
+              <div class="client-marquee-wrapper w-full overflow-hidden">
+                <div class="client-marquee-track anim-left pause-on-hover flex gap-12 items-center">
+                  <img src="https://nyj2ucc9ur7y9rzh.public.blob.vercel-storage.com/39179fee_signet3-T4qa3Gb9M1P98UOpZlewVnBXaPxqgP.jpg" alt="Signet" class="h-10 sm:h-11 md:h-12 w-auto object-contain opacity-85 hover:opacity-100 hover:scale-110 transition-all duration-300" />
+                  <img src="/clients/talo.png" alt="talo" class="h-10 sm:h-11 md:h-12 w-auto object-contain opacity-85 hover:opacity-100 hover:scale-110 transition-all duration-300" />
+                  <img src="/clients/solid_state.png" alt="SOLID STATE" class="h-10 sm:h-11 md:h-12 w-auto object-contain opacity-85 hover:opacity-100 hover:scale-110 transition-all duration-300" />
+                  <img src="/clients/noted.png" alt="NOTED" class="h-10 sm:h-11 md:h-12 w-auto object-contain opacity-85 hover:opacity-100 hover:scale-110 transition-all duration-300" />
+                  <img src="/clients/goan.png" alt="GOAN" class="h-10 sm:h-11 md:h-12 w-auto object-contain opacity-85 hover:opacity-100 hover:scale-110 transition-all duration-300" />
+                  <img src="/clients/mowi.png" alt="MOWI" class="h-10 sm:h-11 md:h-12 w-auto object-contain opacity-85 hover:opacity-100 hover:scale-110 transition-all duration-300" />
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
       `,
     },
@@ -521,30 +539,6 @@ async function seedAllPages() {
                     <p class="text-white font-medium">Cover Artist Spotlight</p>
                     <p class="text-gray-400 text-sm">Publishers Weekly</p>
                   </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section class="py-16 border-t border-[#222]">
-            <div class="flex flex-col items-center">
-              <h2 class="text-3xl font-bold text-white mb-2 tracking-tight">Clients</h2>
-              <div class="w-8 h-0.5 bg-gray-400 opacity-70 mb-14"></div>
-              <div class="flex flex-wrap items-center justify-center gap-10 sm:gap-14 md:gap-16 lg:gap-20 w-full text-center">
-                <div class="flex items-center justify-center transition-all duration-300 hover:scale-105 opacity-85 hover:opacity-100">
-                  <img src="/clients/talo.png" alt="talo" class="h-10 sm:h-11 md:h-12 w-auto object-contain" />
-                </div>
-                <div class="flex items-center justify-center transition-all duration-300 hover:scale-105 opacity-85 hover:opacity-100">
-                  <img src="/clients/solid_state.png" alt="SOLID STATE" class="h-10 sm:h-11 md:h-12 w-auto object-contain" />
-                </div>
-                <div class="flex items-center justify-center transition-all duration-300 hover:scale-105 opacity-85 hover:opacity-100">
-                  <img src="/clients/noted.png" alt="NOTED" class="h-10 sm:h-11 md:h-12 w-auto object-contain" />
-                </div>
-                <div class="flex items-center justify-center transition-all duration-300 hover:scale-105 opacity-85 hover:opacity-100">
-                  <img src="/clients/goan.png" alt="GOAN" class="h-10 sm:h-11 md:h-12 w-auto object-contain" />
-                </div>
-                <div class="flex items-center justify-center transition-all duration-300 hover:scale-105 opacity-85 hover:opacity-100">
-                  <img src="/clients/mowi.png" alt="MOWI" class="h-10 sm:h-11 md:h-12 w-auto object-contain" />
                 </div>
               </div>
             </div>
@@ -833,6 +827,43 @@ async function seedAllPages() {
           .where(eq(pages.id, contactPage.id));
         console.log("Updated contact page with editable two-column layout.");
       }
+    }
+  }
+
+  // Ensure Clients section is moved from About page to Home page
+  const [aboutPageRecord] = await db
+    .select()
+    .from(pages)
+    .where(eq(pages.slug, "about"))
+    .limit(1);
+
+  if (aboutPageRecord && aboutPageRecord.htmlCache) {
+    const clientRegex = /<section[^>]*>[\s\S]*?<h2[^>]*>\s*Clients\s*<\/h2>[\s\S]*?<\/section>/i;
+    if (clientRegex.test(aboutPageRecord.htmlCache)) {
+      const cleanedAboutHtml = aboutPageRecord.htmlCache.replace(clientRegex, "").trim();
+      const cleanedGjsData = aboutPageRecord.gjsData as SavedGrapesProject | null;
+      if (cleanedGjsData?.pages?.[0]?.frames?.[0]?.component?.components) {
+        const topComps = cleanedGjsData.pages[0].frames[0].component.components;
+        const targetContainer = topComps[0]?.components ? topComps[0].components : topComps;
+        const filtered = targetContainer.filter((comp: SavedGrapesComponent) => {
+          const str = JSON.stringify(comp);
+          return !(str.includes('"Clients"') && (str.includes("client") || str.includes("i9xipt") || str.includes("c20462")));
+        });
+        if (topComps[0]?.components) {
+          topComps[0].components = filtered;
+        } else {
+          cleanedGjsData.pages[0].frames[0].component.components = filtered;
+        }
+      }
+      await db
+        .update(pages)
+        .set({
+          htmlCache: cleanedAboutHtml,
+          gjsData: cleanedGjsData,
+          updatedAt: new Date(),
+        })
+        .where(eq(pages.id, aboutPageRecord.id));
+      console.log("Cleaned Clients section from About page database record.");
     }
   }
 

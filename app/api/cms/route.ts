@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { pages } from "@/db/schema";
-import { eq, desc, isNull, isNotNull, and } from "drizzle-orm";
+import { eq, desc, isNull, isNotNull, and, or } from "drizzle-orm";
 import { isAuthorized } from "@/lib/require-session";
 import type { Block } from "@/data/cms";
 import { sanitizeHtml, sanitizeCss, sanitizePathSlug } from "@/lib/sanitize";
@@ -60,7 +60,15 @@ export async function GET(req: NextRequest) {
       dbPages = await db
         .select()
         .from(pages)
-        .where(and(eq(pages.slug, slug), ...filterConditions))
+        .where(
+          and(
+            slug === "/" || slug === ""
+              ? or(eq(pages.slug, "/"), eq(pages.slug, ""))
+              : eq(pages.slug, slug),
+            ...filterConditions,
+          ),
+        )
+        .orderBy(desc(pages.updatedAt))
         .limit(1);
     } else if (id) {
       dbPages = await db
@@ -163,7 +171,12 @@ export async function POST(req: NextRequest) {
           const [found] = await db
             .select({ id: pages.id, cssCache: pages.cssCache, htmlCache: pages.htmlCache })
             .from(pages)
-            .where(eq(pages.slug, cleanSlug))
+            .where(
+              cleanSlug === "/" || cleanSlug === ""
+                ? or(eq(pages.slug, "/"), eq(pages.slug, ""))
+                : eq(pages.slug, cleanSlug),
+            )
+            .orderBy(desc(pages.updatedAt))
             .limit(1);
           existingRecord = found;
           if (found) targetId = found.id;

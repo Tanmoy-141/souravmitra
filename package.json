@@ -24,7 +24,7 @@
     "drizzle-orm": "^0.45.4",
     "grapesjs": "^0.23.8",
     "isomorphic-dompurify": "4.6.0",
-    "jose": "^6.2.12",
+    "jose": "^6.2.13",
     "next": "^16.4.3",
     "pg": "^8.23.1",
     "react": "19.3.1",
@@ -48,7 +48,7 @@
   },
   "optionalDependencies": {
     "@tailwindcss/oxide-linux-x64-gnu": "4.3.3",
-    "lightningcss-linux-x64-gnu": "1.32.0"
+    "lightningcss-linux-x64-gnu": "1.33.0"
   },
   "overrides": {
     "esbuild": "^0.28.2",

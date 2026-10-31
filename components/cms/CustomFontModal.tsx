@@ -157,6 +157,35 @@ export default function CustomFontModal({
     }
   }, [urlFamily, urlStylesheet]);
 
+  // Synchronize live @font-face preview whenever uploadedBlobUrl, uploadFamily, or uploadFormat changes
+  useEffect(() => {
+    if (!uploadedBlobUrl) return;
+    const cleanFamily = sanitizeFontFamily(uploadFamily || "UploadedFontPreview");
+    if (!cleanFamily) return;
+
+    const styleId = "temp-uploaded-font-preview";
+    let style = document.getElementById(styleId) as HTMLStyleElement | null;
+    if (!style) {
+      style = document.createElement("style");
+      style.id = styleId;
+      document.head.appendChild(style);
+    }
+
+    const srcFmt =
+      uploadFormat === "opentype"
+        ? `url('${uploadedBlobUrl}') format('opentype'), url('${uploadedBlobUrl}') format('truetype')`
+        : `url('${uploadedBlobUrl}') format('${uploadFormat}')`;
+
+    style.textContent = `
+      @font-face {
+        font-family: '${cleanFamily}';
+        src: ${srcFmt};
+        font-display: swap;
+        font-style: normal;
+      }
+    `;
+  }, [uploadedBlobUrl, uploadFamily, uploadFormat]);
+
   if (!isOpen) return null;
 
   // Handlers
@@ -290,35 +319,6 @@ export default function CustomFontModal({
       processSelectedFile(file);
     }
   };
-
-  // Synchronize live @font-face preview whenever uploadedBlobUrl, uploadFamily, or uploadFormat changes
-  useEffect(() => {
-    if (!uploadedBlobUrl) return;
-    const cleanFamily = sanitizeFontFamily(uploadFamily || "UploadedFontPreview");
-    if (!cleanFamily) return;
-
-    const styleId = "temp-uploaded-font-preview";
-    let style = document.getElementById(styleId) as HTMLStyleElement | null;
-    if (!style) {
-      style = document.createElement("style");
-      style.id = styleId;
-      document.head.appendChild(style);
-    }
-
-    const srcFmt =
-      uploadFormat === "opentype"
-        ? `url('${uploadedBlobUrl}') format('opentype'), url('${uploadedBlobUrl}') format('truetype')`
-        : `url('${uploadedBlobUrl}') format('${uploadFormat}')`;
-
-    style.textContent = `
-      @font-face {
-        font-family: '${cleanFamily}';
-        src: ${srcFmt};
-        font-display: swap;
-        font-style: normal;
-      }
-    `;
-  }, [uploadedBlobUrl, uploadFamily, uploadFormat]);
 
   const handleUploadAndInstallFont = async () => {
     if (!uploadFile) {

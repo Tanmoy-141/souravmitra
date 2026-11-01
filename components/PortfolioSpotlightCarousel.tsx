@@ -462,7 +462,7 @@ export default function PortfolioSpotlightCarousel({
             }`}>
             <h2
               id={headingProps?.id}
-              className={`text-2xl sm:text-3xl font-bold tracking-tight text-white ${
+              className={`text-2xl sm:text-3xl font-bold tracking-tight ${headingProps?.color || headingProps?.style?.color ? "" : "text-white"} ${
                 headingProps?.className || ""
               }`}
               style={{

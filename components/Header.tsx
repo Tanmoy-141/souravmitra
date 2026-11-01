@@ -112,7 +112,7 @@ export const Header = () => {
   );
 
   return (
-    <header className="relative z-50 border-b border-[#333333] bg-[#000000]">
+    <header className="sticky top-0 z-50 border-b border-[#333333] bg-[#000000]">
       <div className="flex justify-between items-center py-6 px-6 md:px-10">
         <Link
           href="/"

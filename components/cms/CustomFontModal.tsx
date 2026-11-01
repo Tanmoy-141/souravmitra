@@ -7,6 +7,7 @@ import {
   buildGoogleFontUrl,
   sanitizeFontFamily,
 } from "@/lib/fonts";
+import { isSafeUrl } from "@/lib/sanitize";
 
 interface CustomFontModalProps {
   isOpen: boolean;
@@ -120,7 +121,16 @@ export default function CustomFontModal({
 
   // Dynamically load Custom URL into document head for live preview
   useEffect(() => {
-    if (!urlStylesheet.trim() || !urlFamily.trim()) {
+    const trimmedUrl = urlStylesheet.trim();
+    if (!trimmedUrl || !urlFamily.trim()) {
+      return;
+    }
+
+    if (!isSafeUrl(trimmedUrl)) {
+      queueMicrotask(() => {
+        setUrlLoading(false);
+        setUrlError("Invalid URL. Only secure http/https stylesheet URLs are permitted.");
+      });
       return;
     }
 
@@ -135,9 +145,9 @@ export default function CustomFontModal({
       link = document.createElement("link");
       link.id = linkId;
       link.rel = "stylesheet";
-      link.href = urlStylesheet.trim();
+      link.href = trimmedUrl;
       link.onload = () => {
-        setUrlLoadedHref(urlStylesheet.trim());
+        setUrlLoadedHref(trimmedUrl);
         setUrlLoading(false);
       };
       link.onerror = () => {
@@ -149,9 +159,9 @@ export default function CustomFontModal({
       };
       document.head.appendChild(link);
     } else {
-      link.href = urlStylesheet.trim();
+      link.href = trimmedUrl;
       queueMicrotask(() => {
-        setUrlLoadedHref(urlStylesheet.trim());
+        setUrlLoadedHref(trimmedUrl);
         setUrlLoading(false);
       });
     }
@@ -238,7 +248,7 @@ export default function CustomFontModal({
       setUrlError("Please enter the font family name.");
       return;
     }
-    if (!cleanUrl || !cleanUrl.startsWith("http")) {
+    if (!cleanUrl || !isSafeUrl(cleanUrl)) {
       setUrlError(
         "Please enter a valid CSS stylesheet URL starting with http:// or https://",
       );

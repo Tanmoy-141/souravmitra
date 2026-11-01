@@ -32,17 +32,19 @@ export function formatFontFaceCss(font: CustomFont): string {
   if (format === "otf") {
     format = "opentype";
   } else if (!font.format) {
-    const lowerUrl = font.url.toLowerCase();
+    const lowerUrl = (font.url || "").toLowerCase();
     if (lowerUrl.includes(".woff2") || lowerUrl.includes("font/woff2")) format = "woff2";
     else if (lowerUrl.includes(".woff") || lowerUrl.includes("font/woff")) format = "woff";
     else if (lowerUrl.includes(".ttf") || lowerUrl.includes("font/ttf") || lowerUrl.includes("truetype")) format = "truetype";
     else if (lowerUrl.includes(".otf") || lowerUrl.includes("font/otf") || lowerUrl.includes("opentype")) format = "opentype";
   }
 
+  // Sanitize font URL to prevent CSS injection breakout
+  const safeUrl = (font.url || "").replace(/['"\\;{}]/g, "").trim();
   const srcFormat =
     format === "opentype"
-      ? `url('${font.url}') format('opentype'), url('${font.url}') format('truetype')`
-      : `url('${font.url}') format('${format}')`;
+      ? `url('${safeUrl}') format('opentype'), url('${safeUrl}') format('truetype')`
+      : `url('${safeUrl}') format('${format}')`;
 
   return `@font-face {
   font-family: '${cleanFamily}';

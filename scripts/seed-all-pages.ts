@@ -9,7 +9,7 @@ const HERO_IMAGE_ALT = "Sourav Mitra";
 const HERO_IMAGE_CLASSES =
   "w-full max-w-4xl h-auto object-cover mx-auto mb-8 rounded";
 const OLD_HERO_TAGLINE = "Illustrator • Book Cover Designer • Fine Artist";
-const HERO_TAGLINE = "550+ covers in 8+ years, and still learning.";
+const HERO_TAGLINE = "";
 
 interface SavedGrapesComponent {
   tagName?: string;
@@ -417,12 +417,11 @@ async function seedAllPages() {
       status: "published" as const,
       htmlCache: `
         <div class="flex flex-col gap-16 py-12 bg-black text-white">
-          <section style="position:relative; width:100%; min-height:85vh; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+          <section data-hero-section="true" class="hero-reveal-container" style="position:relative; width:100%; min-height:85vh; overflow:hidden; display:flex; align-items:center; justify-content:center;">
             <img src="https://static.wixstatic.com/media/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg/v1/fill/w_1920,h_900,al_c,q_90,enc_avif,quality_auto/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg" alt="Sourav Mitra - Hero Artwork" width="1920" height="900" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center;" />
-            <div style="position:absolute; inset:0; background:rgba(0,0,0,0.45);"></div>
-            <div style="position:relative; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:3rem 1.25rem; max-width:56rem; margin:0 auto; width:100%;">
-              <h1 style="font-size:clamp(2.4rem, 8vw, 6rem); font-family:serif; color:#FFFFFF; margin-bottom:0.75rem; letter-spacing:-0.02em; text-shadow:0 4px 12px rgba(0,0,0,0.6); line-height:1.15;">Sourav Mitra</h1>
-              <p style="font-size:clamp(1rem, 2.6vw, 1.35rem); color:#E5E5E5; margin-bottom:2rem; text-shadow:0 2px 8px rgba(0,0,0,0.5); max-width:36rem; line-height:1.5;">550+ covers in 8+ years, and still learning.</p>
+            <div class="hero-overlay" style="position:absolute; inset:0; background:rgba(0,0,0,0.45);"></div>
+            <div class="hero-content" style="position:relative; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:3rem 1.25rem; max-width:56rem; margin:0 auto; width:100%;">
+              <h1 style="font-size:clamp(2.4rem, 8vw, 6rem); font-family:serif; color:#FFFFFF; margin-bottom:1.5rem; letter-spacing:-0.02em; text-shadow:0 4px 12px rgba(0,0,0,0.6); line-height:1.15;">Sourav Mitra</h1>
               <a href="/book-covers" style="display:inline-block; padding:0.875rem 2.25rem; background:#C5A059; color:#000; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; font-size:0.75rem; text-decoration:none; border-radius:2px;">Explore My Work</a>
             </div>
           </section>

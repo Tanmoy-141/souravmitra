@@ -188,9 +188,12 @@ export async function POST(req: NextRequest) {
             "[media] Vercel blob put failed, falling back to local storage:",
             blobErr,
           );
-          const uploadsDir = path.join(process.cwd(), "public", "uploads");
+          const uploadsDir = path.resolve(process.cwd(), "public", "uploads");
           await fs.mkdir(uploadsDir, { recursive: true });
-          const filePath = path.join(uploadsDir, uniqueLocalName);
+          const filePath = path.resolve(uploadsDir, uniqueLocalName);
+          if (!filePath.startsWith(uploadsDir + path.sep)) {
+            throw new Error("Invalid file path");
+          }
           await fs.writeFile(filePath, fileBuffer);
           blobUrl = `/uploads/${uniqueLocalName}`;
           pathname = `/uploads/${uniqueLocalName}`;
@@ -198,9 +201,12 @@ export async function POST(req: NextRequest) {
       } else {
         // Local storage fallback when BLOB_READ_WRITE_TOKEN is not configured
         try {
-          const uploadsDir = path.join(process.cwd(), "public", "uploads");
+          const uploadsDir = path.resolve(process.cwd(), "public", "uploads");
           await fs.mkdir(uploadsDir, { recursive: true });
-          const filePath = path.join(uploadsDir, uniqueLocalName);
+          const filePath = path.resolve(uploadsDir, uniqueLocalName);
+          if (!filePath.startsWith(uploadsDir + path.sep)) {
+            throw new Error("Invalid file path");
+          }
           await fs.writeFile(filePath, fileBuffer);
           blobUrl = `/uploads/${uniqueLocalName}`;
           pathname = `/uploads/${uniqueLocalName}`;
@@ -229,9 +235,10 @@ export async function POST(req: NextRequest) {
         savedAssets.push(asset);
       }
     } catch (err) {
-      console.error("[media] upload failed for file:", file.name, err);
+      const sanitizedLogName = (file.name || "").replace(/[\r\n\t]/g, "_").slice(0, 100);
+      console.error("[media] upload failed for file:", sanitizedLogName, err);
       return NextResponse.json(
-        { success: false, message: `Upload failed for ${file.name}` },
+        { success: false, message: "Upload failed" },
         { status: 500 },
       );
     }
@@ -286,23 +293,37 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // If local file, attempt to remove from disk
+    // If local file, attempt to remove from disk with strict path containment
     if (src.startsWith("/uploads/")) {
       try {
-        const localPath = path.join(process.cwd(), "public", src);
-        await fs.unlink(localPath);
+        const baseUploads = path.resolve(process.cwd(), "public", "uploads");
+        const safeLocalName = path.basename(src);
+        const localPath = path.resolve(baseUploads, safeLocalName);
+        if (localPath.startsWith(baseUploads + path.sep)) {
+          await fs.unlink(localPath);
+        }
       } catch (err) {
         console.warn("[media] Local file delete notice:", err);
       }
-    } else if (
-      src.includes("public.blob.vercel-storage.com") &&
-      process.env.BLOB_READ_WRITE_TOKEN
-    ) {
+    } else if (process.env.BLOB_READ_WRITE_TOKEN) {
+      let isVercelBlob = false;
       try {
-        const { del } = await import("@vercel/blob");
-        await del(src);
-      } catch (err) {
-        console.warn("[media] Vercel blob delete notice:", err);
+        const parsedUrl = new URL(src);
+        isVercelBlob =
+          parsedUrl.protocol === "https:" &&
+          (parsedUrl.hostname === "public.blob.vercel-storage.com" ||
+            parsedUrl.hostname.endsWith(".public.blob.vercel-storage.com"));
+      } catch {
+        isVercelBlob = false;
+      }
+
+      if (isVercelBlob) {
+        try {
+          const { del } = await import("@vercel/blob");
+          await del(src);
+        } catch (err) {
+          console.warn("[media] Vercel blob delete notice:", err);
+        }
       }
     }
 

@@ -8,11 +8,19 @@ type Testimonial = (typeof testimonials)[number];
 interface TestimonialsSectionProps {
   items?: Testimonial[];
   heading?: string;
+  headingProps?: {
+    id?: string;
+    className?: string;
+    style?: React.CSSProperties;
+    fontFamily?: string;
+    color?: string;
+  };
 }
 
 export function TestimonialsSection({
   items = testimonials,
   heading,
+  headingProps,
 }: TestimonialsSectionProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -69,7 +77,14 @@ export function TestimonialsSection({
         <p className="mb-4 text-xs font-bold uppercase tracking-[0.3em] text-[#c5a059]">
           Kind Words
         </p>
-        <h2 className="mb-8 sm:mb-10 text-2xl sm:text-3xl font-serif md:text-4xl">
+        <h2
+          id={headingProps?.id}
+          className={`mb-8 sm:mb-10 text-2xl sm:text-3xl ${headingProps?.style?.fontFamily || headingProps?.fontFamily ? "" : "font-serif"} md:text-4xl ${headingProps?.style?.color || headingProps?.color ? "" : "text-white"} ${headingProps?.className || ""}`}
+          style={{
+            ...(headingProps?.fontFamily ? { fontFamily: headingProps.fontFamily } : {}),
+            ...(headingProps?.color ? { color: headingProps.color } : {}),
+            ...headingProps?.style,
+          }}>
           {heading || "What Publishers & Clients Say"}
         </h2>
 

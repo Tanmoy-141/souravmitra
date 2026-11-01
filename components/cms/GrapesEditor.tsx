@@ -2,6 +2,7 @@
 
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -12,6 +13,7 @@ import type { Editor, ToolbarButtonProps, Component, ResizerOptions } from "grap
 import "grapesjs/dist/css/grapes.min.css";
 import CustomFontModal from "./CustomFontModal";
 import { CustomFont, formatFontFaceCss } from "@/lib/fonts";
+import { isSafeUrl } from "@/lib/sanitize";
 import { initCountersInContainer } from "@/lib/counter-animation";
 type GrapesProjectData = ReturnType<Editor["getProjectData"]>;
 
@@ -36,6 +38,19 @@ export interface GrapesEditorContent {
 export interface GrapesEditorHandle {
   getCurrentContent: () => GrapesEditorContent | null;
   refresh?: () => void;
+}
+
+function stripHtmlTags(str: string): string {
+  let s = str;
+  while (s.includes("<")) {
+    const next = s.replace(/<[^>]*>/g, "");
+    if (next === s) {
+      s = s.replace(/<[^>]*$/g, "").replace(/</g, "");
+      break;
+    }
+    s = next;
+  }
+  return s;
 }
 
 function isProjectData(value: unknown): value is GrapesProjectData {
@@ -283,6 +298,11 @@ function registerCmsDynamicBlockTypes(editorInstance: Editor) {
               { id: "'Montserrat', sans-serif", label: "Montserrat (Modern Sans)" },
               { id: "'Inter', -apple-system, sans-serif", label: "Inter (Contemporary Clean)" },
             ],
+          },
+          {
+            type: "color",
+            name: "data-heading-color",
+            label: "Heading Text Color",
           },
         ],
       },
@@ -1553,16 +1573,69 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       refreshPageSections(ed);
     };
 
-    const exportCleanCss = (editor: Editor): string => {
-      const css = editor.getCss() ?? "";
+    const cleanAndDedupeCss = (rawCss: string): string => {
+      if (!rawCss || typeof rawCss !== "string") return "";
+
+      const atRuleBlocks: string[] = [];
+      const cssWithoutAtRules = rawCss.replace(
+        /@(?:media|keyframes|-webkit-keyframes|font-face|supports)[^{]*\{(?:\s*[^{}]*\{[^{}]*\})*\s*\}/g,
+        (match) => {
+          atRuleBlocks.push(match);
+          return "";
+        },
+      );
+
+      const ruleMap = new Map<string, Map<string, string>>();
+      const ruleRegex = /([^{}]+)\{([^{}]+)\}/g;
+      let m: RegExpExecArray | null;
+
+      while ((m = ruleRegex.exec(cssWithoutAtRules)) !== null) {
+        const selector = m[1].trim();
+        const declBody = m[2].trim();
+        if (!selector || !declBody) continue;
+
+        if (!ruleMap.has(selector)) {
+          ruleMap.set(selector, new Map<string, string>());
+        }
+        const propMap = ruleMap.get(selector)!;
+
+        declBody.split(";").forEach((pair) => {
+          const colonIdx = pair.indexOf(":");
+          if (colonIdx > 0) {
+            const prop = pair.slice(0, colonIdx).trim().toLowerCase();
+            const val = pair.slice(colonIdx + 1).trim();
+            if (prop && val) {
+              propMap.set(prop, val);
+            }
+          }
+        });
+      }
+
+      const dedupedRules: string[] = [];
+      ruleMap.forEach((propMap, selector) => {
+        const decls: string[] = [];
+        propMap.forEach((val, prop) => {
+          decls.push(`${prop}:${val}`);
+        });
+        if (decls.length > 0) {
+          dedupedRules.push(`${selector}{${decls.join(";")}}`);
+        }
+      });
+
+      return [...dedupedRules, ...atRuleBlocks].join("\n");
+    };
+
+    const exportCleanCss = useCallback((editor: Editor): string => {
+      const rawCss = editor.getCss() ?? "";
+      let css = rawCss;
       if (initialCssRef.current && initialCssRef.current.trim()) {
         const initial = initialCssRef.current.trim();
         if (!css || css.trim().length <= 50) {
-          return initial;
+          css = initial;
         }
       }
-      return css;
-    };
+      return cleanAndDedupeCss(css);
+    }, []);
 
     const syncAllCounters = (editor: Editor) => {
       try {
@@ -1712,7 +1785,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           editorRef.current?.refresh();
         },
       }),
-      [],
+      [exportCleanCss],
     );
 
     const injectFontIntoDocumentAndCanvas = (font: CustomFont, ed: Editor) => {
@@ -1725,7 +1798,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           style.id = hostId;
           style.textContent = formatFontFaceCss(font);
           document.head.appendChild(style);
-        } else {
+        } else if (font.url && isSafeUrl(font.url)) {
           const link = document.createElement("link");
           link.id = hostId;
           link.rel = "stylesheet";
@@ -1747,7 +1820,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               style.id = hostId;
               style.textContent = formatFontFaceCss(font);
               canvasDoc.head.appendChild(style);
-            } else {
+            } else if (font.url && isSafeUrl(font.url)) {
               const link = canvasDoc.createElement("link");
               link.id = hostId;
               link.rel = "stylesheet";
@@ -1916,13 +1989,9 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
 
             <!-- Text overlay centered on the image -->
             <div style="position: relative; z-index: 2; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;">
-              <h1 style="font-size: 4rem; font-family: serif; color: #FFFFFF; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; text-shadow: 0 4px 20px rgba(0,0,0,0.8); line-height: 1.1;">
+              <h1 style="font-size: 4rem; font-family: serif; color: #FFFFFF; margin-bottom: 2rem; text-transform: uppercase; letter-spacing: 0.05em; text-shadow: 0 4px 20px rgba(0,0,0,0.8); line-height: 1.1;">
                 Sourav Mitra
               </h1>
-
-              <p style="font-size: 1.4rem; color: #E5E5E5; margin-bottom: 2.5rem; text-shadow: 0 2px 10px rgba(0,0,0,0.8); font-weight: 300;">
-                550+ covers in 8+ years, and still learning.
-              </p>
 
               <a
                 href="/book-covers"
@@ -1989,9 +2058,9 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             "data:text/css;charset=utf-8," +
               encodeURIComponent(`
                 html, body {
-                  background-color: #000000 !important;
-                  color: #FFFFFF !important;
-                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Poppins", sans-serif !important;
+                  background-color: #000000;
+                  color: #FFFFFF;
+                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Poppins", sans-serif;
                   margin: 0 !important;
                   padding: 0 !important;
                   box-sizing: border-box !important;
@@ -2024,12 +2093,12 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   flex: 0 1 340px !important;
                 }
                 .contact-card h1 {
-                  font-size: 2.25rem !important;
-                  font-weight: 500 !important;
+                  font-size: 2.25rem;
+                  font-weight: 500;
                   margin: 0 0 1.25rem 0 !important;
-                  line-height: 1.15 !important;
+                  line-height: 1.15;
                   color: inherit;
-                  font-family: sans-serif !important;
+                  font-family: inherit;
                 }
                 .contact-card p, .contact-card div {
                   font-size: 0.85rem !important;
@@ -2056,7 +2125,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   border-radius: 50% !important;
                   align-items: center !important;
                   justify-content: center !important;
-                  color: #FFFFFF !important;
+                  color: #FFFFFF;
                   font-size: 11px !important;
                   font-weight: bold !important;
                   text-decoration: none !important;
@@ -2071,9 +2140,6 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   justify-content: center !important;
                   flex: 1 1 380px !important;
                 }
-                  box-sizing: border-box !important;
-                  justify-content: center !important;
-                }
                 .contact-form-grid-2 {
                   display: grid !important;
                   grid-template-columns: 1fr 1fr !important;
@@ -2081,9 +2147,10 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                 }
                 .contact-form-label {
                   display: block !important;
-                  color: #FFFFFF !important;
-                  font-size: 0.8rem !important;
+                  color: #FFFFFF;
+                  font-size: 0.8rem;
                   margin-bottom: 0.35rem !important;
+                  font-family: inherit;
                 }
                 .contact-mock-input {
                   background: #000000 !important;
@@ -2109,11 +2176,12 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   padding: 0.25rem 0 !important;
                 }
                 .contact-role-item {
-                  color: #FFFFFF !important;
-                  font-size: 0.8rem !important;
+                  color: #FFFFFF;
+                  font-size: 0.8rem;
                   display: inline-flex !important;
                   align-items: center !important;
                   gap: 0.4rem !important;
+                  font-family: inherit;
                 }
                 .contact-radio-dot {
                   display: inline-block !important;
@@ -2123,16 +2191,17 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   border: 1px solid #FFFFFF !important;
                 }
                 .contact-submit-btn, [data-submit-btn] {
-                  background-color: #DBDBDB !important;
-                  color: #000000 !important;
+                  background-color: #DBDBDB;
+                  color: #000000;
                   text-align: center !important;
                   padding: 0.65rem 1rem !important;
-                  font-size: 0.85rem !important;
-                  font-weight: 500 !important;
+                  font-size: 0.85rem;
+                  font-weight: 500;
                   cursor: pointer !important;
                   width: 100% !important;
                   display: block !important;
                   box-sizing: border-box !important;
+                  font-family: inherit;
                 }
                 @keyframes client-marquee-slide-left {
                   0% { transform: translate3d(0, 0, 0); }
@@ -3716,6 +3785,20 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         editor.trigger("change:canvas");
       });
 
+      // Listen for dynamic heading color updates on client section
+      editor.on("component:update:attributes:data-heading-color", (component: Component) => {
+        const color = component.getAttributes()?.["data-heading-color"];
+        const hComp = component.find?.("h1, h2, h3")?.[0];
+        if (hComp) {
+          if (color) {
+            hComp.addStyle({ color });
+          } else {
+            hComp.removeStyle("color");
+          }
+        }
+        editor.trigger("change:canvas");
+      });
+
       // Listen for dynamic heading text updates on client section
       editor.on("component:update:attributes:data-heading", (component: Component) => {
         const headingText = component.getAttributes()?.["data-heading"];
@@ -3780,34 +3863,101 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         }
       });
 
-      // When font-family style is changed via Style Manager, sync with client section data-heading-font
-      editor.on("styleable:change:font-family", () => {
+      // When font-family or color style is changed via Style Manager, sync with dynamic block data attributes and nested headings
+      editor.on("styleable:change:font-family styleable:change:color", () => {
         const selected = editor.getSelected();
         if (selected) {
           const curStyle = selected.getStyle() || {};
           const curFont = curStyle["font-family"];
-          if (curFont) {
-            const isClientSec =
-              selected.is("clients-section") ||
-              selected.getAttributes?.()["data-cms-block"] === "clients-section" ||
-              selected.getAttributes?.()["data-cms-block"] === "client-logos" ||
-              selected.getClasses?.()?.includes("clients-section");
+          const curColor = curStyle["color"];
 
-            const parentClientSec = isClientSec
-              ? selected
-              : selected.closest?.('[data-cms-block="clients-section"]') ||
-                selected.closest?.('[data-cms-block="client-logos"]') ||
-                selected.closest?.(".clients-section") ||
-                null;
+          // 1. Clients section
+          const isClientSec =
+            selected.is("clients-section") ||
+            selected.getAttributes?.()["data-cms-block"] === "clients-section" ||
+            selected.getAttributes?.()["data-cms-block"] === "client-logos" ||
+            selected.getClasses?.()?.includes("clients-section");
 
-            if (parentClientSec) {
-              parentClientSec.addAttributes({ "data-heading-font": curFont });
-              const hComp = parentClientSec.find?.("h1, h2, h3")?.[0];
-              if (hComp && hComp !== selected) {
-                hComp.addStyle({ "font-family": curFont });
-              }
+          const parentClientSec = isClientSec
+            ? selected
+            : selected.closest?.('[data-cms-block="clients-section"]') ||
+              selected.closest?.('[data-cms-block="client-logos"]') ||
+              selected.closest?.(".clients-section") ||
+              null;
+
+          if (parentClientSec) {
+            if (curFont) parentClientSec.addAttributes({ "data-heading-font": curFont });
+            if (curColor) parentClientSec.addAttributes({ "data-heading-color": curColor });
+            const hComp = parentClientSec.find?.("h1, h2, h3")?.[0];
+            if (hComp && hComp !== selected) {
+              if (curFont) hComp.addStyle({ "font-family": curFont });
+              if (curColor) hComp.addStyle({ color: curColor });
             }
           }
+
+          // 2. Testimonials Carousel
+          const isTestimonialSec =
+            selected.is("testimonials-carousel") ||
+            selected.getAttributes?.()["data-cms-block"] === "testimonials-carousel" ||
+            selected.getClasses?.()?.includes("testimonials-section");
+
+          const parentTestimonialSec = isTestimonialSec
+            ? selected
+            : selected.closest?.('[data-cms-block="testimonials-carousel"]') ||
+              selected.closest?.(".testimonials-section") ||
+              null;
+
+          if (parentTestimonialSec) {
+            if (curFont) parentTestimonialSec.addAttributes({ "data-heading-font": curFont });
+            if (curColor) parentTestimonialSec.addAttributes({ "data-heading-color": curColor });
+            const hComp = parentTestimonialSec.find?.("h1, h2, h3")?.[0];
+            if (hComp && hComp !== selected) {
+              if (curFont) hComp.addStyle({ "font-family": curFont });
+              if (curColor) hComp.addStyle({ color: curColor });
+            }
+          }
+
+          // 3. Projects Carousel
+          const isProjectCarousel =
+            selected.is("project-carousel") ||
+            selected.getAttributes?.()["data-cms-block"] === "project-carousel";
+
+          const parentCarousel = isProjectCarousel
+            ? selected
+            : selected.closest?.('[data-cms-block="project-carousel"]') || null;
+
+          if (parentCarousel) {
+            if (curFont) parentCarousel.addAttributes({ "data-heading-font": curFont });
+            if (curColor) parentCarousel.addAttributes({ "data-heading-color": curColor });
+            const hComp = parentCarousel.find?.("h1, h2, h3")?.[0];
+            if (hComp && hComp !== selected) {
+              if (curFont) hComp.addStyle({ "font-family": curFont });
+              if (curColor) hComp.addStyle({ color: curColor });
+            }
+          }
+
+          // 4. Hero Section
+          const isHero =
+            selected.getAttributes?.()["data-hero-section"] === "true" ||
+            selected.getClasses?.()?.includes("hero-reveal-container") ||
+            selected.getId?.() === "ivkb";
+
+          const parentHero = isHero
+            ? selected
+            : selected.closest?.('[data-hero-section="true"]') ||
+              selected.closest?.(".hero-reveal-container") ||
+              selected.closest?.("#ivkb") ||
+              null;
+
+          if (parentHero && parentHero === selected) {
+            const h1Comp = parentHero.find?.("h1, #iznl")?.[0];
+            if (h1Comp && h1Comp !== selected) {
+              if (curFont) h1Comp.addStyle({ "font-family": curFont });
+              if (curColor) h1Comp.addStyle({ color: curColor });
+            }
+          }
+
+          editor.trigger("change:canvas");
         }
       });
 
@@ -4141,10 +4291,11 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         ) as HTMLElement | null;
 
         if (footerThumb) {
-          if (src) {
+          if (src && isSafeUrl(src)) {
             footerThumb.src = src;
             footerThumb.style.display = "block";
           } else {
+            footerThumb.src = "";
             footerThumb.style.display = "none";
           }
         }
@@ -4333,14 +4484,36 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             ? modalActiveSrc.split("/").pop() || "Active Image"
             : "None";
 
-          activeInfo.innerHTML = `
-            <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; font-weight: 700;">Selected:</span>
-            <img class="gjs-custom-active-thumb" src="${modalActiveSrc || ""}" style="width: 36px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid #C5A059; display: ${modalActiveSrc ? "block" : "none"};" />
-            <div style="display: flex; flex-direction: column;">
-              <span class="gjs-custom-active-name" style="max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; font-size: 11px; font-weight: 600;" title="${modalActiveSrc}">${fileName}</span>
-              <span style="font-size: 10px; color: #888;">Click Save to apply to page</span>
-            </div>
-          `;
+          activeInfo.replaceChildren();
+          const selectedLabel = document.createElement("span");
+          selectedLabel.style.cssText = "font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; font-weight: 700;";
+          selectedLabel.textContent = "Selected:";
+          activeInfo.appendChild(selectedLabel);
+
+          const thumbImg = document.createElement("img");
+          thumbImg.className = "gjs-custom-active-thumb";
+          thumbImg.style.cssText = `width: 36px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid #C5A059; display: ${modalActiveSrc && isSafeUrl(modalActiveSrc) ? "block" : "none"};`;
+          if (modalActiveSrc && isSafeUrl(modalActiveSrc)) {
+            thumbImg.src = modalActiveSrc;
+          }
+          activeInfo.appendChild(thumbImg);
+
+          const textWrapper = document.createElement("div");
+          textWrapper.style.cssText = "display: flex; flex-direction: column;";
+
+          const nameSpan = document.createElement("span");
+          nameSpan.className = "gjs-custom-active-name";
+          nameSpan.style.cssText = "max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; font-size: 11px; font-weight: 600;";
+          nameSpan.textContent = fileName;
+          if (modalActiveSrc) nameSpan.title = modalActiveSrc;
+          textWrapper.appendChild(nameSpan);
+
+          const hintSpan = document.createElement("span");
+          hintSpan.style.cssText = "font-size: 10px; color: #888;";
+          hintSpan.textContent = "Click Save to apply to page";
+          textWrapper.appendChild(hintSpan);
+
+          activeInfo.appendChild(textWrapper);
 
           const footerActions = document.createElement("div");
           footerActions.style.cssText =
@@ -4644,6 +4817,23 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         try {
           const doc = editor.Canvas.getDocument();
           if (doc?.head) {
+            // Ensure all Google Fonts stylesheets are loaded inside canvas iframe head
+            const googleFontHrefs = [
+              "https://fonts.googleapis.com/css2?family=Almendra:ital,wght@0,400;0,700;1,400&family=Bellefair&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Cardo:ital,wght@0,400;0,700;1,400&family=Castoro+Titling&family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400..900&family=Cormorant+Garamond:ital,wght@0,300..700;1,300..700&family=Crimson+Pro:ital,wght@0,300..900;1,300..900&family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Faustina:ital,wght@0,300..800;1,300..800&family=Forum&family=Frank+Ruhl+Libre:wght@300..900&family=Italiana&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400..700;1,400..700&family=Marcellus&family=MedievalSharp&family=Merriweather:ital,wght@0,300..900;1,300..900&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Playfair+Display+SC:ital,wght@0,400;0,700;0,900;1,400&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Prata&family=Spectral:ital,wght@0,200..800;1,200..800&family=Unna:ital,wght@0,400;0,700;1,400&family=Vollkorn:ital,wght@0,400..900;1,400..900&display=swap",
+              "https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,300..900;1,300..900&family=Be+Vietnam+Pro:ital,wght@0,300..900;1,300..900&family=Cabin:ital,wght@0,400..700;1,400..700&family=DM+Sans:ital,opsz,wght@0,9..40,300..900;1,9..40,300..900&family=Epilogue:ital,wght@0,300..900;1,300..900&family=Inter:wght@300..900&family=Jost:ital,wght@0,300..900;1,300..900&family=Lexend:wght@300..900&family=Manrope:wght@300..800&family=Montserrat:ital,wght@0,300..900;1,300..900&family=Outfit:wght@300..900&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Poppins:ital,wght@0,300..900;1,300..900&family=Raleway:ital,wght@0,300..900;1,300..900&family=Sora:wght@300..800&family=Space+Grotesk:wght@300..700&family=Syne:wght@400..800&family=Urbanist:ital,wght@0,300..900;1,300..900&family=Work+Sans:ital,wght@0,300..900;1,300..900&display=swap",
+              "https://fonts.googleapis.com/css2?family=Alex+Brush&family=Anton&family=Audiowide&family=Bebas+Neue&family=Bungee&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Creepster&family=Dancing+Script:wght@400..700&family=Fira+Code:wght@400..700&family=Great+Vibes&family=JetBrains+Mono:ital,wght@0,300..800;1,300..800&family=Nosifer&family=Orbitron:wght@400..900&family=Oswald:wght@300..700&family=Parisienne&family=Pirata+One&family=Righteous&family=Russo+One&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Special+Elite&family=Teko:wght@400..700&family=Uncial+Antiqua&display=swap",
+            ];
+            googleFontHrefs.forEach((href, idx) => {
+              const linkId = `gjs-google-fonts-${idx}`;
+              if (!doc.head.querySelector(`#${linkId}`)) {
+                const link = doc.createElement("link");
+                link.id = linkId;
+                link.rel = "stylesheet";
+                link.href = href;
+                doc.head.appendChild(link);
+              }
+            });
+
             if (doc.body) {
               doc.body.style.backgroundColor = "#000000";
               doc.body.style.color = "#FFFFFF";
@@ -4661,9 +4851,9 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             style.textContent = `
                 /* Dark Theme Canvas Root matching Live Site */
                 html, body {
-                  background-color: #000000 !important;
-                  color: #FFFFFF !important;
-                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Poppins", sans-serif !important;
+                  background-color: #000000;
+                  color: #FFFFFF;
+                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Poppins", sans-serif;
                   margin: 0 !important;
                   padding: 0 !important;
                   box-sizing: border-box !important;
@@ -4711,12 +4901,12 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                 }
 
                 .contact-card h1 {
-                  font-size: 2.25rem !important;
-                  font-weight: 500 !important;
+                  font-size: 2.25rem;
+                  font-weight: 500;
                   margin: 0 0 1.25rem 0 !important;
-                  line-height: 1.15 !important;
+                  line-height: 1.15;
                   color: inherit;
-                  font-family: sans-serif !important;
+                  font-family: inherit;
                 }
 
                 .contact-card p,
@@ -4803,11 +4993,11 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
 
                 .contact-form-label {
                   display: block !important;
-                  color: #FFFFFF !important;
-                  font-size: 0.8rem !important;
+                  color: #FFFFFF;
+                  font-size: 0.8rem;
                   margin-bottom: 0.35rem !important;
-                  font-weight: normal !important;
-                  font-family: sans-serif !important;
+                  font-weight: normal;
+                  font-family: inherit;
                 }
 
                 .contact-mock-input {
@@ -4839,12 +5029,12 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                 }
 
                 .contact-role-item {
-                  color: #FFFFFF !important;
-                  font-size: 0.8rem !important;
+                  color: #FFFFFF;
+                  font-size: 0.8rem;
                   display: inline-flex !important;
                   align-items: center !important;
                   gap: 0.4rem !important;
-                  font-family: sans-serif !important;
+                  font-family: inherit;
                 }
 
                 .contact-radio-dot {
@@ -4861,14 +5051,14 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   color: #000000;
                   text-align: center !important;
                   padding: 0.65rem 1rem !important;
-                  font-size: 0.85rem !important;
-                  font-weight: 500 !important;
+                  font-size: 0.85rem;
+                  font-weight: 500;
                   cursor: pointer !important;
                   width: 100% !important;
                   display: block !important;
                   box-sizing: border-box !important;
-                  border-radius: 0px !important;
-                  font-family: sans-serif !important;
+                  border-radius: 0px;
+                  font-family: inherit;
                   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, filter 0.25s ease !important;
                 }
 
@@ -5247,15 +5437,15 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                 <div>
                   <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px;">Card Background Color</label>
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="color" id="cfg-card-bg-picker" value="${curCardBg}" style="width: 36px; height: 30px; border: 1px solid #333; background: none; cursor: pointer; border-radius: 2px;">
-                    <input type="text" id="cfg-card-bg-text" value="${curCardBg}" style="flex: 1; background: #000; border: 1px solid #333; color: #fff; padding: 5px 8px; font-size: 11px; border-radius: 2px;">
+                    <input type="color" id="cfg-card-bg-picker" style="width: 36px; height: 30px; border: 1px solid #333; background: none; cursor: pointer; border-radius: 2px;">
+                    <input type="text" id="cfg-card-bg-text" style="flex: 1; background: #000; border: 1px solid #333; color: #fff; padding: 5px 8px; font-size: 11px; border-radius: 2px;">
                   </div>
                 </div>
                 <div>
                   <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px;">Card Text Color</label>
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="color" id="cfg-card-color-picker" value="${curCardColor}" style="width: 36px; height: 30px; border: 1px solid #333; background: none; cursor: pointer; border-radius: 2px;">
-                    <input type="text" id="cfg-card-color-text" value="${curCardColor}" style="flex: 1; background: #000; border: 1px solid #333; color: #fff; padding: 5px 8px; font-size: 11px; border-radius: 2px;">
+                    <input type="color" id="cfg-card-color-picker" style="width: 36px; height: 30px; border: 1px solid #333; background: none; cursor: pointer; border-radius: 2px;">
+                    <input type="text" id="cfg-card-color-text" style="flex: 1; background: #000; border: 1px solid #333; color: #fff; padding: 5px 8px; font-size: 11px; border-radius: 2px;">
                   </div>
                 </div>
                 <div>
@@ -5277,22 +5467,22 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                 <div>
                   <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px;">Submit Button Background</label>
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="color" id="cfg-btn-bg-picker" value="${curBtnBg}" style="width: 36px; height: 30px; border: 1px solid #333; background: none; cursor: pointer; border-radius: 2px;">
-                    <input type="text" id="cfg-btn-bg-text" value="${curBtnBg}" style="flex: 1; background: #000; border: 1px solid #333; color: #fff; padding: 5px 8px; font-size: 11px; border-radius: 2px;">
+                    <input type="color" id="cfg-btn-bg-picker" style="width: 36px; height: 30px; border: 1px solid #333; background: none; cursor: pointer; border-radius: 2px;">
+                    <input type="text" id="cfg-btn-bg-text" style="flex: 1; background: #000; border: 1px solid #333; color: #fff; padding: 5px 8px; font-size: 11px; border-radius: 2px;">
                   </div>
                 </div>
                 <div>
                   <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px;">Submit Button Text Color</label>
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="color" id="cfg-btn-color-picker" value="${curBtnColor}" style="width: 36px; height: 30px; border: 1px solid #333; background: none; cursor: pointer; border-radius: 2px;">
-                    <input type="text" id="cfg-btn-color-text" value="${curBtnColor}" style="flex: 1; background: #000; border: 1px solid #333; color: #fff; padding: 5px 8px; font-size: 11px; border-radius: 2px;">
+                    <input type="color" id="cfg-btn-color-picker" style="width: 36px; height: 30px; border: 1px solid #333; background: none; cursor: pointer; border-radius: 2px;">
+                    <input type="text" id="cfg-btn-color-text" style="flex: 1; background: #000; border: 1px solid #333; color: #fff; padding: 5px 8px; font-size: 11px; border-radius: 2px;">
                   </div>
                 </div>
                 <div>
                   <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px;">Form Input Border Color</label>
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="color" id="cfg-border-picker" value="${curBorder}" style="width: 36px; height: 30px; border: 1px solid #333; background: none; cursor: pointer; border-radius: 2px;">
-                    <input type="text" id="cfg-border-text" value="${curBorder}" style="flex: 1; background: #000; border: 1px solid #333; color: #fff; padding: 5px 8px; font-size: 11px; border-radius: 2px;">
+                    <input type="color" id="cfg-border-picker" style="width: 36px; height: 30px; border: 1px solid #333; background: none; cursor: pointer; border-radius: 2px;">
+                    <input type="text" id="cfg-border-text" style="flex: 1; background: #000; border: 1px solid #333; color: #fff; padding: 5px 8px; font-size: 11px; border-radius: 2px;">
                   </div>
                 </div>
               </div>
@@ -5342,6 +5532,17 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           const btnColorText = container.querySelector("#cfg-btn-color-text") as HTMLInputElement;
           const borderPicker = container.querySelector("#cfg-border-picker") as HTMLInputElement;
           const borderText = container.querySelector("#cfg-border-text") as HTMLInputElement;
+
+          if (cardBgPicker) cardBgPicker.value = curCardBg;
+          if (cardBgText) cardBgText.value = curCardBg;
+          if (cardColorPicker) cardColorPicker.value = curCardColor;
+          if (cardColorText) cardColorText.value = curCardColor;
+          if (btnBgPicker) btnBgPicker.value = curBtnBg;
+          if (btnBgText) btnBgText.value = curBtnBg;
+          if (btnColorPicker) btnColorPicker.value = curBtnColor;
+          if (btnColorText) btnColorText.value = curBtnColor;
+          if (borderPicker) borderPicker.value = curBorder;
+          if (borderText) borderText.value = curBorder;
 
           const previewCard = container.querySelector("#cfg-preview-card") as HTMLElement;
           const previewInput1 = container.querySelector("#cfg-preview-input1") as HTMLElement;
@@ -5775,13 +5976,6 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             ];
           }
 
-          const escapeHtml = (str: string) =>
-            str
-              .replace(/&/g, "&amp;")
-              .replace(/</g, "&lt;")
-              .replace(/>/g, "&gt;")
-              .replace(/"/g, "&quot;");
-
           const modal = editor.Modal;
           modal.setTitle("✨ Client Section & Logos Studio");
 
@@ -5940,7 +6134,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                       <option value="100px" ${curLogoHeight === "100px" ? "selected" : ""}>Hero (100px)</option>
                       <option value="custom" ${!["32px", "44px", "56px", "72px", "88px", "100px"].includes(curLogoHeight) ? "selected" : ""}>Custom Height...</option>
                     </select>
-                    <input id="client-logo-height-custom" type="text" value="${escapeHtml(curLogoHeight)}" placeholder="e.g. 64px" style="width: 80px; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
+                    <input id="client-logo-height-custom" type="text" placeholder="e.g. 64px" style="width: 80px; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
                   </div>
                 </div>
 
@@ -5955,13 +6149,13 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                       <option value="550px" ${curSectionHeight === "550px" ? "selected" : ""}>Hero Height (550px)</option>
                       <option value="custom" ${!["auto", "220px", "320px", "420px", "550px"].includes(curSectionHeight) ? "selected" : ""}>Custom Height...</option>
                     </select>
-                    <input id="client-sec-height-custom" type="text" value="${escapeHtml(curSectionHeight)}" placeholder="e.g. 350px" style="width: 80px; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
+                    <input id="client-sec-height-custom" type="text" placeholder="e.g. 350px" style="width: 80px; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
                   </div>
                 </div>
 
                 <div>
                   <label style="display: block; font-size: 11px; color: #bbb; margin-bottom: 4px; font-weight: 600;">Section Heading</label>
-                  <input id="client-heading-input" type="text" value="${escapeHtml(curHeading)}" placeholder="Clients" style="width: 100%; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
+                  <input id="client-heading-input" type="text" placeholder="Clients" style="width: 100%; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
                 </div>
 
                 <div>
@@ -5981,7 +6175,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                     <option value="'Inter', -apple-system, sans-serif" ${curHeadingFont.includes("Inter") ? "selected" : ""}>Inter (Contemporary Clean)</option>
                     <option value="custom" ${curHeadingFont && !["Italiana", "Playfair Display", "Cinzel", "Bodoni Moda", "Cormorant Garamond", "EB Garamond", "Syne", "Space Grotesk", "Poppins", "Montserrat", "Inter"].some((f) => curHeadingFont.includes(f)) ? "selected" : ""}>Custom Font Family...</option>
                   </select>
-                  <input id="client-heading-font-custom" type="text" value="${escapeHtml(curHeadingFont)}" placeholder="e.g. 'Playfair Display', serif" style="display: ${curHeadingFont && !["Italiana", "Playfair Display", "Cinzel", "Bodoni Moda", "Cormorant Garamond", "EB Garamond", "Syne", "Space Grotesk", "Poppins", "Montserrat", "Inter"].some((f) => curHeadingFont.includes(f)) ? "block" : "none"}; margin-top: 6px; width: 100%; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
+                  <input id="client-heading-font-custom" type="text" placeholder="e.g. 'Playfair Display', serif" style="display: ${curHeadingFont && !["Italiana", "Playfair Display", "Cinzel", "Bodoni Moda", "Cormorant Garamond", "EB Garamond", "Syne", "Space Grotesk", "Poppins", "Montserrat", "Inter"].some((f) => curHeadingFont.includes(f)) ? "block" : "none"}; margin-top: 6px; width: 100%; background: #1c1c1c; color: #fff; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
                 </div>
 
                 <div style="background: #181818; border: 1px solid #2d2d2d; border-radius: 4px; padding: 10px; margin-top: auto;">
@@ -5993,6 +6187,16 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             </div>
           `;
           contentWrapper.appendChild(tabMotionPane);
+
+          // Populate inputs safely via DOM properties
+          const logoCustomInp = tabMotionPane.querySelector("#client-logo-height-custom") as HTMLInputElement;
+          if (logoCustomInp) logoCustomInp.value = curLogoHeight || "";
+          const secCustomInp = tabMotionPane.querySelector("#client-sec-height-custom") as HTMLInputElement;
+          if (secCustomInp) secCustomInp.value = curSectionHeight || "";
+          const headingInp = tabMotionPane.querySelector("#client-heading-input") as HTMLInputElement;
+          if (headingInp) headingInp.value = curHeading || "";
+          const fontCustomInp = tabMotionPane.querySelector("#client-heading-font-custom") as HTMLInputElement;
+          if (fontCustomInp) fontCustomInp.value = curHeadingFont || "";
 
           // Modal Actions Footer
           const modalFooter = document.createElement("div");
@@ -6084,9 +6288,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                     <span style="font-size: 11px; font-weight: 700; color: #C5A059; text-transform: uppercase; letter-spacing: 0.05em;">
                       Logo #${idx + 1}
                     </span>
-                    <span class="card-brand-label" style="font-size: 11px; color: #aaa;">
-                      ${escapeHtml(item.name || "Untitled Brand")}
-                    </span>
+                    <span class="card-brand-label" style="font-size: 11px; color: #aaa;"></span>
                   </div>
                   <div style="display: flex; align-items: center; gap: 6px;">
                     <button type="button" class="btn-logo-up" title="Move earlier in ticker" ${idx === 0 ? "disabled" : ""} style="background: #222; color: ${idx === 0 ? "#555" : "#ddd"}; border: 1px solid #3a3a3a; padding: 2px 8px; border-radius: 3px; font-size: 10px; cursor: ${idx === 0 ? "default" : "pointer"};">
@@ -6105,7 +6307,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   <!-- Thumbnail & Upload -->
                   <div style="display: flex; flex-direction: column; align-items: center; width: 84px; flex-shrink: 0;">
                     <div style="width: 84px; height: 56px; background: #0a0a0a; border: 1px solid #333; border-radius: 4px; display: flex; align-items: center; justify-content: center; padding: 4px; box-sizing: border-box; overflow: hidden; margin-bottom: 4px;">
-                      <img class="client-logo-thumb-preview" src="${escapeHtml(item.logo)}" alt="${escapeHtml(item.name)}" style="max-height: 44px; max-width: 100%; object-fit: contain; display: block;" onerror="this.style.opacity='0.25';" />
+                      <img class="client-logo-thumb-preview" alt="Client Logo" style="max-height: 44px; max-width: 100%; object-fit: contain; display: block;" />
                     </div>
                     <label class="btn-logo-file-label" style="background: #222; color: #ccc; border: 1px solid #444; border-radius: 3px; padding: 3px 6px; font-size: 10px; cursor: pointer; text-align: center; width: 100%; box-sizing: border-box; display: block;">
                       📁 Upload
@@ -6120,7 +6322,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                       <label style="display: block; font-size: 10px; color: #888; text-transform: uppercase; margin-bottom: 2px; font-weight: 600;">
                         Brand / Company Name
                       </label>
-                      <input type="text" class="client-item-name" value="${escapeHtml(item.name)}" placeholder="e.g. Signet, talo, Penguin..." style="width: 100%; background: #0c0c0c; border: 1px solid #333; color: #fff; padding: 6px 8px; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
+                      <input type="text" class="client-item-name" placeholder="e.g. Signet, talo, Penguin..." style="width: 100%; background: #0c0c0c; border: 1px solid #333; color: #fff; padding: 6px 8px; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
                     </div>
 
                     <div>
@@ -6128,7 +6330,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                         Logo Image URL / Path
                       </label>
                       <div style="display: flex; gap: 6px;">
-                        <input type="text" class="client-item-logo" value="${escapeHtml(item.logo)}" placeholder="https://... or /clients/logo.png" style="flex: 1; background: #0c0c0c; border: 1px solid #333; color: #fff; padding: 6px 8px; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
+                        <input type="text" class="client-item-logo" placeholder="https://... or /clients/logo.png" style="flex: 1; background: #0c0c0c; border: 1px solid #333; color: #fff; padding: 6px 8px; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
                         <button type="button" class="btn-row-media" style="background: #1c1c1c; border: 1px solid #444; color: #C5A059; padding: 6px 10px; font-size: 11px; font-weight: 600; border-radius: 3px; cursor: pointer; white-space: nowrap;">
                           🖼️ Media Library
                         </button>
@@ -6149,10 +6351,27 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                 </div>
               `;
 
-              // Event listeners on card
+              // Event listeners and safe values on card
+              const brandLabel = card.querySelector(".card-brand-label") as HTMLElement;
+              if (brandLabel) brandLabel.textContent = item.name || "Untitled Brand";
+
               const thumbImg = card.querySelector(".client-logo-thumb-preview") as HTMLImageElement;
+              if (thumbImg) {
+                if (item.logo && isSafeUrl(item.logo)) {
+                  thumbImg.src = item.logo;
+                }
+                thumbImg.alt = item.name || "Client Logo";
+                thumbImg.onerror = () => {
+                  thumbImg.style.opacity = "0.25";
+                };
+              }
+
               const nameInput = card.querySelector(".client-item-name") as HTMLInputElement;
+              if (nameInput) nameInput.value = item.name || "";
+
               const logoInput = card.querySelector(".client-item-logo") as HTMLInputElement;
+              if (logoInput) logoInput.value = item.logo || "";
+
               const fileInput = card.querySelector(".input-logo-file") as HTMLInputElement;
               const statusBadge = card.querySelector(".upload-status-badge") as HTMLElement;
 
@@ -6267,7 +6486,14 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                     itemBtn.title = asset.name || "Media asset";
                     itemBtn.style.cssText =
                       "width: 100%; height: 42px; background: #161616; border: 1px solid #2a2a2a; border-radius: 2px; padding: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center; overflow: hidden;";
-                    itemBtn.innerHTML = `<img src="${src}" style="max-height: 100%; max-width: 100%; object-fit: contain;" />`;
+                    itemBtn.replaceChildren();
+                    const mediaImg = document.createElement("img");
+                    if (isSafeUrl(src)) {
+                      mediaImg.src = src;
+                    }
+                    mediaImg.alt = asset.name || "Media asset";
+                    mediaImg.style.cssText = "max-height: 100%; max-width: 100%; object-fit: contain;";
+                    itemBtn.appendChild(mediaImg);
                     itemBtn.addEventListener("click", () => {
                       logos[idx].logo = src;
                       logoInput.value = src;
@@ -6522,12 +6748,11 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           const headingComp = target.find("h1, h2, h3, h4")[0];
           let currentHeading = "What Publishers & Clients Say";
           if (headingComp) {
-            const text = (
+            const rawHeading =
               headingComp.get("content") ||
               headingComp.toHTML?.() ||
-              ""
-            )
-              .replace(/<[^>]+>/g, "")
+              "";
+            const text = stripHtmlTags(rawHeading)
               .replace(/&nbsp;/g, " ")
               .replace(/&amp;/g, "&")
               .trim();
@@ -6559,11 +6784,10 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             // default format, and anything hand-edited directly in canvas)
             const pComps = target.find("p, blockquote");
             for (const p of pComps) {
-              const raw = (p.get("content") || p.toHTML?.() || "")
+              const rawContent = (p.get("content") || p.toHTML?.() || "")
                 .replace(/&nbsp;/g, " ")
-                .replace(/<br\s*\/?>/gi, "\n")
-                .replace(/<[^>]+>/g, "")
-                .trim();
+                .replace(/<br\s*\/?>/gi, "\n");
+              const raw = stripHtmlTags(rawContent).trim();
               if (!raw || /rotating testimonials appear/i.test(raw)) continue;
               const lines = raw
                 .split(/\r?\n/)
@@ -6687,7 +6911,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   rows="3"
                   placeholder="Enter testimonial quote..."
                   style="width: 100%; padding: 8px; background: #0e0e0e; border: 1px solid #333; color: #fff; border-radius: 2px; font-size: 13px; resize: vertical; box-sizing: border-box;"
-                >${slide.quote.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</textarea>
+                ></textarea>
               </div>
               <div>
                 <label style="display: block; font-size: 10px; color: #888; text-transform: uppercase; margin-bottom: 3px;">
@@ -6697,11 +6921,16 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   type="text"
                   class="cms-input-author"
                   placeholder="e.g. UTSA TARAFDAR or Senior Editor, Orbit Books"
-                  value="${slide.author.replace(/"/g, "&quot;")}"
                   style="width: 100%; padding: 6px 8px; background: #0e0e0e; border: 1px solid #333; color: #fff; border-radius: 2px; font-size: 12px; box-sizing: border-box;"
                 />
               </div>
             `;
+
+            const quoteInp = card.querySelector(".cms-input-quote") as HTMLTextAreaElement;
+            if (quoteInp) quoteInp.value = slide.quote || "";
+
+            const authorInp = card.querySelector(".cms-input-author") as HTMLInputElement;
+            if (authorInp) authorInp.value = slide.author || "";
 
             const removeBtn = card.querySelector(
               ".cms-btn-remove-slide",
@@ -6832,7 +7061,16 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               )
               .join("");
 
-            const html = `<h3 class="mb-4 text-2xl font-serif text-[#C5A059]">${safeHeading}</h3>${slidesHtml}`;
+            const existingH = target.find?.("h1, h2, h3, h4")?.[0];
+            const existingStyle = existingH?.getStyle?.() || {};
+            const existingAttrs = (target.getAttributes?.() || {}) as Record<string, string>;
+            const preservedFont = existingStyle["font-family"] || existingAttrs["data-heading-font"];
+            const preservedColor = existingStyle["color"] || existingAttrs["data-heading-color"];
+            const inlineHeadingStyle = `${preservedFont ? `font-family:${preservedFont};` : ""}${preservedColor ? `color:${preservedColor};` : ""}`;
+            const headingStyleAttr = inlineHeadingStyle ? ` style="${inlineHeadingStyle}"` : "";
+            const headingClass = `mb-4 text-2xl ${preservedFont ? "" : "font-serif"} ${preservedColor ? "" : "text-[#C5A059]"}`;
+
+            const html = `<h3 class="${headingClass}"${headingStyleAttr}>${safeHeading}</h3>${slidesHtml}`;
 
             target.components(html);
             editor.trigger("change:canvas");
@@ -6870,12 +7108,11 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           const headingComp = target.find("h1, h2, h3, h4")[0];
           let currentHeading = "Featured Projects Carousel";
           if (headingComp) {
-            const text = (
+            const rawHeading =
               headingComp.get("content") ||
               headingComp.toHTML?.() ||
-              ""
-            )
-              .replace(/<[^>]+>/g, "")
+              "";
+            const text = stripHtmlTags(rawHeading)
               .replace(/&nbsp;/g, " ")
               .replace(/&amp;/g, "&")
               .trim();
@@ -6897,7 +7134,6 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               <input
                 id="cms-project-carousel-modal-heading"
                 type="text"
-                value="${currentHeading.replace(/"/g, "&quot;")}"
                 style="width: 100%; padding: 8px 12px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 14px; box-sizing: border-box;"
               />
             </div>
@@ -6905,6 +7141,11 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               <span style="color: #C5A059; font-weight: bold;">Note:</span> This carousel automatically displays all portfolio projects that have <strong style="color: #fff;">Featured</strong> checked in the Projects admin tab.
             </div>
           `;
+
+          const headingModalInp = container.querySelector(
+            "#cms-project-carousel-modal-heading",
+          ) as HTMLInputElement;
+          if (headingModalInp) headingModalInp.value = currentHeading || "";
 
           const actionsRow = document.createElement("div");
           actionsRow.style.cssText =
@@ -6936,13 +7177,22 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                 .replace(/"/g, "&quot;");
 
             const safeHeading = escapeStr(updatedHeading);
+            const existingH = target.find?.("h1, h2, h3, h4")?.[0];
+            const existingStyle = existingH?.getStyle?.() || {};
+            const existingAttrs = (target.getAttributes?.() || {}) as Record<string, string>;
+            const preservedFont = existingStyle["font-family"] || existingAttrs["data-heading-font"];
+            const preservedColor = existingStyle["color"] || existingAttrs["data-heading-color"];
+            const inlineHeadingStyle = `${preservedFont ? `font-family:${preservedFont};` : ""}${preservedColor ? `color:${preservedColor};` : ""}`;
+            const headingStyleAttr = inlineHeadingStyle ? ` style="${inlineHeadingStyle}"` : "";
+            const headingClass = `text-2xl mt-1 ${preservedFont ? "" : "font-serif"} ${preservedColor ? "" : "text-white"}`;
+
             const html = `
               <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #222; padding-bottom: 12px; margin-bottom: 16px;">
                 <div>
                   <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em; color: #C5A059; font-weight: bold;">
                     ★ FEATURED WORKS CAROUSEL (Animated Tiles)
                   </div>
-                  <h3 class="text-2xl font-serif text-white mt-1">${safeHeading}</h3>
+                  <h3 class="${headingClass}"${headingStyleAttr}>${safeHeading}</h3>
                 </div>
                 <div style="font-size: 11px; color: #C5A059; border: 1px solid rgba(197,160,89,0.4); padding: 4px 10px; border-radius: 4px; background: rgba(197,160,89,0.1);">
                   Double-click to Edit Heading
@@ -7003,20 +7253,17 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         category: "Portfolio",
 
         content: `
-        <section style="position: relative; width: 100%; min-height: 85vh; overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; padding: 4rem 1.5rem;">
+        <section data-hero-section="true" class="hero-reveal-container" style="position: relative; width: 100%; min-height: 85vh; overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; padding: 4rem 1.5rem;">
           <img 
             src="https://static.wixstatic.com/media/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg/v1/fill/w_1920,h_1080,al_c,q_90,enc_avif,quality_auto/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg" 
             alt="Sourav Mitra - Hero Artwork" 
             style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;" 
           />
-          <div style="position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); pointer-events: none; z-index: 1;"></div>
-          <div style="position: relative; z-index: 2; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;">
-            <h1 style="font-size: 4rem; font-family: serif; color: #FFFFFF; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; text-shadow: 0 4px 20px rgba(0,0,0,0.8); line-height: 1.1;">
+          <div class="hero-overlay" style="position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); pointer-events: none; z-index: 1;"></div>
+          <div class="hero-content" style="position: relative; z-index: 2; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;">
+            <h1 style="font-size: 4rem; font-family: serif; color: #FFFFFF; margin-bottom: 2rem; text-transform: uppercase; letter-spacing: 0.05em; text-shadow: 0 4px 20px rgba(0,0,0,0.8); line-height: 1.1;">
               Sourav Mitra
             </h1>
-            <p style="font-size: 1.4rem; color: #E5E5E5; margin-bottom: 2.5rem; text-shadow: 0 2px 10px rgba(0,0,0,0.8); font-weight: 300;">
-              550+ covers in 8+ years, and still learning.
-            </p>
             <a
               href="/book-covers"
               style="display: inline-block; padding: 1rem 2.5rem; background-color: #C5A059; color: #000000; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; font-size: 0.75rem; text-decoration: none; border-radius: 2px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);"
@@ -8088,6 +8335,84 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       }
     }, [activeRightTab]);
 
+    const applyFontToComponent = (comp: Component, fontStr: string, ed: Editor) => {
+      comp.addStyle({ "font-family": fontStr });
+
+      // 1. Clients Section
+      const isClientSec =
+        comp.is("clients-section") ||
+        comp.getAttributes?.()["data-cms-block"] === "clients-section" ||
+        comp.getAttributes?.()["data-cms-block"] === "client-logos" ||
+        comp.getClasses?.()?.includes("clients-section");
+      const parentClientSec = isClientSec
+        ? comp
+        : comp.closest?.('[data-cms-block="clients-section"]') ||
+          comp.closest?.('[data-cms-block="client-logos"]') ||
+          comp.closest?.(".clients-section") ||
+          null;
+      if (parentClientSec) {
+        parentClientSec.addAttributes({ "data-heading-font": fontStr });
+        const hComp = parentClientSec.find?.("h1, h2, h3")?.[0];
+        if (hComp && hComp !== comp) {
+          hComp.addStyle({ "font-family": fontStr });
+        }
+      }
+
+      // 2. Testimonials Carousel
+      const isTestimonial =
+        comp.is("testimonials-carousel") ||
+        comp.getAttributes?.()["data-cms-block"] === "testimonials-carousel" ||
+        comp.getClasses?.()?.includes("testimonials-section");
+      const parentTestimonial = isTestimonial
+        ? comp
+        : comp.closest?.('[data-cms-block="testimonials-carousel"]') ||
+          comp.closest?.(".testimonials-section") ||
+          null;
+      if (parentTestimonial) {
+        parentTestimonial.addAttributes({ "data-heading-font": fontStr });
+        const hComp = parentTestimonial.find?.("h1, h2, h3")?.[0];
+        if (hComp && hComp !== comp) {
+          hComp.addStyle({ "font-family": fontStr });
+        }
+      }
+
+      // 3. Projects Carousel
+      const isCarousel =
+        comp.is("project-carousel") ||
+        comp.getAttributes?.()["data-cms-block"] === "project-carousel";
+      const parentCarousel = isCarousel
+        ? comp
+        : comp.closest?.('[data-cms-block="project-carousel"]') || null;
+      if (parentCarousel) {
+        parentCarousel.addAttributes({ "data-heading-font": fontStr });
+        const hComp = parentCarousel.find?.("h1, h2, h3")?.[0];
+        if (hComp && hComp !== comp) {
+          hComp.addStyle({ "font-family": fontStr });
+        }
+      }
+
+      // 4. Hero Section
+      const isHero =
+        comp.getAttributes?.()["data-hero-section"] === "true" ||
+        comp.getClasses?.()?.includes("hero-reveal-container") ||
+        comp.getId?.() === "ivkb";
+      const parentHero = isHero
+        ? comp
+        : comp.closest?.('[data-hero-section="true"]') ||
+          comp.closest?.(".hero-reveal-container") ||
+          comp.closest?.("#ivkb") ||
+          null;
+      if (parentHero) {
+        const h1Comp = parentHero.find?.("h1, #iznl")?.[0];
+        if (h1Comp && h1Comp !== comp) {
+          h1Comp.addStyle({ "font-family": fontStr });
+        }
+      }
+
+      ed.trigger("component:update", comp);
+      ed.trigger("change:canvas");
+    };
+
     const handleFontInstalled = (
       font: CustomFont,
       applyImmediately: boolean,
@@ -8108,30 +8433,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           const selected = ed.getSelected();
           if (selected) {
             const fontStr = `'${font.family}', sans-serif`;
-            selected.addStyle({ "font-family": fontStr });
-
-            const isClientSec =
-              selected.is("clients-section") ||
-              selected.getAttributes?.()["data-cms-block"] === "clients-section" ||
-              selected.getAttributes?.()["data-cms-block"] === "client-logos" ||
-              selected.getClasses?.()?.includes("clients-section");
-
-            const parentClientSec = isClientSec
-              ? selected
-              : selected.closest?.('[data-cms-block="clients-section"]') ||
-                selected.closest?.('[data-cms-block="client-logos"]') ||
-                selected.closest?.(".clients-section") ||
-                null;
-
-            if (parentClientSec) {
-              parentClientSec.addAttributes({ "data-heading-font": fontStr });
-              const hComp = parentClientSec.find?.("h1, h2, h3")?.[0];
-              if (hComp && hComp !== selected) {
-                hComp.addStyle({ "font-family": fontStr });
-              }
-            }
-
-            ed.trigger("component:update", selected);
+            applyFontToComponent(selected, fontStr, ed);
           }
         }
       }
@@ -8160,30 +8462,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         const selected = ed.getSelected();
         if (selected) {
           const fontStr = `'${font.family}', sans-serif`;
-          selected.addStyle({ "font-family": fontStr });
-
-          const isClientSec =
-            selected.is("clients-section") ||
-            selected.getAttributes?.()["data-cms-block"] === "clients-section" ||
-            selected.getAttributes?.()["data-cms-block"] === "client-logos" ||
-            selected.getClasses?.()?.includes("clients-section");
-
-          const parentClientSec = isClientSec
-            ? selected
-            : selected.closest?.('[data-cms-block="clients-section"]') ||
-              selected.closest?.('[data-cms-block="client-logos"]') ||
-              selected.closest?.(".clients-section") ||
-              null;
-
-          if (parentClientSec) {
-            parentClientSec.addAttributes({ "data-heading-font": fontStr });
-            const hComp = parentClientSec.find?.("h1, h2, h3")?.[0];
-            if (hComp && hComp !== selected) {
-              hComp.addStyle({ "font-family": fontStr });
-            }
-          }
-
-          ed.trigger("component:update", selected);
+          applyFontToComponent(selected, fontStr, ed);
         }
       }
     };
@@ -8217,6 +8496,16 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             ) {
               sec.addAttributes({ "data-heading-font": currentFont });
               h.addStyle({ "font-family": currentFont });
+            }
+
+            const rawColor =
+              hStyle["color"] ||
+              secStyle["color"] ||
+              attrs["data-heading-color"];
+            const currentColor = typeof rawColor === "string" ? rawColor.trim() : "";
+            if (currentColor) {
+              sec.addAttributes({ "data-heading-color": currentColor });
+              h.addStyle({ color: currentColor });
             }
           }
 
@@ -8253,6 +8542,70 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       }
     };
 
+    const syncDynamicBlockHeadings = (editor: Editor) => {
+      try {
+        const blocks =
+          editor.getWrapper()?.find?.(
+            '[data-cms-block="testimonials-carousel"], [data-cms-block="project-carousel"], [data-cms-block="clients-section"], [data-cms-block="client-logos"], .clients-section, .testimonials-section',
+          ) || [];
+
+        blocks.forEach((block) => {
+          const h = block.find?.("h1, h2, h3, h4")?.[0];
+          if (h) {
+            const hStyle = h.getStyle?.() || {};
+            const blockStyle = block.getStyle?.() || {};
+            const attrs = (block.getAttributes?.() || {}) as Record<string, string>;
+
+            const rawFont =
+              hStyle["font-family"] ||
+              blockStyle["font-family"] ||
+              attrs["data-heading-font"];
+            const font = typeof rawFont === "string" ? rawFont.trim() : "";
+            if (
+              font &&
+              !font.includes("-apple-system") &&
+              !font.includes("BlinkMacSystemFont")
+            ) {
+              block.addAttributes({ "data-heading-font": font });
+              h.addStyle({ "font-family": font });
+            }
+
+            const rawColor =
+              hStyle["color"] ||
+              blockStyle["color"] ||
+              attrs["data-heading-color"];
+            const color = typeof rawColor === "string" ? rawColor.trim() : "";
+            if (color) {
+              block.addAttributes({ "data-heading-color": color });
+              h.addStyle({ color });
+            }
+          }
+        });
+      } catch (err) {
+        console.warn("Could not sync dynamic block headings:", err);
+      }
+    };
+
+    const syncComponentStylesToCssRules = (editor: Editor) => {
+      try {
+        const wrapper = editor.getWrapper();
+        if (!wrapper) return;
+        const compsWithId = wrapper.find("[id]") || [];
+        compsWithId.forEach((comp) => {
+          const id = comp.getId?.();
+          const compStyle = comp.getStyle?.() || {};
+          if (id && Object.keys(compStyle).length > 0) {
+            const rule = editor.CssComposer?.getRule?.(`#${id}`);
+            if (rule) {
+              rule.addStyle(compStyle);
+            }
+          }
+        });
+      } catch (err) {
+        console.warn("Failed to sync component styles to CSS rules:", err);
+      }
+    };
+
     const handleExportSave = (isPublish = false) => {
       const editor = editorRef.current;
 
@@ -8263,6 +8616,8 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       syncAllCounters(editor);
       syncContactCardDataAttributes(editor);
       syncClientsSectionDataAttributes(editor);
+      syncDynamicBlockHeadings(editor);
+      syncComponentStylesToCssRules(editor);
 
       const projectData = editor.getProjectData();
 

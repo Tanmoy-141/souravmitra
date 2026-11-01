@@ -21,26 +21,43 @@ const DYNAMIC_BLOCKS: DynamicCmsBlock[] = [
   "contact-form",
 ];
 
+const ENTITY_MAP: Record<string, string> = {
+  "&nbsp;": " ",
+  "&quot;": '"',
+  "&#39;": "'",
+  "&ldquo;": "“",
+  "&rdquo;": "”",
+  "&rsquo;": "’",
+  "&lsquo;": "‘",
+  "&amp;": "&",
+};
+
+function decodeEntities(str: string): string {
+  return str.replace(/&(?:nbsp|quot|#39|ldquo|rdquo|rsquo|lsquo|amp);/g, (m) => ENTITY_MAP[m] || m);
+}
+
+function stripHtmlTags(str: string): string {
+  let s = str;
+  while (s.includes("<")) {
+    const next = s.replace(/<[^>]*>/g, "");
+    if (next === s) {
+      s = s.replace(/<[^>]*$/g, "").replace(/</g, "");
+      break;
+    }
+    s = next;
+  }
+  return s;
+}
+
 export function parseTestimonialBlock(blockHtml?: string): {
   heading?: string;
   items?: Array<{ quote: string; author: string }>;
 } {
   if (!blockHtml) return {};
 
-  const decodeEntities = (str: string) =>
-    str
-      .replace(/&nbsp;/g, " ")
-      .replace(/&amp;/g, "&")
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&ldquo;/g, "“")
-      .replace(/&rdquo;/g, "”")
-      .replace(/&rsquo;/g, "’")
-      .replace(/&lsquo;/g, "‘");
-
   const headingMatch = blockHtml.match(/<h([1-4])[^>]*>([\s\S]*?)<\/h\1>/i);
   const heading = headingMatch
-    ? decodeEntities(headingMatch[2].replace(/<[^>]+>/g, "")).trim()
+    ? decodeEntities(stripHtmlTags(headingMatch[2])).trim()
     : undefined;
 
   const pMatches = Array.from(
@@ -52,7 +69,7 @@ export function parseTestimonialBlock(blockHtml?: string): {
 
   for (const match of pMatches) {
     const raw = decodeEntities(
-      match[1].replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, ""),
+      stripHtmlTags(match[1].replace(/<br\s*\/?>/gi, "\n")),
     ).trim();
 
     if (

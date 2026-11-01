@@ -176,12 +176,16 @@ export async function POST(req: NextRequest) {
       // 2. Fallback to local storage in public/uploads/
       if (!uploadedUrl) {
         try {
-          const uploadsDir = path.join(process.cwd(), "public", "uploads");
+          const uploadsDir = path.resolve(process.cwd(), "public", "uploads");
           await fs.mkdir(uploadsDir, { recursive: true });
           const uniqueLocalName = `${path.basename(safeName, ext)}-${Date.now()}${ext}`;
-          const filePath = path.join(uploadsDir, uniqueLocalName);
-          await fs.writeFile(filePath, fileBuffer);
-          uploadedUrl = `/uploads/${uniqueLocalName}`;
+          const filePath = path.resolve(uploadsDir, uniqueLocalName);
+          if (filePath.startsWith(uploadsDir + path.sep)) {
+            await fs.writeFile(filePath, fileBuffer);
+            uploadedUrl = `/uploads/${uniqueLocalName}`;
+          } else {
+            console.warn("[cms/fonts] Path traversal attempt detected, falling back to data URI");
+          }
         } catch (fsErr) {
           console.warn(
             "[cms/fonts] local filesystem write failed, using data URI fallback:",
@@ -269,7 +273,7 @@ export async function POST(req: NextRequest) {
               : undefined);
 
     const newFont: CustomFont = {
-      id: `font_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: `font_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`,
       family,
       type,
       url,

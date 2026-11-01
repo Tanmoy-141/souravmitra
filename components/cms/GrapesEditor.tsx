@@ -6395,8 +6395,9 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
 
               const thumbImg = card.querySelector(".client-logo-thumb-preview") as HTMLImageElement;
               if (thumbImg) {
-                if (item.logo && isSafeUrl(item.logo)) {
-                  thumbImg.src = item.logo;
+                const safeInitialLogo = toSafeMediaUrl(item.logo);
+                if (safeInitialLogo) {
+                  thumbImg.src = safeInitialLogo;
                 }
                 thumbImg.alt = item.name || "Client Logo";
                 thumbImg.onerror = () => {
@@ -6422,10 +6423,16 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
 
               // Logo URL input sync
               logoInput.addEventListener("input", () => {
-                logos[idx].logo = logoInput.value;
+                const candidateUrl = logoInput.value;
+                logos[idx].logo = candidateUrl;
                 if (thumbImg) {
-                  thumbImg.src = logoInput.value;
-                  thumbImg.style.opacity = "1";
+                  const safeUrl = toSafeMediaUrl(candidateUrl);
+                  if (safeUrl) {
+                    thumbImg.src = safeUrl;
+                    thumbImg.style.opacity = "1";
+                  } else {
+                    thumbImg.style.opacity = "0.25";
+                  }
                 }
               });
 
@@ -6443,7 +6450,8 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                     body: formData,
                   });
                   const json = await res.json();
-                  const newSrc = json.asset?.blobUrl || json.data?.[0]?.src;
+                  const rawNewSrc = json.asset?.blobUrl || json.data?.[0]?.src;
+                  const newSrc = toSafeMediaUrl(rawNewSrc);
                   if (newSrc) {
                     logos[idx].logo = newSrc;
                     logoInput.value = newSrc;
@@ -6526,18 +6534,21 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                       "width: 100%; height: 42px; background: #161616; border: 1px solid #2a2a2a; border-radius: 2px; padding: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center; overflow: hidden;";
                     itemBtn.replaceChildren();
                     const mediaImg = document.createElement("img");
-                    if (isSafeUrl(src)) {
-                      mediaImg.src = src;
+                    const safeSrc = toSafeMediaUrl(src);
+                    if (safeSrc) {
+                      mediaImg.src = safeSrc;
                     }
                     mediaImg.alt = asset.name || "Media asset";
                     mediaImg.style.cssText = "max-height: 100%; max-width: 100%; object-fit: contain;";
                     itemBtn.appendChild(mediaImg);
                     itemBtn.addEventListener("click", () => {
-                      logos[idx].logo = src;
-                      logoInput.value = src;
-                      if (thumbImg) {
-                        thumbImg.src = src;
-                        thumbImg.style.opacity = "1";
+                      if (safeSrc) {
+                        logos[idx].logo = safeSrc;
+                        logoInput.value = safeSrc;
+                        if (thumbImg) {
+                          thumbImg.src = safeSrc;
+                          thumbImg.style.opacity = "1";
+                        }
                       }
                       mediaDrawer.style.display = "none";
                     });

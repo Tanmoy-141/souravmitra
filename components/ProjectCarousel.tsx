@@ -234,14 +234,15 @@ export default function ProjectCarousel({
 
             <h2
               id={headingProps?.id}
-              className={`text-3xl sm:text-4xl md:text-5xl tracking-tight leading-tight text-white ${
+              className={`text-3xl sm:text-4xl md:text-5xl tracking-tight leading-tight ${headingProps?.color || headingProps?.style?.color ? "" : "text-white"} ${
                 headingProps?.className || ""
-              } ${!headingProps?.fontFamily ? "font-serif" : ""}`}
+              } ${!headingProps?.fontFamily && !headingProps?.style?.fontFamily ? "font-serif" : ""}`}
               style={{
                 ...(headingProps?.fontFamily ? { fontFamily: headingProps.fontFamily } : {}),
                 ...(headingProps?.fontWeight ? { fontWeight: headingProps.fontWeight } : {}),
                 ...(headingProps?.fontSize ? { fontSize: headingProps.fontSize } : {}),
                 ...(headingProps?.fontStyle ? { fontStyle: headingProps.fontStyle } : {}),
+                ...(headingProps?.color ? { color: headingProps.color } : {}),
                 ...(headingProps?.letterSpacing ? { letterSpacing: headingProps.letterSpacing } : {}),
                 ...(headingProps?.textTransform ? { textTransform: headingProps.textTransform } : {}),
                 ...(headingProps?.textAlign ? { textAlign: headingProps.textAlign } : {}),

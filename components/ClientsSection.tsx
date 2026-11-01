@@ -17,7 +17,10 @@ export type HoverEffect = "scale" | "glow" | "brightness" | "none";
 export interface ClientsSectionProps {
   heading?: string;
   headingProps?: {
+    id?: string;
     className?: string;
+    fontFamily?: string;
+    color?: string;
     style?: React.CSSProperties;
   };
   headingStyle?: React.CSSProperties;
@@ -160,10 +163,17 @@ export default function ClientsSection({
     (style?.fontFamily as string) ||
     undefined;
 
+  const resolvedColor =
+    headingProps?.color ||
+    (headingProps?.style?.color as string) ||
+    (headingStyle?.color as string) ||
+    undefined;
+
   const mergedHeadingStyle: React.CSSProperties = {
     ...(headingProps?.style || {}),
     ...(headingStyle || {}),
     ...(resolvedFontFamily ? { fontFamily: resolvedFontFamily } : {}),
+    ...(resolvedColor ? { color: resolvedColor } : {}),
   };
 
   const sectionInlineStyle: React.CSSProperties = {
@@ -259,7 +269,7 @@ export default function ClientsSection({
         {/* Section Heading */}
         <div className="text-center mb-10 flex flex-col items-center">
           <h2
-            className={`text-3xl font-bold text-white tracking-tight ${headingProps?.className || ""}`}
+            className={`text-3xl font-bold ${mergedHeadingStyle.color ? "" : "text-white"} tracking-tight ${headingProps?.className || ""}`}
             style={mergedHeadingStyle}
           >
             {heading}

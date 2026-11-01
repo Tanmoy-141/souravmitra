@@ -21,17 +21,18 @@ export async function GET(req: NextRequest) {
 
   // Public callers only see published. ?all=true requires auth and returns
   // drafts too — used by the admin dashboard.
+  const authorized = await isAuthorized(req);
   const wantsAll = searchParams.get("all") === "true";
-  let status: "published" | undefined = "published";
-  if (wantsAll) {
-    if (!(await isAuthorized(req))) {
-      return NextResponse.json(
-        { success: false, message: "Unauthorized" },
-        { status: 401 },
-      );
-    }
-    status = undefined;
+
+  if (wantsAll && !authorized) {
+    return NextResponse.json(
+      { success: false, message: "Unauthorized" },
+      { status: 401 },
+    );
   }
+
+  const status: "published" | undefined =
+    wantsAll && authorized ? undefined : "published";
 
   const results = await listProjects({ category, status });
   return NextResponse.json({ projects: results });

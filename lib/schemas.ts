@@ -22,26 +22,58 @@ export const ContactSchema = z
     { message: "Name is required", path: ["firstName"] },
   );
 
-export const LoginSchema = z.object({
-  action: z.literal("login"),
-  username: z.string().trim().optional(),
-  email: z.string().trim().optional(),
-  password: z.string().min(1),
+export const LoginSchema = z
+  .object({
+    action: z.literal("login").optional(),
+    username: z.string().trim().optional(),
+    email: z.string().trim().optional(),
+    password: z.string().min(1, "Password is required"),
+  })
+  .refine(
+    (data) =>
+      Boolean(
+        (data.username && data.username.length > 0) ||
+          (data.email && data.email.length > 0),
+      ),
+    { message: "Username or email is required", path: ["username"] },
+  );
+
+export const RequestUsernameRecoverySchema = z.object({
+  action: z.literal("request-username-recovery").optional(),
+  email: z.string().trim().email("Valid email is required"),
 });
 
-export const RequestPasswordResetSchema = z.object({
-  action: z.literal("request-password-reset"),
-  username: z.string().trim().optional(),
-  email: z.string().trim().optional(),
-});
+export const RequestPasswordResetSchema = z
+  .object({
+    action: z.literal("request-password-reset").optional(),
+    username: z.string().trim().optional(),
+    email: z.string().trim().optional(),
+  })
+  .refine(
+    (data) =>
+      Boolean(
+        (data.username && data.username.length > 0) ||
+          (data.email && data.email.length > 0),
+      ),
+    { message: "Username or email is required", path: ["username"] },
+  );
 
-export const ConfirmPasswordResetSchema = z.object({
-  action: z.literal("confirm-password-reset"),
-  username: z.string().trim().optional(),
-  email: z.string().trim().optional(),
-  code: z.string().trim().min(1),
-  newPassword: z.string().min(8),
-});
+export const ConfirmPasswordResetSchema = z
+  .object({
+    action: z.literal("confirm-password-reset").optional(),
+    username: z.string().trim().optional(),
+    email: z.string().trim().optional(),
+    code: z.string().trim().min(1, "Verification code is required"),
+    newPassword: z.string().min(8, "Password must be at least 8 characters long"),
+  })
+  .refine(
+    (data) =>
+      Boolean(
+        (data.username && data.username.length > 0) ||
+          (data.email && data.email.length > 0),
+      ),
+    { message: "Username or email is required", path: ["username"] },
+  );
 
 export const ProjectCreateSchema = z.object({
   title: z.string().trim().min(1),

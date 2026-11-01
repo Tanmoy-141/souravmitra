@@ -226,7 +226,8 @@ function extractElementStyles(
       const colonIdx = pair.indexOf(":");
       if (colonIdx > 0) {
         const prop = pair.slice(0, colonIdx).trim().toLowerCase();
-        const val = pair.slice(colonIdx + 1).trim();
+        const rawVal = pair.slice(colonIdx + 1).trim();
+        const val = rawVal.replace(/\s*!important\s*$/i, "").trim();
         if (prop && val) {
           matched[prop] = val;
         }
@@ -237,7 +238,8 @@ function extractElementStyles(
   if (el.style) {
     for (let i = 0; i < el.style.length; i++) {
       const prop = el.style[i];
-      const val = el.style.getPropertyValue(prop);
+      const rawVal = el.style.getPropertyValue(prop);
+      const val = rawVal ? rawVal.replace(/\s*!important\s*$/i, "").trim() : "";
       if (prop && val) {
         matched[prop.toLowerCase()] = val;
       }
@@ -271,7 +273,25 @@ function extractHeadingInfo(
     sourceEl?.querySelector<HTMLElement>("h1, h2, h3, h4, h5, h6")?.parentElement;
   const parentStyles = parentEl ? extractElementStyles(parentEl, doc) : {};
 
-  const fontFamily = styles["font-family"] || parentStyles["font-family"] || undefined;
+  const blockFont =
+    element.getAttribute?.("data-heading-font") ||
+    sourceEl?.getAttribute?.("data-heading-font") ||
+    undefined;
+  const blockColor =
+    element.getAttribute?.("data-heading-color") ||
+    sourceEl?.getAttribute?.("data-heading-color") ||
+    undefined;
+
+  const isDefaultSysFont = (f?: string) =>
+    !f || f.includes("-apple-system") || f.includes("BlinkMacSystemFont");
+
+  const rawFontFamily = styles["font-family"] || parentStyles["font-family"] || undefined;
+  const fontFamily =
+    (rawFontFamily && !isDefaultSysFont(rawFontFamily) ? rawFontFamily : undefined) ||
+    blockFont ||
+    rawFontFamily ||
+    undefined;
+
   const fontWeight = styles["font-weight"] || parentStyles["font-weight"] || undefined;
   const fontStyle = styles["font-style"] || parentStyles["font-style"] || undefined;
   const fontSize = styles["font-size"] || undefined;
@@ -292,7 +312,7 @@ function extractHeadingInfo(
     textAlign = "center";
   }
 
-  const color = styles["color"] || parentStyles["color"] || undefined;
+  const color = styles["color"] || parentStyles["color"] || blockColor || undefined;
 
   const position = (styles["position"] || parentStyles["position"]) as
     | React.CSSProperties["position"]
@@ -628,11 +648,22 @@ export function CmsDynamicBlockPortal({
               ? explicitItems
               : undefined;
 
+        const { text: customHeading, props: hProps } = extractHeadingInfo(
+          element,
+          sourceEl,
+          parsedDoc,
+        );
         element.replaceChildren();
         newTargets.push({
           element,
           key: `portal-testimonial-${index}`,
-          node: <TestimonialsSection items={items} heading={heading} />,
+          node: (
+            <TestimonialsSection
+              items={items}
+              heading={heading || customHeading}
+              headingProps={hProps}
+            />
+          ),
         });
       } else if (block === "project-carousel") {
         const { text, props: hProps } = extractHeadingInfo(
@@ -887,11 +918,12 @@ export function CmsDynamicBlockPortal({
           hText ||
           "Clients";
 
-        // Check if font-family was set on the section, heading, or data attribute
+        // Check if font-family or color was set on the section, heading, or data attribute
         const sectionStyles = extractElementStyles(sourceEl || element, parsedDoc);
         const headingEl = (sourceEl || element).querySelector("h1, h2, h3, h4, h5, h6");
         const headingInlineStyle = headingEl?.getAttribute("style") || "";
         const inlineFontFamilyMatch = headingInlineStyle.match(/font-family:\s*([^;]+)/i);
+        const inlineColorMatch = headingInlineStyle.match(/(?:^|;\s*)color:\s*([^;]+)/i);
 
         const isDefaultSysFont = (f?: string) =>
           !f || f.includes("-apple-system") || f.includes("BlinkMacSystemFont");
@@ -900,7 +932,7 @@ export function CmsDynamicBlockPortal({
         const secFont = sectionStyles["font-family"];
 
         const headingFontFamily =
-          inlineFontFamilyMatch?.[1]?.trim() ||
+          inlineFontFamilyMatch?.[1]?.replace(/\s*!important\s*$/i, "")?.trim() ||
           element.getAttribute("data-heading-font") ||
           sourceEl.getAttribute("data-heading-font") ||
           (!isDefaultSysFont(hPropFont) ? hPropFont : undefined) ||
@@ -909,8 +941,22 @@ export function CmsDynamicBlockPortal({
           secFont ||
           undefined;
 
-        if (hProps?.style && headingFontFamily) {
-          hProps.style.fontFamily = headingFontFamily;
+        const headingColor =
+          inlineColorMatch?.[1]?.replace(/\s*!important\s*$/i, "")?.trim() ||
+          element.getAttribute("data-heading-color") ||
+          sourceEl.getAttribute("data-heading-color") ||
+          hProps?.color ||
+          (hProps?.style?.color as string) ||
+          sectionStyles["color"] ||
+          undefined;
+
+        if (hProps) {
+          if (!hProps.style) hProps.style = {};
+          if (headingFontFamily) hProps.style.fontFamily = headingFontFamily;
+          if (headingColor) {
+            hProps.color = headingColor;
+            hProps.style.color = headingColor;
+          }
         }
 
         // Check if an inner divider was dropped inside this section or immediately adjacent
@@ -1196,6 +1242,20 @@ export function CmsDynamicBlockPortal({
 
     setTargets(newTargets);
 
+    // Hero Section Scroll Effect (Wix-style Fixed Background Parallax Window)
+    const heroEl = containerRef.current.querySelector<HTMLElement>(
+      '#ivkb, [data-hero-section="true"], .hero-reveal-container, section.c1504',
+    );
+    if (heroEl) {
+      heroEl.classList.add("hero-reveal-active");
+      // Remove any counter text from hero section
+      heroEl.querySelectorAll(".hero-tagline, p").forEach((el) => {
+        if (el.textContent?.includes("550+ covers")) {
+          el.remove();
+        }
+      });
+    }
+
     // Initialize intersection-observer counter animations for all counters in container
     const cleanupCounters = initCountersInContainer(containerRef.current);
     return () => {
@@ -1206,6 +1266,73 @@ export function CmsDynamicBlockPortal({
   return (
     <>
       <style>{`
+        /* Hero Section Scroll Effect (Wix-style Fixed Background Parallax Window) */
+        .hero-reveal-container,
+        .hero-reveal-active,
+        #ivkb,
+        [data-hero-section="true"] {
+          position: relative !important;
+          width: 100% !important;
+          height: 480px !important;
+          min-height: 460px !important;
+          max-height: 540px !important;
+          overflow: hidden !important;
+          clip-path: inset(0) !important;
+          -webkit-clip-path: inset(0) !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          text-align: center !important;
+          box-sizing: border-box !important;
+          padding: 3rem 1.5rem !important;
+        }
+        .hero-reveal-container img,
+        .hero-reveal-active img,
+        #ivkb img,
+        [data-hero-section="true"] img,
+        .hero-fixed-bg {
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 100vw !important;
+          height: 100vh !important;
+          object-fit: cover !important;
+          object-position: center !important;
+          pointer-events: none !important;
+          z-index: 0 !important;
+          transform: translate3d(0, 0, 0);
+          will-change: transform;
+        }
+        .hero-reveal-container .hero-overlay,
+        .hero-reveal-active #iuth,
+        #ivkb #iuth,
+        [data-hero-section="true"] .hero-overlay,
+        .hero-fixed-overlay {
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 100vw !important;
+          height: 100vh !important;
+          background: rgba(0, 0, 0, 0.45) !important;
+          pointer-events: none !important;
+          z-index: 1 !important;
+        }
+        .hero-reveal-container .hero-content,
+        .hero-reveal-active #ibak,
+        #ivkb #ibak,
+        [data-hero-section="true"] .hero-content {
+          position: relative !important;
+          z-index: 2 !important;
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          justify-content: center !important;
+          text-align: center !important;
+          max-width: 900px !important;
+          margin: 0 auto !important;
+          width: 100% !important;
+        }
+
         [data-cms-block] {
           border: none !important;
         }
@@ -1246,12 +1373,12 @@ export function CmsDynamicBlockPortal({
           cursor: pointer !important;
         }
         .contact-card h1 {
-          font-size: 2.25rem !important;
-          font-weight: 500 !important;
+          font-size: 2.25rem;
+          font-weight: 500;
           margin: 0 0 1.25rem 0 !important;
-          line-height: 1.15 !important;
+          line-height: 1.15;
           color: inherit;
-          font-family: sans-serif !important;
+          font-family: inherit;
         }
         .contact-card p,
         .contact-card div {

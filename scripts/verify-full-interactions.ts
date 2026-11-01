@@ -166,9 +166,16 @@ async function verifyAll() {
   // XSS attack sanitization test
   const dirtyContent =
     "<script>alert('xss')</script>Hello <b>World</b><img src=x onerror=alert(1)>";
-  const sanitized = sanitizeHtml(dirtyContent)
-    .replace(/<[^>]*>?/gm, "")
-    .trim();
+  let sanitized = sanitizeHtml(dirtyContent);
+  while (sanitized.includes("<")) {
+    const next = sanitized.replace(/<[^>]*>/g, "");
+    if (next === sanitized) {
+      sanitized = sanitized.replace(/</g, "");
+      break;
+    }
+    sanitized = next;
+  }
+  sanitized = sanitized.replace(/[<>]/g, "").trim();
   console.log(`   Original input with XSS: "${dirtyContent}"`);
   console.log(`   Sanitized plain safe text: "${sanitized}"`);
   if (sanitized.includes("<script>") || sanitized.includes("onerror")) {

@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { siteSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { CustomFont, formatFontFaceCss } from "@/lib/fonts";
+import { isSafeUrl, safeCssForStyleTag } from "@/lib/sanitize";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -96,7 +97,7 @@ export default async function RootLayout({
         {/* Dynamically Injected Custom Fonts (Google Fonts, Web Font URLs, Uploaded @font-face) */}
         {customFonts.map((font) => {
           if (font.type === "upload") {
-            const fontCss = formatFontFaceCss(font);
+            const fontCss = safeCssForStyleTag(formatFontFaceCss(font));
             return (
               <style
                 key={font.id}
@@ -105,19 +106,22 @@ export default async function RootLayout({
               />
             );
           }
-          return (
-            <link
-              key={font.id}
-              rel="stylesheet"
-              href={font.url}
-              data-custom-font={font.id}
-            />
-          );
+          if (font.url && isSafeUrl(font.url)) {
+            return (
+              <link
+                key={font.id}
+                rel="stylesheet"
+                href={font.url}
+                data-custom-font={font.id}
+              />
+            );
+          }
+          return null;
         })}
       </head>
-      <body className="min-h-full flex flex-col font-sans overflow-x-hidden w-full max-w-full">
+      <body className="min-h-full flex flex-col font-sans overflow-x-clip w-full max-w-full">
         <Header />
-        <main className="grow w-full max-w-full overflow-x-hidden">{children}</main>
+        <main className="grow w-full max-w-full overflow-x-clip">{children}</main>
         <Footer />
       </body>
     </html>

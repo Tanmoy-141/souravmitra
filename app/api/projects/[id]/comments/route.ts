@@ -37,11 +37,16 @@ function formatTimeAgo(date: Date): string {
 }
 
 function sanitizeCommentText(text: string): string {
-  // Strip dangerous html and scripts, enforce plain text safety
-  const purified = sanitizeHtml(text)
-    .replace(/<[^>]*>?/gm, "") // Strip any remaining tags
-    .trim();
-  return purified;
+  let clean = sanitizeHtml(text);
+  while (clean.includes("<")) {
+    const next = clean.replace(/<[^>]*>/g, "");
+    if (next === clean) {
+      clean = clean.replace(/</g, "");
+      break;
+    }
+    clean = next;
+  }
+  return clean.replace(/[<>]/g, "").trim();
 }
 
 export async function GET(

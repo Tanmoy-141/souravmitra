@@ -23,7 +23,9 @@ export const Footer = () => {
   const socialLinks = settings.socialLinks || {};
 
   return (
-    <footer className="py-10 text-center bg-[#000000] text-[#D4D4D4] border-t border-[#333333]">
+    <footer
+      suppressHydrationWarning
+      className="py-10 text-center bg-[#000000] text-[#D4D4D4] border-t border-[#333333]">
       <p className="mb-2 text-sm uppercase tracking-widest">
         {settings.footerHeading || "FOLLOW ME ON"}
       </p>

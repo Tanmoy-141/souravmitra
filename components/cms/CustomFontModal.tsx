@@ -7,6 +7,7 @@ import {
   buildGoogleFontUrl,
   sanitizeFontFamily,
 } from "@/lib/fonts";
+import { isSafeUrl } from "@/lib/sanitize";
 
 interface CustomFontModalProps {
   isOpen: boolean;
@@ -120,7 +121,26 @@ export default function CustomFontModal({
 
   // Dynamically load Custom URL into document head for live preview
   useEffect(() => {
-    if (!urlStylesheet.trim() || !urlFamily.trim()) {
+    const trimmedUrl = urlStylesheet.trim();
+    if (!trimmedUrl || !urlFamily.trim()) {
+      return;
+    }
+
+    let safeHref = "";
+    try {
+      const parsed = new URL(trimmedUrl, window.location.origin);
+      if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+        safeHref = parsed.href;
+      }
+    } catch {
+      safeHref = "";
+    }
+
+    if (!safeHref) {
+      queueMicrotask(() => {
+        setUrlLoading(false);
+        setUrlError("Invalid URL. Only secure http/https stylesheet URLs are permitted.");
+      });
       return;
     }
 
@@ -135,9 +155,9 @@ export default function CustomFontModal({
       link = document.createElement("link");
       link.id = linkId;
       link.rel = "stylesheet";
-      link.href = urlStylesheet.trim();
+      link.href = safeHref;
       link.onload = () => {
-        setUrlLoadedHref(urlStylesheet.trim());
+        setUrlLoadedHref(safeHref);
         setUrlLoading(false);
       };
       link.onerror = () => {
@@ -149,9 +169,9 @@ export default function CustomFontModal({
       };
       document.head.appendChild(link);
     } else {
-      link.href = urlStylesheet.trim();
+      link.href = safeHref;
       queueMicrotask(() => {
-        setUrlLoadedHref(urlStylesheet.trim());
+        setUrlLoadedHref(safeHref);
         setUrlLoading(false);
       });
     }
@@ -238,7 +258,7 @@ export default function CustomFontModal({
       setUrlError("Please enter the font family name.");
       return;
     }
-    if (!cleanUrl || !cleanUrl.startsWith("http")) {
+    if (!cleanUrl || !isSafeUrl(cleanUrl)) {
       setUrlError(
         "Please enter a valid CSS stylesheet URL starting with http:// or https://",
       );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
@@ -278,7 +279,7 @@ export default function ContactFormClient({
               <div
                 className="text-[13px] sm:text-sm font-normal leading-relaxed mb-6 space-y-4"
                 style={{ color: cardTextColor || undefined }}
-                dangerouslySetInnerHTML={{ __html: initialCopyHtml }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(initialCopyHtml) }}
               />
             ) : (
               <div className="text-[13px] sm:text-sm font-normal leading-relaxed mb-6 space-y-4"

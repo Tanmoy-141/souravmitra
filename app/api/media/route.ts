@@ -166,9 +166,6 @@ export async function POST(req: NextRequest) {
     try {
       const safeName = sanitizeFilename(file.name);
       const fileBuffer = Buffer.from(await file.arrayBuffer());
-      const ext = path.extname(safeName);
-      const base = path.basename(safeName, ext);
-      const uniqueLocalName = `${base}-${Date.now()}${ext}`;
 
       let blobUrl: string;
       let pathname: string;
@@ -185,40 +182,18 @@ export async function POST(req: NextRequest) {
           pathname = blob.pathname;
         } catch (blobErr) {
           console.warn(
-            "[media] Vercel blob put failed, falling back to local storage:",
+            "[media] Vercel blob put failed, falling back to data URL storage:",
             blobErr,
-          );
-          const uploadsDir = path.resolve(process.cwd(), "public", "uploads");
-          await fs.mkdir(uploadsDir, { recursive: true });
-          const filePath = path.resolve(uploadsDir, uniqueLocalName);
-          if (!filePath.startsWith(uploadsDir + path.sep)) {
-            throw new Error("Invalid file path");
-          }
-          await fs.writeFile(filePath, fileBuffer);
-          blobUrl = `/uploads/${uniqueLocalName}`;
-          pathname = `/uploads/${uniqueLocalName}`;
-        }
-      } else {
-        // Local storage fallback when BLOB_READ_WRITE_TOKEN is not configured
-        try {
-          const uploadsDir = path.resolve(process.cwd(), "public", "uploads");
-          await fs.mkdir(uploadsDir, { recursive: true });
-          const filePath = path.resolve(uploadsDir, uniqueLocalName);
-          if (!filePath.startsWith(uploadsDir + path.sep)) {
-            throw new Error("Invalid file path");
-          }
-          await fs.writeFile(filePath, fileBuffer);
-          blobUrl = `/uploads/${uniqueLocalName}`;
-          pathname = `/uploads/${uniqueLocalName}`;
-        } catch (fsErr) {
-          console.warn(
-            "[media] filesystem write failed, using data URL fallback:",
-            fsErr,
           );
           const base64 = fileBuffer.toString("base64");
           blobUrl = `data:${normalizedMimeType};base64,${base64}`;
           pathname = safeName;
         }
+      } else {
+        // Data URL storage fallback when BLOB_READ_WRITE_TOKEN is not configured (e.g. local development)
+        const base64 = fileBuffer.toString("base64");
+        blobUrl = `data:${normalizedMimeType};base64,${base64}`;
+        pathname = safeName;
       }
 
       // Save metadata to DB

@@ -6422,10 +6422,15 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
 
               // Logo URL input sync
               logoInput.addEventListener("input", () => {
-                logos[idx].logo = logoInput.value;
+                const candidateUrl = logoInput.value;
+                logos[idx].logo = candidateUrl;
                 if (thumbImg) {
-                  thumbImg.src = logoInput.value;
-                  thumbImg.style.opacity = "1";
+                  if (candidateUrl && isSafeUrl(candidateUrl)) {
+                    thumbImg.src = candidateUrl;
+                    thumbImg.style.opacity = "1";
+                  } else {
+                    thumbImg.style.opacity = "0.25";
+                  }
                 }
               });
 

@@ -1,0 +1,30 @@
+
+{
+  "name": "Sourav Mitra CMS",
+  "image": "mcr.microsoft.com/devcontainers/base:bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/node:2": {
+      "version": "22.23.2",
+      "npmVersion": "10.9.8"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "editor.formatOnSave": true
+      }
+    }
+  },
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "Next.js development server",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "postCreateCommand": "npm ci"
+}

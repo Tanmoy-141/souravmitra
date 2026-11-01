@@ -126,7 +126,17 @@ export default function CustomFontModal({
       return;
     }
 
-    if (!isSafeUrl(trimmedUrl)) {
+    let safeHref = "";
+    try {
+      const parsed = new URL(trimmedUrl, window.location.origin);
+      if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+        safeHref = parsed.href;
+      }
+    } catch {
+      safeHref = "";
+    }
+
+    if (!safeHref) {
       queueMicrotask(() => {
         setUrlLoading(false);
         setUrlError("Invalid URL. Only secure http/https stylesheet URLs are permitted.");
@@ -145,9 +155,9 @@ export default function CustomFontModal({
       link = document.createElement("link");
       link.id = linkId;
       link.rel = "stylesheet";
-      link.href = trimmedUrl;
+      link.href = safeHref;
       link.onload = () => {
-        setUrlLoadedHref(trimmedUrl);
+        setUrlLoadedHref(safeHref);
         setUrlLoading(false);
       };
       link.onerror = () => {
@@ -159,9 +169,9 @@ export default function CustomFontModal({
       };
       document.head.appendChild(link);
     } else {
-      link.href = trimmedUrl;
+      link.href = safeHref;
       queueMicrotask(() => {
-        setUrlLoadedHref(trimmedUrl);
+        setUrlLoadedHref(safeHref);
         setUrlLoading(false);
       });
     }

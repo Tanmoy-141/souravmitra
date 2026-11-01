@@ -53,6 +53,20 @@ function stripHtmlTags(str: string): string {
   return s;
 }
 
+function toSafeMediaUrl(src: string): string {
+  try {
+    const trimmed = (src || "").trim();
+    if (!trimmed) return "";
+    const parsed = new URL(trimmed, typeof window !== "undefined" ? window.location.origin : "http://localhost");
+    if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+      return parsed.href;
+    }
+  } catch {
+    // Malformed URL
+  }
+  return "";
+}
+
 function isProjectData(value: unknown): value is GrapesProjectData {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return false;
@@ -1577,13 +1591,35 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       if (!rawCss || typeof rawCss !== "string") return "";
 
       const atRuleBlocks: string[] = [];
-      const cssWithoutAtRules = rawCss.replace(
-        /@(?:media|keyframes|-webkit-keyframes|font-face|supports)[^{]*\{(?:\s*[^{}]*\{[^{}]*\})*\s*\}/g,
-        (match) => {
-          atRuleBlocks.push(match);
-          return "";
-        },
-      );
+      let cssWithoutAtRules = "";
+      let i = 0;
+      while (i < rawCss.length) {
+        if (
+          rawCss[i] === "@" &&
+          /^@(media|keyframes|-webkit-keyframes|font-face|supports)\b/i.test(
+            rawCss.slice(i, i + 30),
+          )
+        ) {
+          const start = i;
+          const openBrace = rawCss.indexOf("{", i);
+          if (openBrace === -1) {
+            cssWithoutAtRules += rawCss.slice(i);
+            break;
+          }
+          let depth = 1;
+          let j = openBrace + 1;
+          while (j < rawCss.length && depth > 0) {
+            if (rawCss[j] === "{") depth++;
+            else if (rawCss[j] === "}") depth--;
+            j++;
+          }
+          atRuleBlocks.push(rawCss.slice(start, j));
+          i = j;
+        } else {
+          cssWithoutAtRules += rawCss[i];
+          i++;
+        }
+      }
 
       const ruleMap = new Map<string, Map<string, string>>();
       const ruleRegex = /([^{}]+)\{([^{}]+)\}/g;
@@ -4291,8 +4327,9 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         ) as HTMLElement | null;
 
         if (footerThumb) {
-          if (src && isSafeUrl(src)) {
-            footerThumb.src = src;
+          const safeSrc = toSafeMediaUrl(src);
+          if (safeSrc) {
+            footerThumb.src = safeSrc;
             footerThumb.style.display = "block";
           } else {
             footerThumb.src = "";
@@ -4490,11 +4527,12 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           selectedLabel.textContent = "Selected:";
           activeInfo.appendChild(selectedLabel);
 
+          const safeModalSrc = toSafeMediaUrl(modalActiveSrc);
           const thumbImg = document.createElement("img");
           thumbImg.className = "gjs-custom-active-thumb";
-          thumbImg.style.cssText = `width: 36px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid #C5A059; display: ${modalActiveSrc && isSafeUrl(modalActiveSrc) ? "block" : "none"};`;
-          if (modalActiveSrc && isSafeUrl(modalActiveSrc)) {
-            thumbImg.src = modalActiveSrc;
+          thumbImg.style.cssText = `width: 36px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid #C5A059; display: ${safeModalSrc ? "block" : "none"};`;
+          if (safeModalSrc) {
+            thumbImg.src = safeModalSrc;
           }
           activeInfo.appendChild(thumbImg);
 

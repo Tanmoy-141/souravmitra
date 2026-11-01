@@ -235,8 +235,7 @@ export async function POST(req: NextRequest) {
         savedAssets.push(asset);
       }
     } catch (err) {
-      const sanitizedLogName = (file.name || "").replace(/[\r\n\t]/g, "_").slice(0, 100);
-      console.error("[media] upload failed for file:", sanitizedLogName, err);
+      console.error("[media] upload failed:", err);
       return NextResponse.json(
         { success: false, message: "Upload failed" },
         { status: 500 },

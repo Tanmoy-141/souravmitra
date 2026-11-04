@@ -24,12 +24,12 @@
     "drizzle-orm": "^0.45.4",
     "grapesjs": "^0.23.8",
     "isomorphic-dompurify": "4.6.0",
-    "jose": "^6.2.13",
+    "jose": "^6.2.14",
     "next": "^16.4.3",
     "pg": "^8.23.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "resend": "^6.34.1",
+    "resend": "^6.37.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {

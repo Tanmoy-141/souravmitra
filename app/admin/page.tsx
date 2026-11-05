@@ -18,6 +18,20 @@ type CmsPage = CustomPage & {
   cssCache?: string;
 };
 
+function sanitizeSlugInput(value: string): string {
+  const trimmed = value.trimStart();
+
+  if (trimmed === "/" || trimmed === "") {
+    return trimmed;
+  }
+
+  const withoutScheme = trimmed.replace(/^[a-zA-Z][a-zA-Z0-9+.-]*:/, "");
+  const normalized = withoutScheme.replace(/^\/+/, "");
+  const safe = normalized.replace(/[^a-zA-Z0-9\-._~/]/g, "");
+
+  return safe;
+}
+
 type CmsApiResponse = {
   authenticated?: boolean;
   pages?: unknown;
@@ -1189,9 +1203,10 @@ export default function AdminDashboard() {
           {activeTab === "pages" && activePage && (
             <a
               href={
-                activePage.slug === "/" || activePage.slug === ""
+                sanitizeSlugInput(activePage.slug) === "/" ||
+                sanitizeSlugInput(activePage.slug) === ""
                   ? "/"
-                  : `/${activePage.slug}`
+                  : `/${sanitizeSlugInput(activePage.slug)}`
               }
               target="_blank"
               rel="noopener noreferrer"
@@ -1332,7 +1347,7 @@ export default function AdminDashboard() {
 
                       const updated = {
                         ...activePage,
-                        slug: e.target.value.trimStart(),
+                        slug: sanitizeSlugInput(e.target.value),
                       };
 
                       setPages((currentPages) =>

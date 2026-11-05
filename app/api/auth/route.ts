@@ -97,7 +97,7 @@ async function handleLogin(
   }
 
   // Verify hashed password using constant-time PBKDF2 check
-  const isValid = verifyPassword(
+  const isValid = await verifyPassword(
     password,
     user.passwordHash,
     user.passwordSalt,
@@ -286,7 +286,7 @@ async function handleConfirmPasswordReset(
     );
   }
 
-  const { hash, salt } = hashPassword(newPassword);
+  const { hash, salt } = await hashPassword(newPassword);
 
   await db
     .update(users)

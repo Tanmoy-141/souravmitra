@@ -49,7 +49,7 @@ async function main() {
     );
   }
 
-  const { hash, salt } = hashPassword(password);
+  const { hash, salt } = await hashPassword(password);
 
   const [created] = await db
     .insert(users)

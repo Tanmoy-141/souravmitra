@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { promisify } from "util";
 import { eq, or, sql, and, isNull, gt } from "drizzle-orm";
 import { db } from "@/db";
 import { users, verificationTokens, type User } from "@/db/schema";
@@ -199,19 +200,22 @@ export function timingSafeEqualString(a: string, b: string): boolean {
   return crypto.timingSafeEqual(bufA, bufB);
 }
 
+const pbkdf2Async = promisify(crypto.pbkdf2);
+
 /**
  * Hashes a plaintext password using PBKDF2-HMAC-SHA512 with a cryptographically secure salt.
+ * Runs asynchronously via worker pool to prevent blocking the Node.js event loop.
  */
-export function hashPassword(
+export async function hashPassword(
   password: string,
   existingSalt?: string,
-): { hash: string; salt: string } {
+): Promise<{ hash: string; salt: string }> {
   const salt = existingSalt || crypto.randomBytes(16).toString("hex");
   const iterations = 600_000;
   const keylen = 64;
   const digest = "sha512";
 
-  const derivedKey = crypto.pbkdf2Sync(
+  const derivedKey = await pbkdf2Async(
     password,
     salt,
     iterations,
@@ -226,12 +230,12 @@ export function hashPassword(
 /**
  * Verifies a plaintext password against a stored PBKDF2 hash using constant-time comparison.
  */
-export function verifyPassword(
+export async function verifyPassword(
   attempt: string,
   storedHash: string,
   salt: string,
-): boolean {
-  const { hash: computedHash } = hashPassword(attempt, salt);
+): Promise<boolean> {
+  const { hash: computedHash } = await hashPassword(attempt, salt);
   return timingSafeEqualString(computedHash, storedHash);
 }
 
@@ -280,7 +284,7 @@ export async function bootstrapAdminUserIfEmpty(): Promise<User | null> {
       return null;
     }
 
-    const { hash, salt } = hashPassword(adminPassword);
+    const { hash, salt } = await hashPassword(adminPassword);
 
     const [newUser] = await db
       .insert(users)

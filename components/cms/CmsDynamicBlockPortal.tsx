@@ -340,8 +340,8 @@ function extractHeadingInfo(
   const paddingRight = styles["padding-right"] || parentStyles["padding-right"] || undefined;
 
   const width = styles["width"] || parentStyles["width"] || undefined;
-  const height = styles["height"] || parentStyles["height"] || undefined;
-  const maxWidth = styles["max-width"] || parentStyles["max-width"] || (width ? "none" : undefined);
+  const height = undefined;
+  const maxWidth = styles["max-width"] || parentStyles["max-width"] || (width ? "100%" : undefined);
 
   const props = {
     id: headingEl.id || undefined,
@@ -390,9 +390,10 @@ function extractHeadingInfo(
       ...(marginBottom ? { marginBottom } : {}),
       ...(paddingLeft ? { paddingLeft } : {}),
       ...(paddingRight ? { paddingRight } : {}),
-      ...(width ? { width } : {}),
-      ...(height ? { height } : {}),
-      ...(maxWidth ? { maxWidth } : {}),
+      ...(width ? { width, maxWidth: "100%" } : {}),
+      height: "auto",
+      maxHeight: "none",
+      maxWidth: "100%",
     },
   };
 
@@ -532,15 +533,11 @@ function extractBlockContainerStyles(
   if (!target) return {};
   const styles = extractElementStyles(target, doc);
   const width = styles["width"] || undefined;
-  const height = styles["height"] || undefined;
-  const maxWidth = styles["max-width"] || (width ? "none" : undefined);
   const minHeight = styles["min-height"] || undefined;
   const fontFamily = styles["font-family"] || undefined;
 
   return {
-    ...(width ? { width } : {}),
-    ...(height ? { height } : {}),
-    ...(maxWidth ? { maxWidth } : {}),
+    ...(width ? { width, maxWidth: "100%" } : {}),
     ...(minHeight ? { minHeight } : {}),
     ...(fontFamily ? { fontFamily } : {}),
   };
@@ -692,6 +689,27 @@ export function CmsDynamicBlockPortal({
           sourceEl,
           parsedDoc,
         );
+
+        const containerWidth =
+          element.getAttribute("data-container-width") ||
+          sourceEl?.getAttribute("data-container-width") ||
+          undefined;
+
+        const cardHeight =
+          element.getAttribute("data-card-height") ||
+          sourceEl?.getAttribute("data-card-height") ||
+          undefined;
+
+        const cardAspect =
+          element.getAttribute("data-card-aspect") ||
+          sourceEl?.getAttribute("data-card-aspect") ||
+          undefined;
+
+        const layoutMode =
+          element.getAttribute("data-layout-mode") ||
+          sourceEl?.getAttribute("data-layout-mode") ||
+          undefined;
+
         const carouselData = {
           text,
           hProps,
@@ -699,6 +717,10 @@ export function CmsDynamicBlockPortal({
           subtitles,
           customCards,
           containerStyles,
+          containerWidth,
+          cardHeight,
+          cardAspect,
+          layoutMode,
         };
 
         element.replaceChildren();
@@ -711,6 +733,10 @@ export function CmsDynamicBlockPortal({
               headingProps={carouselData.hProps}
               cardStyles={carouselData.cardStyles}
               containerStyles={carouselData.containerStyles}
+              containerWidth={carouselData.containerWidth}
+              cardHeight={carouselData.cardHeight}
+              cardAspect={carouselData.cardAspect}
+              layoutMode={carouselData.layoutMode}
               customSubtitles={carouselData.subtitles}
               customCategories={
                 carouselData.customCards.length > 0

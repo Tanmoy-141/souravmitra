@@ -173,6 +173,52 @@ function registerCmsDynamicBlockTypes(editorInstance: Editor) {
             text: "🖼️ Customize Cards & Carousel",
             command: "open-project-carousel-editor",
           },
+          {
+            type: "select",
+            name: "data-container-width",
+            label: "Container Width",
+            options: [
+              { id: "standard", label: "Standard (1280px / 7xl)" },
+              { id: "full", label: "Full Width (100%)" },
+              { id: "compact", label: "Compact (1024px / 5xl)" },
+            ],
+            default: "standard",
+          },
+          {
+            type: "select",
+            name: "data-card-height",
+            label: "Card Height",
+            options: [
+              { id: "standard", label: "Standard (420px)" },
+              { id: "compact", label: "Compact (340px)" },
+              { id: "tall", label: "Tall (520px)" },
+              { id: "auto", label: "Fluid / Natural Height" },
+            ],
+            default: "standard",
+          },
+          {
+            type: "select",
+            name: "data-card-aspect",
+            label: "Card Aspect Ratio",
+            options: [
+              { id: "3/4", label: "Portrait (3:4)" },
+              { id: "16/9", label: "Landscape (16:9)" },
+              { id: "1/1", label: "Square (1:1)" },
+              { id: "4/5", label: "Tall Portrait (4:5)" },
+              { id: "auto", label: "Fluid (Auto)" },
+            ],
+            default: "3/4",
+          },
+          {
+            type: "select",
+            name: "data-layout-mode",
+            label: "Display Mode",
+            options: [
+              { id: "grid", label: "Responsive Grid Showcase" },
+              { id: "slider", label: "Horizontal Animated Slider" },
+            ],
+            default: "grid",
+          },
         ],
       },
     },
@@ -7346,7 +7392,10 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                     <input type="text" class="cms-card-link-input" data-index="${i}" value="${c.link.replace(/"/g, '&quot;')}" placeholder="/book-covers" style="width: 100%; padding: 6px 10px; background: #0a0a0a; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
                   </div>
                   <div>
-                    <label style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #888; margin-bottom: 4px;">Custom Artwork URL</label>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                      <label style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #888; margin: 0;">Custom Artwork URL</label>
+                      <button type="button" class="cms-choose-card-img-btn" data-index="${i}" style="background: #222; border: 1px solid #C5A059; color: #C5A059; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 2px; cursor: pointer;">🖼️ Choose Media</button>
+                    </div>
                     <input type="text" class="cms-card-image-input" data-index="${i}" value="${c.image.replace(/"/g, '&quot;')}" placeholder="https://..." style="width: 100%; padding: 6px 10px; background: #0a0a0a; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
                   </div>
                 </div>
@@ -7379,6 +7428,20 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                 currentCards[idx].image = (e.target as HTMLInputElement).value;
               });
             });
+            listContainer.querySelectorAll(".cms-choose-card-img-btn").forEach((btn) => {
+              btn.addEventListener("click", (e) => {
+                const idx = parseInt((e.target as HTMLElement).getAttribute("data-index") || "0", 10);
+                editor.AssetManager.open({
+                  select(asset: { get: (prop: string) => string }) {
+                    const src = asset.get("src");
+                    if (src) {
+                      currentCards[idx].image = src;
+                      renderCardsList();
+                    }
+                  },
+                });
+              });
+            });
             listContainer.querySelectorAll(".cms-remove-card-btn").forEach((btn) => {
               btn.addEventListener("click", (e) => {
                 const idx = parseInt((e.target as HTMLElement).getAttribute("data-index") || "0", 10);
@@ -7387,6 +7450,12 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               });
             });
           };
+
+          const existingAttrs = (target.getAttributes?.() || {}) as Record<string, string>;
+          const currentWidth = existingAttrs["data-container-width"] || "standard";
+          const currentHeight = existingAttrs["data-card-height"] || "standard";
+          const currentAspect = existingAttrs["data-card-aspect"] || "3/4";
+          const currentLayout = existingAttrs["data-layout-mode"] || "grid";
 
           container.innerHTML = `
             <div>
@@ -7398,6 +7467,55 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                 type="text"
                 style="width: 100%; padding: 8px 12px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 14px; box-sizing: border-box;"
               />
+            </div>
+
+            <!-- Responsive Dimensions & Layout Controls -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: #121212; border: 1px solid #262626; border-radius: 6px; padding: 12px;">
+              <div>
+                <label style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; font-weight: 700; margin-bottom: 4px;">
+                  Container Width
+                </label>
+                <select id="cms-project-carousel-modal-width" style="width: 100%; padding: 6px 10px; background: #0a0a0a; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 12px;">
+                  <option value="standard" ${currentWidth === "standard" ? "selected" : ""}>Standard (1280px / 7xl)</option>
+                  <option value="full" ${currentWidth === "full" ? "selected" : ""}>Full Width (100% Fluid)</option>
+                  <option value="compact" ${currentWidth === "compact" ? "selected" : ""}>Compact (1024px / 5xl)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; font-weight: 700; margin-bottom: 4px;">
+                  Display Mode
+                </label>
+                <select id="cms-project-carousel-modal-layout" style="width: 100%; padding: 6px 10px; background: #0a0a0a; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 12px;">
+                  <option value="grid" ${currentLayout === "grid" ? "selected" : ""}>Responsive Grid Showcase</option>
+                  <option value="slider" ${currentLayout === "slider" ? "selected" : ""}>Horizontal Animated Slider</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; font-weight: 700; margin-bottom: 4px;">
+                  Card Height
+                </label>
+                <select id="cms-project-carousel-modal-card-height" style="width: 100%; padding: 6px 10px; background: #0a0a0a; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 12px;">
+                  <option value="standard" ${currentHeight === "standard" ? "selected" : ""}>Standard (420px)</option>
+                  <option value="compact" ${currentHeight === "compact" ? "selected" : ""}>Compact (340px)</option>
+                  <option value="tall" ${currentHeight === "tall" ? "selected" : ""}>Tall (520px)</option>
+                  <option value="auto" ${currentHeight === "auto" ? "selected" : ""}>Fluid / Auto Height</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; font-weight: 700; margin-bottom: 4px;">
+                  Card Aspect Ratio
+                </label>
+                <select id="cms-project-carousel-modal-card-aspect" style="width: 100%; padding: 6px 10px; background: #0a0a0a; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 12px;">
+                  <option value="3/4" ${currentAspect === "3/4" ? "selected" : ""}>Portrait (3:4)</option>
+                  <option value="16/9" ${currentAspect === "16/9" ? "selected" : ""}>Landscape (16:9)</option>
+                  <option value="1/1" ${currentAspect === "1/1" ? "selected" : ""}>Square (1:1)</option>
+                  <option value="4/5" ${currentAspect === "4/5" ? "selected" : ""}>Tall Portrait (4:5)</option>
+                  <option value="auto" ${currentAspect === "auto" ? "selected" : ""}>Fluid (Auto)</option>
+                </select>
+              </div>
             </div>
 
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
@@ -7416,7 +7534,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             <div id="cms-carousel-cards-list" style="display: flex; flex-direction: column;"></div>
 
             <div style="background: #141414; border: 1px solid #242424; border-radius: 4px; padding: 10px; font-size: 11px; color: #888; line-height: 1.5;">
-              <span style="color: #C5A059; font-weight: bold;">Sync Notice:</span> The published site will render <strong>exactly the cards configured above</strong> in responsive columns (e.g. 3 cards = 3 columns, 4 cards = 4 columns).
+              <span style="color: #C5A059; font-weight: bold;">Sync Notice:</span> The published site renders <strong>exactly the cards and dimensions configured above</strong> with responsive fluid columns and smooth animations.
             </div>
           `;
 
@@ -7483,7 +7601,58 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             const headingStyleAttr = inlineHeadingStyle ? ` style="${inlineHeadingStyle}"` : "";
             const headingClass = `text-2xl mt-1 ${preservedFont ? "" : "font-serif"} ${preservedColor ? "" : "text-white"}`;
 
-            const colCount = Math.min(Math.max(currentCards.length, 1), 4);
+            const widthSelect = container.querySelector(
+              "#cms-project-carousel-modal-width",
+            ) as HTMLSelectElement;
+            const heightSelect = container.querySelector(
+              "#cms-project-carousel-modal-card-height",
+            ) as HTMLSelectElement;
+            const aspectSelect = container.querySelector(
+              "#cms-project-carousel-modal-card-aspect",
+            ) as HTMLSelectElement;
+            const layoutSelect = container.querySelector(
+              "#cms-project-carousel-modal-layout",
+            ) as HTMLSelectElement;
+
+            const selWidth = widthSelect?.value || "standard";
+            const selHeight = heightSelect?.value || "standard";
+            const selAspect = aspectSelect?.value || "3/4";
+            const selLayout = layoutSelect?.value || "grid";
+
+            target.addAttributes({
+              "data-container-width": selWidth,
+              "data-card-height": selHeight,
+              "data-card-aspect": selAspect,
+              "data-layout-mode": selLayout,
+            });
+
+            // Strip any stale fixed pixel width/height from manual dragging
+            target.removeStyle("width");
+            target.removeStyle("height");
+            target.removeStyle("max-width");
+            target.removeStyle("max-height");
+
+            const colCount = Math.min(Math.max(currentCards.length, 1), 6);
+            const aspectStyle =
+              selAspect === "16/9"
+                ? "aspect-ratio: 16/9;"
+                : selAspect === "1/1"
+                  ? "aspect-ratio: 1/1;"
+                  : selAspect === "4/5"
+                    ? "aspect-ratio: 4/5;"
+                    : selAspect === "auto"
+                      ? "aspect-ratio: auto;"
+                      : "aspect-ratio: 3/4;";
+
+            const minHStyle =
+              selHeight === "compact"
+                ? "min-height: 240px;"
+                : selHeight === "tall"
+                  ? "min-height: 380px;"
+                  : selHeight === "auto"
+                    ? "min-height: 0;"
+                    : "min-height: 300px;";
+
             const cardsHtml = currentCards.map((c) => {
               const bgImgStyle = c.image ? `linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.3)), url('${escapeStr(c.image)}')` : `linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.3))`;
               return `
@@ -7492,7 +7661,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   data-card-title="${escapeStr(c.title)}"
                   data-card-link="${escapeStr(c.link)}"
                   data-card-image="${escapeStr(c.image)}"
-                  style="aspect-ratio: 3/4; background: #141414; border: 1px solid #333; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; background-image: ${bgImgStyle}; background-size: cover; background-position: center;"
+                  style="${aspectStyle} ${minHStyle} background: #141414; border: 1px solid #333; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; background-image: ${bgImgStyle}; background-size: cover; background-position: center;"
                 >
                   <span style="font-size: 9px; color: #C5A059; font-weight: bold; text-transform: uppercase; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 2px; align-self: flex-start; border: 1px solid rgba(197,160,89,0.4);">${escapeStr(c.tag)}</span>
                   <div>
@@ -7515,7 +7684,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   Double-click to Customize Cards
                 </div>
               </div>
-              <div style="display: grid; grid-template-columns: repeat(${colCount}, 1fr); gap: 12px;">
+              <div style="display: grid; grid-template-columns: repeat(${colCount}, 1fr); gap: 12px; width: 100%;">
                 ${cardsHtml}
               </div>
             `;
@@ -7919,6 +8088,10 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         content: `
         <div
           data-cms-block="project-carousel"
+          data-container-width="standard"
+          data-card-height="standard"
+          data-card-aspect="3/4"
+          data-layout-mode="grid"
           class="my-8 p-8 bg-[#0a0a0a] border border-dashed border-[#C5A059] rounded-xl text-white"
         >
           <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #222; padding-bottom: 12px; margin-bottom: 16px;">

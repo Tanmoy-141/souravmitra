@@ -12,6 +12,7 @@ export interface PortfolioCategoryItem {
   href: string;
   projects: Project[];
   activeProjectIndex: number;
+  coverImage?: string;
 }
 
 export interface CustomCategoryItem {
@@ -19,6 +20,8 @@ export interface CustomCategoryItem {
   title: string;
   subtitle?: string;
   slug?: string;
+  coverImage?: string;
+  href?: string;
 }
 
 interface PortfolioSpotlightCarouselProps {
@@ -45,7 +48,7 @@ const RELIABLE_CATEGORY_FALLBACKS: Record<string, string> = {
   illustration:
     "https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=800&auto=format&fit=crop",
   "fine-art":
-    "https://nyj2ucc9ur7y9rzh.public.blob.vercel-storage.com/uploads/2f022a42_temptation-1790753130290-QOo7ARHtRNTMiuo2KLijGxzhG6hqfQ.jpeg",
+    "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?q=80&w=800&auto=format&fit=crop",
   "dark-fantasy":
     "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800&auto=format&fit=crop",
 };
@@ -140,7 +143,7 @@ const DEFAULT_PORTFOLIO_ITEMS: PortfolioCategoryItem[] = [
         publisher: "Private Collector Exhibition",
         year: "2024",
         coverImage:
-          "https://nyj2ucc9ur7y9rzh.public.blob.vercel-storage.com/uploads/2f022a42_temptation-1790753130290-QOo7ARHtRNTMiuo2KLijGxzhG6hqfQ.jpeg",
+          "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?q=80&w=800&auto=format&fit=crop",
         images: [],
         details: null,
         tags: ["Fine Art", "Original"],
@@ -200,7 +203,30 @@ export default function PortfolioSpotlightCarousel({
   containerStyles,
 }: PortfolioSpotlightCarouselProps) {
   const [categories, setCategories] = useState<PortfolioCategoryItem[]>(
-    DEFAULT_PORTFOLIO_ITEMS,
+    () => {
+      if (customCategories && customCategories.length > 0) {
+        return customCategories.map((cc) => {
+          const cleanSlug = (
+            cc.slug ||
+            cc.id ||
+            cc.title.toLowerCase().replace(/\s+/g, "-")
+          ).replace(/^\/+|\/+$/g, "");
+          const fallbackDefault = DEFAULT_PORTFOLIO_ITEMS.find(
+            (d) => d.id === (cc.id || cleanSlug),
+          );
+          return {
+            id: cc.id || cleanSlug,
+            title: cc.title,
+            slug: cleanSlug,
+            href: cc.href || `/${cleanSlug}`,
+            projects: fallbackDefault ? fallbackDefault.projects : [],
+            activeProjectIndex: 0,
+            coverImage: cc.coverImage,
+          };
+        });
+      }
+      return DEFAULT_PORTFOLIO_ITEMS;
+    },
   );
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
@@ -230,9 +256,11 @@ export default function PortfolioSpotlightCarousel({
           title: string;
           slug: string;
           defaultSub?: string;
+          coverImage?: string;
+          href?: string;
         }> =
           customCategories && customCategories.length > 0
-            ? customCategories.slice(0, 4).map((cc) => {
+            ? customCategories.map((cc) => {
                 const cleanSlug = (
                   cc.slug ||
                   cc.id ||
@@ -243,6 +271,8 @@ export default function PortfolioSpotlightCarousel({
                   title: cc.title,
                   slug: cleanSlug,
                   defaultSub: cc.subtitle || "Original Portfolio",
+                  coverImage: cc.coverImage,
+                  href: cc.href || `/${cleanSlug}`,
                 };
               })
             : [
@@ -321,9 +351,10 @@ export default function PortfolioSpotlightCarousel({
               id: portfolio.id,
               title: portfolio.title,
               slug: portfolio.slug,
-              href: `/${portfolio.slug}`,
+              href: portfolio.href || `/${portfolio.slug}`,
               projects: finalProjects,
               activeProjectIndex: 0,
+              coverImage: portfolio.coverImage,
             };
           },
         );
@@ -583,12 +614,16 @@ export default function PortfolioSpotlightCarousel({
           <div
             className={`grid gap-4 sm:gap-5 items-stretch ${
               categories.length === 1
-                ? "grid-cols-1"
+                ? "grid-cols-1 max-w-md mx-auto"
                 : categories.length === 2
-                  ? "grid-cols-1 md:grid-cols-2"
+                  ? "grid-cols-1 md:grid-cols-2 max-w-3xl mx-auto"
                   : categories.length === 3
-                    ? "grid-cols-1 md:grid-cols-3"
-                    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+                    ? "grid-cols-1 md:grid-cols-3 max-w-5xl mx-auto"
+                    : categories.length === 5
+                      ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-5"
+                      : categories.length >= 6
+                        ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-6"
+                        : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
             }`}>
             {categories.map((cat, idx) => {
               const activeProj =
@@ -603,6 +638,7 @@ export default function PortfolioSpotlightCarousel({
                 "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=800&auto=format&fit=crop";
 
               const rawBgImage =
+                cat.coverImage ||
                 activeProj?.coverImage ||
                 activeProj?.images?.[0] ||
                 fallbackUrl;

@@ -70,6 +70,8 @@ interface ExtractedCardInfo {
     title: string;
     subtitle?: string;
     slug?: string;
+    coverImage?: string;
+    href?: string;
   }>;
 }
 
@@ -427,6 +429,8 @@ function extractCardStyles(
     title: string;
     subtitle?: string;
     slug?: string;
+    coverImage?: string;
+    href?: string;
   }> = [];
 
   const root = element.children.length > 0 ? element : (sourceEl || element);
@@ -498,15 +502,22 @@ function extractCardStyles(
       styles[`card-${idx}`] = cardStyle;
     }
 
-    const standardTitles = ["book covers", "illustration", "fine art", "dark fantasy"];
-    if (title && !standardTitles.includes(lower)) {
-      customCards.push({
-        id: key,
-        title,
-        subtitle: subtitle || undefined,
-        slug: slug || "fine-art",
-      });
-    }
+    const cardTag = cardEl.getAttribute("data-card-tag") || title;
+    const cardTitle = cardEl.getAttribute("data-card-title") || subtitle || title;
+    const customImage = cardEl.getAttribute("data-card-image") || undefined;
+    const customLink =
+      cardEl.getAttribute("data-card-link") ||
+      cardEl.querySelector("a")?.getAttribute("href") ||
+      undefined;
+
+    customCards.push({
+      id: cardEl.id || key,
+      title: cardTag || title || `Category ${idx + 1}`,
+      subtitle: cardTitle || subtitle || undefined,
+      slug: slug || "fine-art",
+      coverImage: customImage,
+      href: customLink || `/${slug || "fine-art"}`,
+    });
   });
 
   return { styles, subtitles, customCards };
@@ -1192,52 +1203,35 @@ export function CmsDynamicBlockPortal({
       }
     });
 
-    // Automatic upgrade for existing homepage Featured Artwork Spotlight (#iq1iv)
+    // Safety check for legacy #iq1iv element: only upgrade if no explicit project-carousel exists
+    const hasCarouselBlock = containerRef.current.querySelector(
+      '[data-cms-block="project-carousel"], [data-cms-block="portfolio-spotlight"]',
+    );
     const spotlightEl =
       containerRef.current.querySelector<HTMLElement>("#iq1iv");
-    if (spotlightEl && !spotlightEl.closest("[data-cms-block]")) {
-      const prevSection = spotlightEl.previousElementSibling as HTMLElement | null;
-      const isExplorePortfolios =
-        prevSection &&
-        (prevSection.textContent?.includes("Explore Portfolios") ||
-          Boolean(
-            prevSection.querySelector(
-              'a[href="/book-covers"], a[href="/illustration"], a[href*="portfolio"]',
-            ),
-          ));
-
-      if (isExplorePortfolios && prevSection) {
-        const { text: hText, props: hProps } = extractHeadingInfo(prevSection, undefined, parsedDoc);
-        spotlightEl.style.display = "none";
-        prevSection.replaceChildren();
-        prevSection.style.maxWidth = "100%";
-        prevSection.style.padding = "0";
-        newTargets.push({
-          element: prevSection,
-          key: "portal-auto-portfolio-spotlight",
-          node: (
-            <PortfolioSpotlightCarousel
-              heading={hText}
-              headingProps={hProps}
-            />
-          ),
-        });
-      } else {
-        const { text: hText, props: hProps } = extractHeadingInfo(spotlightEl, undefined, parsedDoc);
-        spotlightEl.replaceChildren();
-        spotlightEl.style.maxWidth = "100%";
-        spotlightEl.style.padding = "0";
-        newTargets.push({
-          element: spotlightEl,
-          key: "portal-auto-portfolio-spotlight",
-          node: (
-            <PortfolioSpotlightCarousel
-              heading={hText}
-              headingProps={hProps}
-            />
-          ),
-        });
-      }
+    if (spotlightEl && !hasCarouselBlock && !spotlightEl.closest("[data-cms-block]")) {
+      const { text: hText, props: hProps } = extractHeadingInfo(spotlightEl, undefined, parsedDoc);
+      const { styles: cardStyles, subtitles, customCards } = extractCardStyles(
+        spotlightEl,
+        undefined,
+        parsedDoc,
+      );
+      spotlightEl.replaceChildren();
+      spotlightEl.style.maxWidth = "100%";
+      spotlightEl.style.padding = "0";
+      newTargets.push({
+        element: spotlightEl,
+        key: "portal-auto-portfolio-spotlight",
+        node: (
+          <PortfolioSpotlightCarousel
+            heading={hText}
+            headingProps={hProps}
+            cardStyles={cardStyles}
+            customSubtitles={subtitles}
+            customCategories={customCards.length > 0 ? customCards : undefined}
+          />
+        ),
+      });
     }
 
     setTargets(newTargets);

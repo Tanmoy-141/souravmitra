@@ -1,4 +1,4 @@
-// Until RESEND_API_KEY is set, this logs to the server console instead of
+// Until RESEND_API_KEY is set, this logs a warning instead of
 // failing, so password reset / username recovery are fully testable
 // locally before Resend is configured.
 
@@ -10,12 +10,19 @@ interface SendEmailParams {
 
 export async function sendEmail({ to, subject, text }: SendEmailParams) {
   const apiKey = process.env.RESEND_API_KEY;
+  const isProduction = process.env.NODE_ENV === "production";
 
   if (!apiKey) {
-    console.log("[email] RESEND_API_KEY not set — logging instead of sending:");
-    console.log(`  To: ${to}`);
-    console.log(`  Subject: ${subject}`);
-    console.log(`  Body: ${text}`);
+    if (isProduction) {
+      console.warn(
+        `[email] RESEND_API_KEY not configured in production. Email suppressed for security. To: ${to}, Subject: ${subject}`,
+      );
+    } else {
+      console.log("[email] RESEND_API_KEY not set — logging instead of sending:");
+      console.log(`  To: ${to}`);
+      console.log(`  Subject: ${subject}`);
+      console.log(`  Body: ${text}`);
+    }
     return;
   }
 
@@ -25,15 +32,21 @@ export async function sendEmail({ to, subject, text }: SendEmailParams) {
   const fromAddress = process.env.RESEND_FROM_EMAIL;
 
   if (!fromAddress) {
-    console.error(
-      '[email] RESEND_API_KEY is set but RESEND_FROM_EMAIL is missing. ' +
-        'Set RESEND_FROM_EMAIL to an address on a domain verified in your ' +
-        'Resend dashboard (e.g. "Sourav Mitra Portfolio <hello@yourdomain.com>"). ' +
-        "Logging instead of sending:",
-    );
-    console.log(`  To: ${to}`);
-    console.log(`  Subject: ${subject}`);
-    console.log(`  Body: ${text}`);
+    if (isProduction) {
+      console.warn(
+        `[email] RESEND_FROM_EMAIL is missing in production. Email suppressed for security. To: ${to}, Subject: ${subject}`,
+      );
+    } else {
+      console.error(
+        '[email] RESEND_API_KEY is set but RESEND_FROM_EMAIL is missing. ' +
+          'Set RESEND_FROM_EMAIL to an address on a domain verified in your ' +
+          'Resend dashboard (e.g. "Sourav Mitra Portfolio <hello@yourdomain.com>"). ' +
+          "Logging instead of sending:",
+      );
+      console.log(`  To: ${to}`);
+      console.log(`  Subject: ${subject}`);
+      console.log(`  Body: ${text}`);
+    }
     return;
   }
 

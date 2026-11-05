@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import { rateLimits } from "@/db/schema";
 import { NextRequest } from "next/server";
@@ -27,7 +27,7 @@ export interface RateLimitResult {
   reset: number;
 }
 
-// In-memory fallback / cache for fast local evaluation
+// In-memory fallback / cache for fast local evaluation when DB is unavailable
 const memoryMap = new Map<string, { count: number; resetTime: number }>();
 
 export async function checkRateLimit(
@@ -39,67 +39,65 @@ export async function checkRateLimit(
   const resetDate = new Date(resetTimeEpoch);
 
   try {
-    const existing = await db
-      .select()
-      .from(rateLimits)
-      .where(eq(rateLimits.key, identifier))
-      .limit(1);
-
-    if (existing.length === 0 || now > existing[0].resetAt.getTime()) {
-      // Initialize or reset counter
-      await db
-        .insert(rateLimits)
-        .values({
-          key: identifier,
-          count: 1,
-          resetAt: resetDate,
-          updatedAt: new Date(),
-        })
-        .onConflictDoUpdate({
-          target: rateLimits.key,
-          set: {
-            count: 1,
-            resetAt: resetDate,
-            updatedAt: new Date(),
-          },
-        });
-
-      return {
-        success: true,
-        limit,
-        remaining: limit - 1,
-        reset: Math.ceil(resetTimeEpoch / 1000),
-      };
-    }
-
-    const current = existing[0];
-    if (current.count >= limit) {
-      return {
-        success: false,
-        limit,
-        remaining: 0,
-        reset: Math.ceil(current.resetAt.getTime() / 1000),
-      };
-    }
-
-    const updated = await db
-      .update(rateLimits)
-      .set({
-        count: sql`${rateLimits.count} + 1`,
+    // Atomic PostgreSQL upsert to prevent TOCTOU race conditions:
+    // If the key is new, inserts count = 1.
+    // If the key exists, checks if the window expired (resetAt <= NOW()):
+    //   - If expired, resets count = 1 and assigns new resetAt.
+    //   - If active window, increments count atomically and preserves existing resetAt.
+    const [record] = await db
+      .insert(rateLimits)
+      .values({
+        key: identifier,
+        count: 1,
+        resetAt: resetDate,
         updatedAt: new Date(),
       })
-      .where(eq(rateLimits.key, identifier))
-      .returning({ count: rateLimits.count });
+      .onConflictDoUpdate({
+        target: rateLimits.key,
+        set: {
+          count: sql`CASE
+            WHEN ${rateLimits.resetAt} <= NOW() THEN 1
+            ELSE ${rateLimits.count} + 1
+          END`,
+          resetAt: sql`CASE
+            WHEN ${rateLimits.resetAt} <= NOW() THEN ${resetDate}
+            ELSE ${rateLimits.resetAt}
+          END`,
+          updatedAt: new Date(),
+        },
+      })
+      .returning({
+        count: rateLimits.count,
+        resetAt: rateLimits.resetAt,
+      });
 
-    const newCount = updated[0]?.count ?? current.count + 1;
+    const currentCount = record?.count ?? 1;
+    const currentResetAt = record?.resetAt
+      ? new Date(record.resetAt).getTime()
+      : resetTimeEpoch;
+    const isAllowed = currentCount <= limit;
 
     return {
-      success: true,
+      success: isAllowed,
       limit,
-      remaining: Math.max(0, limit - newCount),
-      reset: Math.ceil(current.resetAt.getTime() / 1000),
+      remaining: Math.max(0, limit - currentCount),
+      reset: Math.ceil(currentResetAt / 1000),
     };
-  } catch {
+  } catch (err) {
+    console.warn(
+      "[RateLimit] Database rate limit query failed; using in-memory fallback:",
+      err,
+    );
+
+    // Prune stale entries if memoryMap is growing to prevent memory leaks
+    if (memoryMap.size > 2000) {
+      for (const [k, v] of memoryMap.entries()) {
+        if (now > v.resetTime) {
+          memoryMap.delete(k);
+        }
+      }
+    }
+
     // Graceful fallback to memory tracking if DB is temporarily unreachable
     const record = memoryMap.get(identifier);
     if (!record || now > record.resetTime) {
@@ -125,7 +123,7 @@ export async function checkRateLimit(
     return {
       success: true,
       limit,
-      remaining: limit - record.count,
+      remaining: Math.max(0, limit - record.count),
       reset: Math.ceil(record.resetTime / 1000),
     };
   }

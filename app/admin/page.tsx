@@ -18,6 +18,20 @@ type CmsPage = CustomPage & {
   cssCache?: string;
 };
 
+function sanitizeSlugInput(value: string): string {
+  const trimmed = value.trimStart();
+
+  if (trimmed === "/" || trimmed === "") {
+    return trimmed;
+  }
+
+  const withoutScheme = trimmed.replace(/^[a-zA-Z][a-zA-Z0-9+.-]*:/, "");
+  const normalized = withoutScheme.replace(/^\/+/, "");
+  const safe = normalized.replace(/[^a-zA-Z0-9\-._~/]/g, "");
+
+  return safe;
+}
+
 type CmsApiResponse = {
   authenticated?: boolean;
   pages?: unknown;
@@ -188,7 +202,8 @@ function getPublishSlug(page: CustomPage): string {
 }
 
 function getPageLiveUrl(page: CustomPage): string {
-  const clean = (typeof page.slug === "string" ? page.slug.trim() : "").replace(/^\/+|\/+$/g, "");
+  const sanitized = sanitizeSlugInput(typeof page.slug === "string" ? page.slug : "");
+  const clean = sanitized.replace(/^\/+|\/+$/g, "");
   if (!clean || clean === "/") return "/";
   if (["about", "contact", "book-covers", "illustration", "fine-art"].includes(clean)) {
     return `/${clean}`;
@@ -1344,7 +1359,7 @@ export default function AdminDashboard() {
 
                       const updated = {
                         ...activePage,
-                        slug: e.target.value.trimStart(),
+                        slug: sanitizeSlugInput(e.target.value),
                       };
 
                       setPages((currentPages) =>

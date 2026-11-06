@@ -161,40 +161,6 @@ const DEFAULT_PORTFOLIO_ITEMS: PortfolioCategoryItem[] = [
       },
     ],
   },
-  {
-    id: "dark-fantasy",
-    title: "Dark Fantasy",
-    slug: "fine-art",
-    href: "/fine-art",
-    activeProjectIndex: 0,
-    projects: [
-      {
-        id: "dark-fantasy-1",
-        slug: "dark-fantasy-1",
-        title: "Myth & Legend",
-        category: "fine-art",
-        status: "published",
-        description:
-          "Mythological and dark fantasy themed original artwork exploring ancient legends.",
-        medium: "Oil & Mixed Media",
-        dimensions: "28 x 40 inches",
-        publisher: "Original Collection",
-        year: "2024",
-        coverImage:
-          "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800&auto=format&fit=crop",
-        images: [],
-        details: null,
-        tags: ["Dark Fantasy", "Myth"],
-        isFeatured: true,
-        likes: 0,
-        views: 0,
-        sortOrder: 0,
-        createdBy: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ],
-  },
 ];
 
 export default function PortfolioSpotlightCarousel({
@@ -320,12 +286,6 @@ export default function PortfolioSpotlightCarousel({
                   title: "Fine Art",
                   slug: "fine-art",
                   defaultSub: "Oil on Canvas",
-                },
-                {
-                  id: "dark-fantasy",
-                  title: "Dark Fantasy",
-                  slug: "fine-art",
-                  defaultSub: "Myth & Legend",
                 },
               ];
 
@@ -539,8 +499,12 @@ export default function PortfolioSpotlightCarousel({
       activeProj?.images?.[0] ||
       fallbackUrl;
 
-    const bgImage =
-      brokenImages[cat.id] || !rawBgImage ? fallbackUrl : rawBgImage;
+    const isBroken =
+      (rawBgImage && brokenImages[rawBgImage]) ||
+      brokenImages[cat.id] ||
+      brokenImages[cat.slug];
+
+    const bgImage = isBroken || !rawBgImage ? fallbackUrl : rawBgImage;
 
     const subtitle =
       customSubtitles?.[cat.id] ||
@@ -561,6 +525,7 @@ export default function PortfolioSpotlightCarousel({
         key={cat.id}
         href={cat.href || `/${cat.slug}`}
         style={{
+          background: "linear-gradient(135deg, #181818 0%, #0d0d0d 100%)",
           ...(customCardStyle?.width
             ? { width: customCardStyle.width, maxWidth: "100%" }
             : {}),
@@ -593,6 +558,7 @@ export default function PortfolioSpotlightCarousel({
               setBrokenImages((prev) => ({
                 ...prev,
                 [cat.id]: true,
+                ...(rawBgImage ? { [rawBgImage]: true } : {}),
               }));
             }}
           />

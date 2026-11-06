@@ -245,7 +245,13 @@ export default function ContactFormClient({
               backgroundColor: submitButtonBg || undefined,
               color: submitButtonTextColor || undefined,
             }}
-            className="w-full bg-[#DBDBDB] hover:bg-[#EAEAEA] active:bg-[#BFBFBF] text-black font-normal text-xs sm:text-sm py-2 sm:py-2.5 rounded-none transition-all duration-200 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0">
+            className={`w-full ${
+              submitButtonBg
+                ? "hover:brightness-105 active:brightness-95"
+                : "bg-[#DBDBDB] hover:bg-[#EAEAEA] active:bg-[#BFBFBF]"
+            } ${
+              submitButtonTextColor ? "" : "text-black"
+            } font-normal text-xs sm:text-sm py-2 sm:py-2.5 rounded-none transition-all duration-200 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0`}>
             {status === "submitting" ? "Sending..." : submitButtonText}
           </button>
         </form>

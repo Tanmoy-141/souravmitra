@@ -201,6 +201,23 @@ function getPublishSlug(page: CustomPage): string {
   return slug;
 }
 
+function getPageLiveUrl(page: CustomPage): string {
+  const sanitized = sanitizeSlugInput(typeof page.slug === "string" ? page.slug : "");
+  const clean = sanitized.replace(/^\/+|\/+$/g, "");
+  if (!clean || clean === "/") return "/";
+  if (["about", "contact", "book-covers", "illustration", "fine-art"].includes(clean)) {
+    return `/${clean}`;
+  }
+  if (
+    clean.startsWith("book-covers/") ||
+    clean.startsWith("illustration/") ||
+    clean.startsWith("fine-art/")
+  ) {
+    return `/${clean}`;
+  }
+  return `/p/${clean}`;
+}
+
 async function getApiError(
   response: Response,
   fallback: string,
@@ -1202,12 +1219,7 @@ export default function AdminDashboard() {
 
           {activeTab === "pages" && activePage && (
             <a
-              href={
-                sanitizeSlugInput(activePage.slug) === "/" ||
-                sanitizeSlugInput(activePage.slug) === ""
-                  ? "/"
-                  : `/${sanitizeSlugInput(activePage.slug)}`
-              }
+              href={getPageLiveUrl(activePage)}
               target="_blank"
               rel="noopener noreferrer"
               className="border border-[#333] hover:border-[#C5A059] text-gray-300 hover:text-white px-3 py-2 text-xs uppercase tracking-widest font-semibold transition-colors flex items-center gap-1.5 shrink-0"

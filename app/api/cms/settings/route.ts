@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { siteSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -197,6 +198,15 @@ export async function PUT(req: NextRequest) {
           set: { gjsData: footerData, updatedAt },
         }),
     ]);
+
+    try {
+      revalidatePath("/", "layout");
+      revalidatePath("/");
+      revalidatePath("/about");
+      revalidatePath("/contact");
+    } catch (e) {
+      console.warn("Settings revalidate failed:", e);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

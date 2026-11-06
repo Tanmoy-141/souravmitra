@@ -12,6 +12,7 @@ export interface PortfolioCategoryItem {
   href: string;
   projects: Project[];
   activeProjectIndex: number;
+  coverImage?: string;
 }
 
 export interface CustomCategoryItem {
@@ -19,6 +20,8 @@ export interface CustomCategoryItem {
   title: string;
   subtitle?: string;
   slug?: string;
+  coverImage?: string;
+  href?: string;
 }
 
 interface PortfolioSpotlightCarouselProps {
@@ -30,6 +33,10 @@ interface PortfolioSpotlightCarouselProps {
   customSubtitles?: Record<string, string>;
   customCategories?: CustomCategoryItem[];
   containerStyles?: React.CSSProperties;
+  containerWidth?: "full" | "standard" | "compact" | string;
+  cardHeight?: "compact" | "standard" | "tall" | "auto" | string;
+  cardAspect?: "3/4" | "16/9" | "1/1" | "4/5" | "auto" | string;
+  layoutMode?: "grid" | "slider" | string;
 }
 
 const DEFAULT_SUBTITLES: Record<string, string> = {
@@ -45,7 +52,7 @@ const RELIABLE_CATEGORY_FALLBACKS: Record<string, string> = {
   illustration:
     "https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=800&auto=format&fit=crop",
   "fine-art":
-    "https://nyj2ucc9ur7y9rzh.public.blob.vercel-storage.com/uploads/2f022a42_temptation-1790753130290-QOo7ARHtRNTMiuo2KLijGxzhG6hqfQ.jpeg",
+    "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?q=80&w=800&auto=format&fit=crop",
   "dark-fantasy":
     "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800&auto=format&fit=crop",
 };
@@ -140,7 +147,7 @@ const DEFAULT_PORTFOLIO_ITEMS: PortfolioCategoryItem[] = [
         publisher: "Private Collector Exhibition",
         year: "2024",
         coverImage:
-          "https://nyj2ucc9ur7y9rzh.public.blob.vercel-storage.com/uploads/2f022a42_temptation-1790753130290-QOo7ARHtRNTMiuo2KLijGxzhG6hqfQ.jpeg",
+          "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?q=80&w=800&auto=format&fit=crop",
         images: [],
         details: null,
         tags: ["Fine Art", "Original"],
@@ -198,14 +205,60 @@ export default function PortfolioSpotlightCarousel({
   customSubtitles,
   customCategories,
   containerStyles,
+  containerWidth = "standard",
+  cardHeight = "standard",
+  cardAspect = "3/4",
+  layoutMode = "grid",
 }: PortfolioSpotlightCarouselProps) {
   const [categories, setCategories] = useState<PortfolioCategoryItem[]>(
-    DEFAULT_PORTFOLIO_ITEMS,
+    () => {
+      if (customCategories && customCategories.length > 0) {
+        return customCategories.map((cc) => {
+          const cleanSlug = (
+            cc.slug ||
+            cc.id ||
+            cc.title.toLowerCase().replace(/\s+/g, "-")
+          ).replace(/^\/+|\/+$/g, "");
+          const fallbackDefault = DEFAULT_PORTFOLIO_ITEMS.find(
+            (d) => d.id === (cc.id || cleanSlug),
+          );
+          return {
+            id: cc.id || cleanSlug,
+            title: cc.title,
+            slug: cleanSlug,
+            href: cc.href || `/${cleanSlug}`,
+            projects: fallbackDefault ? fallbackDefault.projects : [],
+            activeProjectIndex: 0,
+            coverImage: cc.coverImage,
+          };
+        });
+      }
+      return DEFAULT_PORTFOLIO_ITEMS;
+    },
   );
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
 
+  const [sliderIndex, setSliderIndex] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(4);
+
   const autoPlayTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (layoutMode !== "slider") return;
+    const updateVisible = () => {
+      const w = window.innerWidth;
+      if (w < 640) setVisibleCount(1);
+      else if (w < 1024) setVisibleCount(2);
+      else if (w < 1280) setVisibleCount(3);
+      else setVisibleCount(Math.min(4, Math.max(1, categories.length)));
+    };
+    updateVisible();
+    window.addEventListener("resize", updateVisible);
+    return () => window.removeEventListener("resize", updateVisible);
+  }, [layoutMode, categories.length]);
+
+  const maxSliderIndex = Math.max(0, categories.length - visibleCount);
 
   // 1. Fetch dynamic projects and published portfolio pages from DB
   useEffect(() => {
@@ -230,9 +283,11 @@ export default function PortfolioSpotlightCarousel({
           title: string;
           slug: string;
           defaultSub?: string;
+          coverImage?: string;
+          href?: string;
         }> =
           customCategories && customCategories.length > 0
-            ? customCategories.slice(0, 4).map((cc) => {
+            ? customCategories.map((cc) => {
                 const cleanSlug = (
                   cc.slug ||
                   cc.id ||
@@ -243,6 +298,8 @@ export default function PortfolioSpotlightCarousel({
                   title: cc.title,
                   slug: cleanSlug,
                   defaultSub: cc.subtitle || "Original Portfolio",
+                  coverImage: cc.coverImage,
+                  href: cc.href || `/${cleanSlug}`,
                 };
               })
             : [
@@ -321,9 +378,10 @@ export default function PortfolioSpotlightCarousel({
               id: portfolio.id,
               title: portfolio.title,
               slug: portfolio.slug,
-              href: `/${portfolio.slug}`,
+              href: portfolio.href || `/${portfolio.slug}`,
               projects: finalProjects,
               activeProjectIndex: 0,
+              coverImage: portfolio.coverImage,
             };
           },
         );
@@ -343,27 +401,35 @@ export default function PortfolioSpotlightCarousel({
     };
   }, [customCategories]);
 
-  // Next / Prev cycles the artwork images in each card
+  // Next / Prev cycles slides in slider mode or active project images in grid mode
   const handleNext = useCallback(() => {
-    setCategories((prev) =>
-      prev.map((cat) => ({
-        ...cat,
-        activeProjectIndex:
-          (cat.activeProjectIndex + 1) % Math.max(1, cat.projects.length),
-      })),
-    );
-  }, []);
+    if (layoutMode === "slider") {
+      setSliderIndex((prev) => (prev >= maxSliderIndex ? 0 : prev + 1));
+    } else {
+      setCategories((prev) =>
+        prev.map((cat) => ({
+          ...cat,
+          activeProjectIndex:
+            (cat.activeProjectIndex + 1) % Math.max(1, cat.projects.length),
+        })),
+      );
+    }
+  }, [layoutMode, maxSliderIndex]);
 
   const handlePrev = useCallback(() => {
-    setCategories((prev) =>
-      prev.map((cat) => ({
-        ...cat,
-        activeProjectIndex:
-          (cat.activeProjectIndex - 1 + Math.max(1, cat.projects.length)) %
+    if (layoutMode === "slider") {
+      setSliderIndex((prev) => (prev <= 0 ? maxSliderIndex : prev - 1));
+    } else {
+      setCategories((prev) =>
+        prev.map((cat) => ({
+          ...cat,
+          activeProjectIndex:
+            (cat.activeProjectIndex - 1 + Math.max(1, cat.projects.length)) %
           Math.max(1, cat.projects.length),
-      })),
-    );
-  }, []);
+        })),
+      );
+    }
+  }, [layoutMode, maxSliderIndex]);
 
   // Continuous auto-play rotation across all portfolio cards
   useEffect(() => {
@@ -414,35 +480,175 @@ export default function PortfolioSpotlightCarousel({
       headingProps?.marginLeft === headingProps?.marginRight &&
       headingProps?.marginLeft !== "0px");
 
+  // Dynamic fluid sizing styles
+  const heightClass =
+    cardHeight === "compact"
+      ? "min-h-[260px] sm:min-h-[320px]"
+      : cardHeight === "tall"
+        ? "min-h-[420px] sm:min-h-[520px]"
+        : cardHeight === "auto"
+          ? "min-h-0"
+          : "min-h-[340px] sm:min-h-[420px]";
+
+  const aspectClass =
+    cardAspect === "16/9"
+      ? "aspect-[16/9]"
+      : cardAspect === "1/1"
+        ? "aspect-square"
+        : cardAspect === "4/5"
+          ? "aspect-[4/5]"
+          : cardAspect === "auto"
+            ? "aspect-auto"
+            : "aspect-[3/4]";
+
+  const containerMaxClass =
+    containerWidth === "full"
+      ? "max-w-full w-full"
+      : containerWidth === "compact"
+        ? "max-w-5xl w-full"
+        : "max-w-7xl w-full";
+
+  const gridColsClass =
+    categories.length === 1
+      ? "grid-cols-1 max-w-xl mx-auto"
+      : categories.length === 2
+        ? "grid-cols-1 md:grid-cols-2 w-full"
+        : categories.length === 3
+          ? "grid-cols-1 md:grid-cols-3 w-full"
+          : categories.length === 5
+            ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 w-full"
+            : categories.length >= 6
+              ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 w-full"
+              : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 w-full";
+
+  const renderCard = (cat: PortfolioCategoryItem, idx: number) => {
+    const activeProj =
+      cat.projects[
+        cat.activeProjectIndex % Math.max(1, cat.projects.length)
+      ] || cat.projects[0];
+    const fallbackUrl =
+      RELIABLE_CATEGORY_FALLBACKS[cat.id] ||
+      RELIABLE_CATEGORY_FALLBACKS[cat.slug] ||
+      DEFAULT_PORTFOLIO_ITEMS.find((d) => d.id === cat.id)
+        ?.projects[0]?.coverImage ||
+      "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=800&auto=format&fit=crop";
+
+    const rawBgImage =
+      cat.coverImage ||
+      activeProj?.coverImage ||
+      activeProj?.images?.[0] ||
+      fallbackUrl;
+
+    const bgImage =
+      brokenImages[cat.id] || !rawBgImage ? fallbackUrl : rawBgImage;
+
+    const subtitle =
+      customSubtitles?.[cat.id] ||
+      customSubtitles?.[cat.slug] ||
+      DEFAULT_SUBTITLES[cat.id] ||
+      activeProj?.medium ||
+      "Original Artwork";
+
+    const customCardStyle =
+      cardStyles?.[cat.id] ||
+      cardStyles?.[cat.slug] ||
+      cardStyles?.[cat.title.toLowerCase()] ||
+      cardStyles?.[cat.title.toLowerCase().replace(/\s+/g, "-")] ||
+      cardStyles?.[`card-${idx}`];
+
+    return (
+      <Link
+        key={cat.id}
+        href={cat.href || `/${cat.slug}`}
+        style={{
+          ...(customCardStyle?.width
+            ? { width: customCardStyle.width, maxWidth: "100%" }
+            : {}),
+          ...(customCardStyle?.height
+            ? {
+                height: customCardStyle.height,
+                minHeight: customCardStyle.height,
+              }
+            : {}),
+          ...(customCardStyle?.minHeight
+            ? { minHeight: customCardStyle.minHeight }
+            : {}),
+          ...(customCardStyle?.aspectRatio
+            ? { aspectRatio: customCardStyle.aspectRatio }
+            : {}),
+          ...customCardStyle,
+        }}
+        className={`relative overflow-hidden rounded-xl border border-[#262626] hover:border-[#C5A059] bg-[#141414] ${aspectClass} ${heightClass} flex flex-col justify-between p-5 sm:p-6 transition-all duration-500 group shadow-lg hover:shadow-[0_10px_30px_rgba(197,160,89,0.22)] hover:-translate-y-1.5 cursor-pointer w-full max-w-full`}>
+        {/* Artwork Background Image with Ken Burns animation */}
+        <div className="absolute inset-0 z-0 overflow-hidden bg-[#111]">
+          <Image
+            src={bgImage}
+            alt={cat.title}
+            fill
+            unoptimized
+            priority={idx < 2}
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            className="object-cover object-center transition-all duration-700 ease-out group-hover:scale-108 group-hover:brightness-105"
+            onError={() => {
+              setBrokenImages((prev) => ({
+                ...prev,
+                [cat.id]: true,
+              }));
+            }}
+          />
+          {/* Dark gradient lighting overlays to make text readable */}
+          <div className="absolute inset-0 bg-linear-to-t from-black via-black/45 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-black/25 group-hover:bg-black/10 transition-colors pointer-events-none" />
+        </div>
+
+        {/* Top Category Badge */}
+        <div className="relative z-10 flex items-center justify-between w-full">
+          <span className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#C5A059] bg-black/85 border border-[#C5A059]/50 rounded-sm backdrop-blur-md shadow-md">
+            {cat.title.toUpperCase()}
+          </span>
+          <span className="text-gray-400 group-hover:text-[#C5A059] group-hover:translate-x-1 transition-all text-xs font-light">
+            →
+          </span>
+        </div>
+
+        {/* Bottom Info: Title & View Artwork Link */}
+        <div className="relative z-10 flex flex-col gap-1.5 pt-4">
+          <h4 className="text-base sm:text-lg font-bold text-white tracking-wide group-hover:text-[#C5A059] transition-colors drop-shadow-md line-clamp-1">
+            {subtitle}
+          </h4>
+          <p className="text-xs font-semibold text-[#C5A059] flex items-center gap-1 group-hover:gap-2 transition-all">
+            View Artwork →
+          </p>
+        </div>
+
+        {/* Bottom Accent Glow Line */}
+        <div className="absolute inset-x-0 bottom-0 h-1 bg-linear-to-r from-transparent via-[#C5A059] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      </Link>
+    );
+  };
+
   return (
     <div
       style={{
-        ...(containerStyles?.width ? { width: containerStyles.width } : {}),
-        ...(containerStyles?.maxWidth
-          ? { maxWidth: containerStyles.maxWidth }
+        ...(containerStyles?.width
+          ? { width: containerStyles.width, maxWidth: "100%" }
           : {}),
-        ...(containerStyles?.height ? { height: containerStyles.height } : {}),
         ...(containerStyles?.minHeight
           ? { minHeight: containerStyles.minHeight }
           : {}),
         ...containerStyles,
+        height: "auto",
+        maxWidth:
+          containerStyles?.maxWidth &&
+          containerStyles.maxWidth !== "none" &&
+          containerStyles.maxWidth !== "100%"
+            ? containerStyles.maxWidth
+            : undefined,
       }}
-      className={`w-full py-8 px-4 sm:px-6 lg:px-8 mx-auto select-none ${
-        containerStyles?.maxWidth && containerStyles.maxWidth !== "none"
-          ? ""
-          : containerStyles?.width
-            ? "max-w-none"
-            : "max-w-7xl"
-      }`}
+      className={`py-8 px-4 sm:px-6 lg:px-8 mx-auto select-none ${containerMaxClass}`}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}>
-      <div
-        style={{
-          ...(containerStyles?.height
-            ? { minHeight: "100%", height: "100%" }
-            : {}),
-        }}
-        className="bg-[#0a0a0a] border border-[#222222] rounded-2xl p-6 sm:p-8 text-white relative shadow-2xl overflow-visible flex flex-col justify-between">
+      <div className="bg-[#0a0a0a] border border-[#222222] rounded-2xl p-6 sm:p-8 text-white relative shadow-2xl overflow-visible flex flex-col justify-between">
         {/* Header Bar */}
         <div
           className={`w-full pb-6 border-b border-[#1f1f1f] mb-6 flex items-center ${
@@ -525,21 +731,20 @@ export default function PortfolioSpotlightCarousel({
                 ...(headingProps?.paddingRight
                   ? { paddingRight: headingProps.paddingRight }
                   : {}),
-                ...(headingProps?.width ? { width: headingProps.width } : {}),
-                ...(headingProps?.height
-                  ? { height: headingProps.height }
-                  : {}),
-                ...(headingProps?.maxWidth
-                  ? { maxWidth: headingProps.maxWidth }
+                ...(headingProps?.width
+                  ? { width: headingProps.width, maxWidth: "100%" }
                   : {}),
                 ...headingProps?.style,
+                height: "auto",
+                maxHeight: "none",
+                maxWidth: "100%",
               }}>
               {heading}
             </h2>
           </div>
         </div>
 
-        {/* 4 Cards Grid Layout with Side Navigation Arrows */}
+        {/* Carousel Area with Side Navigation Arrows */}
         <div className="relative group/carousel">
           {/* Left Side Navigation Arrow */}
           <button
@@ -580,121 +785,31 @@ export default function PortfolioSpotlightCarousel({
               />
             </svg>
           </button>
-          <div
-            className={`grid gap-4 sm:gap-5 items-stretch ${
-              categories.length === 1
-                ? "grid-cols-1"
-                : categories.length === 2
-                  ? "grid-cols-1 md:grid-cols-2"
-                  : categories.length === 3
-                    ? "grid-cols-1 md:grid-cols-3"
-                    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
-            }`}>
-            {categories.map((cat, idx) => {
-              const activeProj =
-                cat.projects[
-                  cat.activeProjectIndex % Math.max(1, cat.projects.length)
-                ] || cat.projects[0];
-              const fallbackUrl =
-                RELIABLE_CATEGORY_FALLBACKS[cat.id] ||
-                RELIABLE_CATEGORY_FALLBACKS[cat.slug] ||
-                DEFAULT_PORTFOLIO_ITEMS.find((d) => d.id === cat.id)
-                  ?.projects[0]?.coverImage ||
-                "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=800&auto=format&fit=crop";
 
-              const rawBgImage =
-                activeProj?.coverImage ||
-                activeProj?.images?.[0] ||
-                fallbackUrl;
-
-              const bgImage =
-                brokenImages[cat.id] || !rawBgImage ? fallbackUrl : rawBgImage;
-
-              const subtitle =
-                customSubtitles?.[cat.id] ||
-                customSubtitles?.[cat.slug] ||
-                DEFAULT_SUBTITLES[cat.id] ||
-                activeProj?.medium ||
-                "Original Artwork";
-
-              const customCardStyle =
-                cardStyles?.[cat.id] ||
-                cardStyles?.[cat.slug] ||
-                cardStyles?.[cat.title.toLowerCase()] ||
-                cardStyles?.[cat.title.toLowerCase().replace(/\s+/g, "-")] ||
-                cardStyles?.[`card-${idx}`];
-
-              return (
-                <Link
-                  key={cat.id}
-                  href={cat.href || `/${cat.slug}`}
-                  style={{
-                    ...(customCardStyle?.width
-                      ? { width: customCardStyle.width, maxWidth: "none" }
-                      : {}),
-                    ...(customCardStyle?.height
-                      ? {
-                          height: customCardStyle.height,
-                          minHeight: customCardStyle.height,
-                        }
-                      : {}),
-                    ...(customCardStyle?.minHeight
-                      ? { minHeight: customCardStyle.minHeight }
-                      : {}),
-                    ...(customCardStyle?.width && customCardStyle?.height
-                      ? { aspectRatio: "auto" }
-                      : {}),
-                    ...customCardStyle,
-                  }}
-                  className="relative overflow-hidden rounded-xl border border-[#262626] hover:border-[#C5A059] bg-[#141414] aspect-3/4 min-h-87.5 sm:min-h-115 flex flex-col justify-between p-5 sm:p-6 transition-all duration-500 group shadow-lg hover:shadow-[0_10px_30px_rgba(197,160,89,0.22)] hover:-translate-y-1.5 cursor-pointer max-w-full">
-                  {/* Artwork Background Image with Ken Burns animation */}
-                  <div className="absolute inset-0 z-0 overflow-hidden bg-[#111]">
-                    <Image
-                      src={bgImage}
-                      alt={cat.title}
-                      fill
-                      unoptimized
-                      priority={idx < 2}
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                      className="object-cover object-center transition-all duration-700 ease-out group-hover:scale-108 group-hover:brightness-105"
-                      onError={() => {
-                        setBrokenImages((prev) => ({
-                          ...prev,
-                          [cat.id]: true,
-                        }));
-                      }}
-                    />
-                    {/* Dark gradient lighting overlays to make text readable */}
-                    <div className="absolute inset-0 bg-linear-to-t from-black via-black/45 to-transparent pointer-events-none" />
-                    <div className="absolute inset-0 bg-black/25 group-hover:bg-black/10 transition-colors pointer-events-none" />
+          {layoutMode === "slider" ? (
+            <div className="relative overflow-hidden w-full rounded-xl">
+              <div
+                className="flex transition-transform duration-500 ease-out gap-4 sm:gap-5"
+                style={{
+                  transform: `translateX(-${sliderIndex * (100 / visibleCount)}%)`,
+                }}>
+                {categories.map((cat, idx) => (
+                  <div
+                    key={cat.id}
+                    className="shrink-0"
+                    style={{
+                      width: `calc(${100 / visibleCount}% - ${((visibleCount - 1) * 20) / visibleCount}px)`,
+                    }}>
+                    {renderCard(cat, idx)}
                   </div>
-
-                  {/* Top Category Badge */}
-                  <div className="relative z-10 flex items-center justify-between w-full">
-                    <span className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#C5A059] bg-black/85 border border-[#C5A059]/50 rounded-sm backdrop-blur-md shadow-md">
-                      {cat.title.toUpperCase()}
-                    </span>
-                    <span className="text-gray-400 group-hover:text-[#C5A059] group-hover:translate-x-1 transition-all text-xs font-light">
-                      →
-                    </span>
-                  </div>
-
-                  {/* Bottom Info: Title & View Artwork Link */}
-                  <div className="relative z-10 flex flex-col gap-1.5 pt-4">
-                    <h4 className="text-base sm:text-lg font-bold text-white tracking-wide group-hover:text-[#C5A059] transition-colors drop-shadow-md line-clamp-1">
-                      {subtitle}
-                    </h4>
-                    <p className="text-xs font-semibold text-[#C5A059] flex items-center gap-1 group-hover:gap-2 transition-all">
-                      View Artwork →
-                    </p>
-                  </div>
-
-                  {/* Bottom Accent Glow Line */}
-                  <div className="absolute inset-x-0 bottom-0 h-1 bg-linear-to-r from-transparent via-[#C5A059] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                </Link>
-              );
-            })}
-          </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className={`grid gap-4 sm:gap-5 items-stretch w-full ${gridColsClass}`}>
+              {categories.map((cat, idx) => renderCard(cat, idx))}
+            </div>
+          )}
 
           {/* Mobile Bottom Navigation Controls */}
           <div className="flex sm:hidden items-center justify-between mt-5 px-1">

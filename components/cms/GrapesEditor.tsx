@@ -170,8 +170,75 @@ function registerCmsDynamicBlockTypes(editorInstance: Editor) {
             type: "button",
             name: "edit_project_carousel_btn",
             label: "Projects Carousel",
-            text: "🖼️ Edit Carousel Heading",
+            text: "🖼️ Customize Cards & Carousel",
             command: "open-project-carousel-editor",
+          },
+          {
+            type: "select",
+            name: "data-container-width",
+            label: "Container Width",
+            options: [
+              { id: "standard", label: "Standard (1280px / 7xl)" },
+              { id: "full", label: "Full Width (100%)" },
+              { id: "compact", label: "Compact (1024px / 5xl)" },
+            ],
+            default: "standard",
+          },
+          {
+            type: "select",
+            name: "data-card-height",
+            label: "Card Height",
+            options: [
+              { id: "standard", label: "Standard (420px)" },
+              { id: "compact", label: "Compact (340px)" },
+              { id: "tall", label: "Tall (520px)" },
+              { id: "auto", label: "Fluid / Natural Height" },
+            ],
+            default: "standard",
+          },
+          {
+            type: "select",
+            name: "data-card-aspect",
+            label: "Card Aspect Ratio",
+            options: [
+              { id: "3/4", label: "Portrait (3:4)" },
+              { id: "16/9", label: "Landscape (16:9)" },
+              { id: "1/1", label: "Square (1:1)" },
+              { id: "4/5", label: "Tall Portrait (4:5)" },
+              { id: "auto", label: "Fluid (Auto)" },
+            ],
+            default: "3/4",
+          },
+          {
+            type: "select",
+            name: "data-layout-mode",
+            label: "Display Mode",
+            options: [
+              { id: "grid", label: "Responsive Grid Showcase" },
+              { id: "slider", label: "Horizontal Animated Slider" },
+            ],
+            default: "grid",
+          },
+        ],
+      },
+    },
+  });
+
+  editorInstance.Components.addType("artwork-feature", {
+    isComponent: (el: HTMLElement) =>
+      el.getAttribute?.("data-cms-block") === "artwork-feature"
+        ? { type: "artwork-feature" }
+        : undefined,
+    model: {
+      defaults: {
+        attributes: { "data-cms-block": "artwork-feature" },
+        traits: [
+          {
+            type: "button",
+            name: "edit_artwork_feature_btn",
+            label: "Artwork Spotlight",
+            text: "🎨 Customize Spotlight",
+            command: "open-artwork-feature-editor",
           },
         ],
       },
@@ -1808,8 +1875,18 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           const editor = editorRef.current;
           if (!editor) return null;
 
+          try {
+            editor.stopCommand("core:component-edit");
+          } catch {}
+          try {
+            (editor.Canvas?.getDocument()?.activeElement as HTMLElement)?.blur?.();
+          } catch {}
+
           syncAllCounters(editor);
           syncContactCardDataAttributes(editor);
+          syncClientsSectionDataAttributes(editor);
+          syncDynamicBlockHeadings(editor);
+          syncComponentStylesToCssRules(editor);
 
           return {
             projectData: editor.getProjectData(),
@@ -3475,9 +3552,34 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             target.set("toolbar", [
               {
                 id: "edit-project-carousel",
-                attributes: { title: "Edit Projects Carousel Heading" },
+                attributes: { title: "Customize Cards, Cover Images & Carousel" },
                 command: "open-project-carousel-editor",
-                label: "🖼️ Edit Heading",
+                label: "🖼️ Customize Cards",
+              },
+              ...defaultToolbar,
+            ]);
+          }
+        } else if (
+          component.is("artwork-feature") ||
+          component.closest?.('[data-cms-block="artwork-feature"]')
+        ) {
+          const target = component.is("artwork-feature")
+            ? component
+            : component.closest('[data-cms-block="artwork-feature"]');
+          if (!target) return;
+          setActiveRightTab("traits");
+          const defaultToolbar = (target.get("toolbar") || []) as ToolbarButtonProps[];
+          if (
+            !defaultToolbar.some(
+              (item) => item.command === "open-artwork-feature-editor",
+            )
+          ) {
+            target.set("toolbar", [
+              {
+                id: "edit-artwork-feature",
+                attributes: { title: "Customize Artwork Spotlight Feature" },
+                command: "open-artwork-feature-editor",
+                label: "🎨 Customize Spotlight",
               },
               ...defaultToolbar,
             ]);
@@ -4055,6 +4157,11 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           component.closest?.('[data-cms-block="project-carousel"]')
         ) {
           editor.runCommand("open-project-carousel-editor");
+        } else if (
+          component.is("artwork-feature") ||
+          component.closest?.('[data-cms-block="artwork-feature"]')
+        ) {
+          editor.runCommand("open-artwork-feature-editor");
         } else if (
           component.is("contact-card") ||
           component.closest?.(".contact-card, [data-component='contact-card']") ||
@@ -7168,17 +7275,192 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             if (text) currentHeading = text;
           }
 
+          // Extract existing cards currently in the target component
+          const targetEl = target.getEl ? target.getEl() : null;
+          const cardEls = targetEl
+            ? Array.from(targetEl.querySelectorAll("div")).filter((el: HTMLElement) => {
+                if (el.querySelector("h1, h2, h3, h4, h5, h6")) return false;
+                const txt = el.textContent || "";
+                if (txt.includes("Customize Cards") || txt.includes("Edit Heading") || txt.includes("FEATURED WORKS CAROUSEL")) return false;
+                const span = Array.from(el.children).find((c) => c.tagName === "SPAN");
+                const hasView = txt.includes("View Artwork") || txt.includes("View");
+                return Boolean(span) && hasView;
+              })
+            : [];
+
+          interface CarouselCardItem {
+            tag: string;
+            title: string;
+            link: string;
+            image: string;
+          }
+
+          let currentCards: CarouselCardItem[] = [];
+          if (cardEls.length > 0) {
+            currentCards = cardEls.map((cardEl: HTMLElement, idx: number) => {
+              const tag =
+                cardEl.getAttribute("data-card-tag") ||
+                cardEl.querySelector("span")?.textContent?.trim() ||
+                `Category ${idx + 1}`;
+              const title =
+                cardEl.getAttribute("data-card-title") ||
+                Array.from(cardEl.querySelectorAll("p"))
+                  .find((p) => !p.textContent?.includes("View"))
+                  ?.textContent?.trim() ||
+                "Artwork Title";
+              const link =
+                cardEl.getAttribute("data-card-link") ||
+                (tag.toLowerCase().includes("book")
+                  ? "/book-covers"
+                  : tag.toLowerCase().includes("illustr")
+                  ? "/illustration"
+                  : tag.toLowerCase().includes("fine")
+                  ? "/fine-art"
+                  : "/fine-art");
+              const bgImgMatch = cardEl.style.backgroundImage.match(/url\(['"]?(.*?)['"]?\)/);
+              const image =
+                cardEl.getAttribute("data-card-image") ||
+                (bgImgMatch ? bgImgMatch[1] : "");
+              return { tag, title, link, image };
+            });
+          } else {
+            // Default 3 cards matching the artist showcase (Book Covers, Illustration, Fine Art)
+            currentCards = [
+              {
+                tag: "Book Covers",
+                title: "Literary Fiction",
+                link: "/book-covers",
+                image: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=800&auto=format&fit=crop",
+              },
+              {
+                tag: "Illustration",
+                title: "Conceptual Piece",
+                link: "/illustration",
+                image: "https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=800&auto=format&fit=crop",
+              },
+              {
+                tag: "Fine Art",
+                title: "Oil on Canvas",
+                link: "/fine-art",
+                image: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?q=80&w=800&auto=format&fit=crop",
+              },
+            ];
+          }
+
           const modal = editor.Modal;
-          modal.setTitle("🖼️ Edit Projects Carousel Heading");
+          modal.setTitle("🖼️ Customize Featured Showcase & Cards");
 
           const container = document.createElement("div");
           container.style.cssText =
-            "display: flex; flex-direction: column; gap: 16px; color: #fff; padding: 4px 8px;";
+            "display: flex; flex-direction: column; gap: 16px; color: #fff; padding: 6px 10px; max-height: 75vh; overflow-y: auto;";
+
+          const renderCardsList = () => {
+            const listContainer = container.querySelector("#cms-carousel-cards-list");
+            if (!listContainer) return;
+            listContainer.innerHTML = "";
+
+            currentCards.forEach((c, i) => {
+              const cardRow = document.createElement("div");
+              cardRow.className = "cms-card-row-item";
+              cardRow.style.cssText =
+                "background: #141414; border: 1px solid #282828; border-radius: 6px; padding: 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px;";
+
+              cardRow.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; padding-bottom: 8px;">
+                  <span style="font-size: 11px; font-weight: 700; color: #C5A059; text-transform: uppercase; letter-spacing: 0.1em;">
+                    Card #${i + 1}
+                  </span>
+                  ${
+                    currentCards.length > 1
+                      ? `<button type="button" class="cms-remove-card-btn" data-index="${i}" style="background: none; border: none; color: #ef4444; font-size: 11px; cursor: pointer; font-weight: 700; padding: 2px 6px;">✕ Remove</button>`
+                      : ""
+                  }
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                  <div>
+                    <label style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #888; margin-bottom: 4px;">Category Tag</label>
+                    <input type="text" class="cms-card-tag-input" data-index="${i}" value="${c.tag.replace(/"/g, '&quot;')}" style="width: 100%; padding: 6px 10px; background: #0a0a0a; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #888; margin-bottom: 4px;">Card Subtitle / Title</label>
+                    <input type="text" class="cms-card-title-input" data-index="${i}" value="${c.title.replace(/"/g, '&quot;')}" style="width: 100%; padding: 6px 10px; background: #0a0a0a; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
+                  </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                  <div>
+                    <label style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #888; margin-bottom: 4px;">Link / Slug</label>
+                    <input type="text" class="cms-card-link-input" data-index="${i}" value="${c.link.replace(/"/g, '&quot;')}" placeholder="/book-covers" style="width: 100%; padding: 6px 10px; background: #0a0a0a; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
+                  </div>
+                  <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                      <label style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #888; margin: 0;">Custom Artwork URL</label>
+                      <button type="button" class="cms-choose-card-img-btn" data-index="${i}" style="background: #222; border: 1px solid #C5A059; color: #C5A059; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 2px; cursor: pointer;">🖼️ Choose Media</button>
+                    </div>
+                    <input type="text" class="cms-card-image-input" data-index="${i}" value="${c.image.replace(/"/g, '&quot;')}" placeholder="https://..." style="width: 100%; padding: 6px 10px; background: #0a0a0a; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
+                  </div>
+                </div>
+              `;
+              listContainer.appendChild(cardRow);
+            });
+
+            // Bind inputs & remove buttons
+            listContainer.querySelectorAll(".cms-card-tag-input").forEach((inp) => {
+              inp.addEventListener("input", (e) => {
+                const idx = parseInt((e.target as HTMLElement).getAttribute("data-index") || "0", 10);
+                currentCards[idx].tag = (e.target as HTMLInputElement).value;
+              });
+            });
+            listContainer.querySelectorAll(".cms-card-title-input").forEach((inp) => {
+              inp.addEventListener("input", (e) => {
+                const idx = parseInt((e.target as HTMLElement).getAttribute("data-index") || "0", 10);
+                currentCards[idx].title = (e.target as HTMLInputElement).value;
+              });
+            });
+            listContainer.querySelectorAll(".cms-card-link-input").forEach((inp) => {
+              inp.addEventListener("input", (e) => {
+                const idx = parseInt((e.target as HTMLElement).getAttribute("data-index") || "0", 10);
+                currentCards[idx].link = (e.target as HTMLInputElement).value;
+              });
+            });
+            listContainer.querySelectorAll(".cms-card-image-input").forEach((inp) => {
+              inp.addEventListener("input", (e) => {
+                const idx = parseInt((e.target as HTMLElement).getAttribute("data-index") || "0", 10);
+                currentCards[idx].image = (e.target as HTMLInputElement).value;
+              });
+            });
+            listContainer.querySelectorAll(".cms-choose-card-img-btn").forEach((btn) => {
+              btn.addEventListener("click", (e) => {
+                const idx = parseInt((e.target as HTMLElement).getAttribute("data-index") || "0", 10);
+                editor.AssetManager.open({
+                  select(asset: { get: (prop: string) => string }) {
+                    const src = asset.get("src");
+                    if (src) {
+                      currentCards[idx].image = src;
+                      renderCardsList();
+                    }
+                  },
+                });
+              });
+            });
+            listContainer.querySelectorAll(".cms-remove-card-btn").forEach((btn) => {
+              btn.addEventListener("click", (e) => {
+                const idx = parseInt((e.target as HTMLElement).getAttribute("data-index") || "0", 10);
+                currentCards.splice(idx, 1);
+                renderCardsList();
+              });
+            });
+          };
+
+          const existingAttrs = (target.getAttributes?.() || {}) as Record<string, string>;
+          const currentWidth = existingAttrs["data-container-width"] || "standard";
+          const currentHeight = existingAttrs["data-card-height"] || "standard";
+          const currentAspect = existingAttrs["data-card-aspect"] || "3/4";
+          const currentLayout = existingAttrs["data-layout-mode"] || "grid";
 
           container.innerHTML = `
             <div>
               <label style="display: block; font-size: 11px; font-weight: 700; color: #C5A059; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px;">
-                Carousel Section Heading
+                Showcase Section Heading
               </label>
               <input
                 id="cms-project-carousel-modal-heading"
@@ -7186,8 +7468,73 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                 style="width: 100%; padding: 8px 12px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 14px; box-sizing: border-box;"
               />
             </div>
-            <div style="background: #161616; border: 1px solid #2a2a2a; border-radius: 4px; padding: 12px; font-size: 12px; color: #aaa; line-height: 1.5;">
-              <span style="color: #C5A059; font-weight: bold;">Note:</span> This carousel automatically displays all portfolio projects that have <strong style="color: #fff;">Featured</strong> checked in the Projects admin tab.
+
+            <!-- Responsive Dimensions & Layout Controls -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: #121212; border: 1px solid #262626; border-radius: 6px; padding: 12px;">
+              <div>
+                <label style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; font-weight: 700; margin-bottom: 4px;">
+                  Container Width
+                </label>
+                <select id="cms-project-carousel-modal-width" style="width: 100%; padding: 6px 10px; background: #0a0a0a; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 12px;">
+                  <option value="standard" ${currentWidth === "standard" ? "selected" : ""}>Standard (1280px / 7xl)</option>
+                  <option value="full" ${currentWidth === "full" ? "selected" : ""}>Full Width (100% Fluid)</option>
+                  <option value="compact" ${currentWidth === "compact" ? "selected" : ""}>Compact (1024px / 5xl)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; font-weight: 700; margin-bottom: 4px;">
+                  Display Mode
+                </label>
+                <select id="cms-project-carousel-modal-layout" style="width: 100%; padding: 6px 10px; background: #0a0a0a; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 12px;">
+                  <option value="grid" ${currentLayout === "grid" ? "selected" : ""}>Responsive Grid Showcase</option>
+                  <option value="slider" ${currentLayout === "slider" ? "selected" : ""}>Horizontal Animated Slider</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; font-weight: 700; margin-bottom: 4px;">
+                  Card Height
+                </label>
+                <select id="cms-project-carousel-modal-card-height" style="width: 100%; padding: 6px 10px; background: #0a0a0a; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 12px;">
+                  <option value="standard" ${currentHeight === "standard" ? "selected" : ""}>Standard (420px)</option>
+                  <option value="compact" ${currentHeight === "compact" ? "selected" : ""}>Compact (340px)</option>
+                  <option value="tall" ${currentHeight === "tall" ? "selected" : ""}>Tall (520px)</option>
+                  <option value="auto" ${currentHeight === "auto" ? "selected" : ""}>Fluid / Auto Height</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; font-weight: 700; margin-bottom: 4px;">
+                  Card Aspect Ratio
+                </label>
+                <select id="cms-project-carousel-modal-card-aspect" style="width: 100%; padding: 6px 10px; background: #0a0a0a; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 12px;">
+                  <option value="3/4" ${currentAspect === "3/4" ? "selected" : ""}>Portrait (3:4)</option>
+                  <option value="16/9" ${currentAspect === "16/9" ? "selected" : ""}>Landscape (16:9)</option>
+                  <option value="1/1" ${currentAspect === "1/1" ? "selected" : ""}>Square (1:1)</option>
+                  <option value="4/5" ${currentAspect === "4/5" ? "selected" : ""}>Tall Portrait (4:5)</option>
+                  <option value="auto" ${currentAspect === "auto" ? "selected" : ""}>Fluid (Auto)</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+              <label style="font-size: 11px; font-weight: 700; color: #C5A059; text-transform: uppercase; letter-spacing: 0.1em;">
+                Showcase Cards &amp; Grid (${currentCards.length} Columns)
+              </label>
+              <button
+                type="button"
+                id="cms-add-card-btn"
+                style="padding: 4px 10px; background: #222; border: 1px solid #C5A059; color: #C5A059; border-radius: 3px; font-size: 11px; font-weight: 700; cursor: pointer;"
+              >
+                + Add Card
+              </button>
+            </div>
+
+            <div id="cms-carousel-cards-list" style="display: flex; flex-direction: column;"></div>
+
+            <div style="background: #141414; border: 1px solid #242424; border-radius: 4px; padding: 10px; font-size: 11px; color: #888; line-height: 1.5;">
+              <span style="color: #C5A059; font-weight: bold;">Sync Notice:</span> The published site renders <strong>exactly the cards and dimensions configured above</strong> with responsive fluid columns and smooth animations.
             </div>
           `;
 
@@ -7195,6 +7542,25 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             "#cms-project-carousel-modal-heading",
           ) as HTMLInputElement;
           if (headingModalInp) headingModalInp.value = currentHeading || "";
+
+          renderCardsList();
+
+          const addCardBtn = container.querySelector("#cms-add-card-btn");
+          if (addCardBtn) {
+            addCardBtn.addEventListener("click", () => {
+              if (currentCards.length >= 6) {
+                alert("Maximum 6 showcase cards recommended.");
+                return;
+              }
+              currentCards.push({
+                tag: "Custom Art",
+                title: "Portfolio Series",
+                link: "/fine-art",
+                image: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?q=80&w=800&auto=format&fit=crop",
+              });
+              renderCardsList();
+            });
+          }
 
           const actionsRow = document.createElement("div");
           actionsRow.style.cssText =
@@ -7211,7 +7577,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           saveBtn.type = "button";
           saveBtn.style.cssText =
             "padding: 8px 20px; border: none; background: #C5A059; color: #000; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 2px; cursor: pointer;";
-          saveBtn.textContent = "Save Heading";
+          saveBtn.textContent = "Save Showcase & Cards";
           saveBtn.onclick = () => {
             const headingInput = container.querySelector(
               "#cms-project-carousel-modal-heading",
@@ -7235,6 +7601,77 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             const headingStyleAttr = inlineHeadingStyle ? ` style="${inlineHeadingStyle}"` : "";
             const headingClass = `text-2xl mt-1 ${preservedFont ? "" : "font-serif"} ${preservedColor ? "" : "text-white"}`;
 
+            const widthSelect = container.querySelector(
+              "#cms-project-carousel-modal-width",
+            ) as HTMLSelectElement;
+            const heightSelect = container.querySelector(
+              "#cms-project-carousel-modal-card-height",
+            ) as HTMLSelectElement;
+            const aspectSelect = container.querySelector(
+              "#cms-project-carousel-modal-card-aspect",
+            ) as HTMLSelectElement;
+            const layoutSelect = container.querySelector(
+              "#cms-project-carousel-modal-layout",
+            ) as HTMLSelectElement;
+
+            const selWidth = widthSelect?.value || "standard";
+            const selHeight = heightSelect?.value || "standard";
+            const selAspect = aspectSelect?.value || "3/4";
+            const selLayout = layoutSelect?.value || "grid";
+
+            target.addAttributes({
+              "data-container-width": selWidth,
+              "data-card-height": selHeight,
+              "data-card-aspect": selAspect,
+              "data-layout-mode": selLayout,
+            });
+
+            // Strip any stale fixed pixel width/height from manual dragging
+            target.removeStyle("width");
+            target.removeStyle("height");
+            target.removeStyle("max-width");
+            target.removeStyle("max-height");
+
+            const colCount = Math.min(Math.max(currentCards.length, 1), 6);
+            const aspectStyle =
+              selAspect === "16/9"
+                ? "aspect-ratio: 16/9;"
+                : selAspect === "1/1"
+                  ? "aspect-ratio: 1/1;"
+                  : selAspect === "4/5"
+                    ? "aspect-ratio: 4/5;"
+                    : selAspect === "auto"
+                      ? "aspect-ratio: auto;"
+                      : "aspect-ratio: 3/4;";
+
+            const minHStyle =
+              selHeight === "compact"
+                ? "min-height: 240px;"
+                : selHeight === "tall"
+                  ? "min-height: 380px;"
+                  : selHeight === "auto"
+                    ? "min-height: 0;"
+                    : "min-height: 300px;";
+
+            const cardsHtml = currentCards.map((c) => {
+              const bgImgStyle = c.image ? `linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.3)), url('${escapeStr(c.image)}')` : `linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.3))`;
+              return `
+                <div
+                  data-card-tag="${escapeStr(c.tag)}"
+                  data-card-title="${escapeStr(c.title)}"
+                  data-card-link="${escapeStr(c.link)}"
+                  data-card-image="${escapeStr(c.image)}"
+                  style="${aspectStyle} ${minHStyle} background: #141414; border: 1px solid #333; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; background-image: ${bgImgStyle}; background-size: cover; background-position: center;"
+                >
+                  <span style="font-size: 9px; color: #C5A059; font-weight: bold; text-transform: uppercase; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 2px; align-self: flex-start; border: 1px solid rgba(197,160,89,0.4);">${escapeStr(c.tag)}</span>
+                  <div>
+                    <p style="font-size: 13px; font-weight: bold; color: #fff; margin: 0;">${escapeStr(c.title)}</p>
+                    <p style="font-size: 10px; color: #C5A059; margin: 2px 0 0 0;">View Artwork →</p>
+                  </div>
+                </div>
+              `;
+            }).join("");
+
             const html = `
               <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #222; padding-bottom: 12px; margin-bottom: 16px;">
                 <div>
@@ -7243,38 +7680,149 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   </div>
                   <h3 class="${headingClass}"${headingStyleAttr}>${safeHeading}</h3>
                 </div>
-                <div style="font-size: 11px; color: #C5A059; border: 1px solid rgba(197,160,89,0.4); padding: 4px 10px; border-radius: 4px; background: rgba(197,160,89,0.1);">
-                  Double-click to Edit Heading
+                <div style="font-size: 11px; color: #C5A059; border: 1px solid rgba(197,160,89,0.4); padding: 4px 10px; border-radius: 4px; background: rgba(197,160,89,0.1); cursor: pointer;">
+                  Double-click to Customize Cards
                 </div>
               </div>
-              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
-                <div style="aspect-ratio: 3/4; background: #141414; border: 1px solid #333; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; background-image: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.3));">
-                  <span style="font-size: 9px; color: #C5A059; font-weight: bold; text-transform: uppercase; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 2px; align-self: flex-start; border: 1px solid rgba(197,160,89,0.4);">Book Covers</span>
-                  <div>
-                    <p style="font-size: 13px; font-weight: bold; color: #fff; margin: 0;">Literary Fiction</p>
-                    <p style="font-size: 10px; color: #C5A059; margin: 2px 0 0 0;">View Artwork →</p>
-                  </div>
+              <div style="display: grid; grid-template-columns: repeat(${colCount}, 1fr); gap: 12px; width: 100%;">
+                ${cardsHtml}
+              </div>
+            `;
+            target.components(html);
+            editor.trigger("change:canvas");
+            modal.close();
+          };
+
+          actionsRow.appendChild(cancelBtn);
+          actionsRow.appendChild(saveBtn);
+          container.appendChild(actionsRow);
+
+          modal.setContent(container);
+          modal.open();
+        },
+      });
+
+      /*
+       * Artwork Feature Spotlight editor command
+       */
+      editor.Commands.add("open-artwork-feature-editor", {
+        run: () => {
+          const selected = editor.getSelected();
+          const target =
+            selected && (selected.is("artwork-feature") || selected.getAttributes?.()["data-cms-block"] === "artwork-feature")
+              ? selected
+              : selected?.closest?.('[data-cms-block="artwork-feature"]') ||
+                editor.getWrapper()?.find?.('[data-cms-block="artwork-feature"]')?.[0];
+
+          if (!target) {
+            alert("Please select the Artwork Feature Spotlight block first.");
+            return;
+          }
+
+          const targetEl = target.getEl ? target.getEl() : null;
+          const currentImg = targetEl?.querySelector("img")?.getAttribute("src") || "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800";
+          const currentEyebrow = targetEl?.querySelector("span")?.textContent?.trim() || "Featured Artwork Spotlight";
+          const currentTitle = targetEl?.querySelector("h3")?.textContent?.trim() || "The Whispering Citadel";
+          const pEls = targetEl ? Array.from(targetEl.querySelectorAll("p")) : [];
+          const currentSpecs = pEls[0]?.textContent?.trim() || "Digital Painting • 2024 • Tor Books Publishing";
+          const currentDesc = pEls[1]?.textContent?.trim() || "Created as the cover illustration for a dark fantasy bestseller.";
+          const linkEl = targetEl?.querySelector("a");
+          const currentBtnText = linkEl?.textContent?.trim() || "View In Gallery";
+          const currentBtnLink = linkEl?.getAttribute("href") || "/book-covers";
+
+          const modal = editor.Modal;
+          modal.setTitle("🎨 Customize Artwork Feature Spotlight");
+
+          const container = document.createElement("div");
+          container.style.cssText =
+            "display: flex; flex-direction: column; gap: 14px; color: #fff; padding: 6px 10px; max-height: 75vh; overflow-y: auto;";
+
+          container.innerHTML = `
+            <div>
+              <label style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; font-weight: 700; margin-bottom: 4px;">Eyebrow / Category Tag</label>
+              <input id="cms-art-eyebrow" type="text" value="${currentEyebrow.replace(/"/g, '&quot;')}" style="width: 100%; padding: 7px 10px; background: #141414; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 13px; box-sizing: border-box;" />
+            </div>
+            <div>
+              <label style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; font-weight: 700; margin-bottom: 4px;">Artwork Title</label>
+              <input id="cms-art-title" type="text" value="${currentTitle.replace(/"/g, '&quot;')}" style="width: 100%; padding: 7px 10px; background: #141414; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 13px; box-sizing: border-box;" />
+            </div>
+            <div>
+              <label style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; font-weight: 700; margin-bottom: 4px;">Specifications (Medium • Year • Publisher/Collection)</label>
+              <input id="cms-art-specs" type="text" value="${currentSpecs.replace(/"/g, '&quot;')}" style="width: 100%; padding: 7px 10px; background: #141414; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 13px; box-sizing: border-box;" />
+            </div>
+            <div>
+              <label style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; font-weight: 700; margin-bottom: 4px;">Artist Narrative / Story</label>
+              <textarea id="cms-art-desc" rows="3" style="width: 100%; padding: 7px 10px; background: #141414; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 13px; box-sizing: border-box; resize: vertical;">${currentDesc}</textarea>
+            </div>
+            <div>
+              <label style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; font-weight: 700; margin-bottom: 4px;">Artwork Image URL</label>
+              <input id="cms-art-img" type="text" value="${currentImg.replace(/"/g, '&quot;')}" style="width: 100%; padding: 7px 10px; background: #141414; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 13px; box-sizing: border-box;" />
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; font-weight: 700; margin-bottom: 4px;">Button Label</label>
+                <input id="cms-art-btn-label" type="text" value="${currentBtnText.replace(/"/g, '&quot;')}" style="width: 100%; padding: 7px 10px; background: #141414; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 13px; box-sizing: border-box;" />
+              </div>
+              <div>
+                <label style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #C5A059; font-weight: 700; margin-bottom: 4px;">Button Link</label>
+                <input id="cms-art-btn-link" type="text" value="${currentBtnLink.replace(/"/g, '&quot;')}" style="width: 100%; padding: 7px 10px; background: #141414; border: 1px solid #333; color: #fff; border-radius: 3px; font-size: 13px; box-sizing: border-box;" />
+              </div>
+            </div>
+          `;
+
+          const actionsRow = document.createElement("div");
+          actionsRow.style.cssText =
+            "display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; padding-top: 12px; border-top: 1px solid #222;";
+
+          const cancelBtn = document.createElement("button");
+          cancelBtn.type = "button";
+          cancelBtn.style.cssText =
+            "padding: 8px 16px; border: 1px solid #333; background: #1a1a1a; color: #ccc; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; border-radius: 2px; cursor: pointer;";
+          cancelBtn.textContent = "Cancel";
+          cancelBtn.onclick = () => modal.close();
+
+          const saveBtn = document.createElement("button");
+          saveBtn.type = "button";
+          saveBtn.style.cssText =
+            "padding: 8px 20px; border: none; background: #C5A059; color: #000; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 2px; cursor: pointer;";
+          saveBtn.textContent = "Save Spotlight";
+          saveBtn.onclick = () => {
+            const escapeStr = (s: string) =>
+              s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+            const eyebrow = escapeStr((container.querySelector("#cms-art-eyebrow") as HTMLInputElement)?.value.trim() || "Featured Artwork Spotlight");
+            const title = escapeStr((container.querySelector("#cms-art-title") as HTMLInputElement)?.value.trim() || "Artwork Title");
+            const specs = escapeStr((container.querySelector("#cms-art-specs") as HTMLInputElement)?.value.trim() || "Original Medium • 2024");
+            const desc = escapeStr((container.querySelector("#cms-art-desc") as HTMLTextAreaElement)?.value.trim() || "Detailed artwork narrative.");
+            const img = escapeStr((container.querySelector("#cms-art-img") as HTMLInputElement)?.value.trim() || currentImg);
+            const btnLabel = escapeStr((container.querySelector("#cms-art-btn-label") as HTMLInputElement)?.value.trim() || "View In Gallery");
+            const btnLink = escapeStr((container.querySelector("#cms-art-btn-link") as HTMLInputElement)?.value.trim() || "/book-covers");
+
+            const html = `
+              <div style="max-width: 900px; margin: 0 auto; background: #0c0c0c; border: 1px solid #222; border-radius: 4px; overflow: hidden; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); box-shadow: 0 12px 30px rgba(0,0,0,0.7);">
+                <div style="min-height: 320px; position: relative;">
+                  <img 
+                    src="${img}" 
+                    alt="${title}" 
+                    style="width: 100%; height: 100%; object-fit: cover; display: block;"
+                  />
                 </div>
-                <div style="aspect-ratio: 3/4; background: #141414; border: 1px solid #333; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; background-image: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.3));">
-                  <span style="font-size: 9px; color: #C5A059; font-weight: bold; text-transform: uppercase; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 2px; align-self: flex-start; border: 1px solid rgba(197,160,89,0.4);">Illustration</span>
-                  <div>
-                    <p style="font-size: 13px; font-weight: bold; color: #fff; margin: 0;">Conceptual Piece</p>
-                    <p style="font-size: 10px; color: #C5A059; margin: 2px 0 0 0;">View Artwork →</p>
-                  </div>
-                </div>
-                <div style="aspect-ratio: 3/4; background: #141414; border: 1px solid #333; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; background-image: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.3));">
-                  <span style="font-size: 9px; color: #C5A059; font-weight: bold; text-transform: uppercase; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 2px; align-self: flex-start; border: 1px solid rgba(197,160,89,0.4);">Fine Art</span>
-                  <div>
-                    <p style="font-size: 13px; font-weight: bold; color: #fff; margin: 0;">Oil on Canvas</p>
-                    <p style="font-size: 10px; color: #C5A059; margin: 2px 0 0 0;">View Artwork →</p>
-                  </div>
-                </div>
-                <div style="aspect-ratio: 3/4; background: #141414; border: 1px solid #333; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; background-image: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.3));">
-                  <span style="font-size: 9px; color: #C5A059; font-weight: bold; text-transform: uppercase; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 2px; align-self: flex-start; border: 1px solid rgba(197,160,89,0.4);">Dark Fantasy</span>
-                  <div>
-                    <p style="font-size: 13px; font-weight: bold; color: #fff; margin: 0;">Myth &amp; Legend</p>
-                    <p style="font-size: 10px; color: #C5A059; margin: 2px 0 0 0;">View Artwork →</p>
-                  </div>
+                <div style="padding: 2.5rem; display: flex; flex-direction: column; justify-content: center;">
+                  <span style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; color: #C5A059; margin-bottom: 0.5rem;">
+                    ${eyebrow}
+                  </span>
+                  <h3 style="font-family: 'Playfair Display', Georgia, serif; font-size: 2rem; color: #fff; margin-bottom: 0.75rem;">
+                    ${title}
+                  </h3>
+                  <p style="font-size: 0.85rem; color: #888; margin-bottom: 1.25rem;">
+                    ${specs}
+                  </p>
+                  <p style="font-size: 0.95rem; color: #bbb; line-height: 1.6; margin-bottom: 1.75rem;">
+                    ${desc}
+                  </p>
+                  <a href="${btnLink}" style="display: inline-block; align-self: flex-start; padding: 0.75rem 1.75rem; border: 1px solid #C5A059; color: #C5A059; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; text-decoration: none; border-radius: 2px;">
+                    ${btnLabel}
+                  </a>
                 </div>
               </div>
             `;
@@ -7540,6 +8088,10 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         content: `
         <div
           data-cms-block="project-carousel"
+          data-container-width="standard"
+          data-card-height="standard"
+          data-card-aspect="3/4"
+          data-layout-mode="grid"
           class="my-8 p-8 bg-[#0a0a0a] border border-dashed border-[#C5A059] rounded-xl text-white"
         >
           <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #222; padding-bottom: 12px; margin-bottom: 16px;">
@@ -7587,24 +8139,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       `,
       });
 
-      bm.add("portfolio-spotlight-block", {
-        label: "Portfolio Spotlight Carousel",
-        category: "Portfolio",
-        content: `
-        <div
-          data-cms-block="portfolio-spotlight"
-          class="my-8 p-8 bg-[#0a0a0a] border border-dashed border-[#C5A059] rounded-xl text-white text-center"
-        >
-          <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.25em; color: #C5A059; font-weight: bold; margin-bottom: 8px;">
-            ★ PORTFOLIO SPOTLIGHT CAROUSEL
-          </div>
-          <h3 class="text-2xl font-serif text-white mb-2">Explore Portfolios &amp; Artwork Spotlight</h3>
-          <p class="text-xs text-gray-400 uppercase tracking-widest">
-            Renders interactive portfolio categories synced with animated artwork spotlight on the live site
-          </p>
-        </div>
-      `,
-      });
+
 
       /*
        * Project grid block
@@ -8166,7 +8701,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         label: "Artwork Feature Card",
         category: "Portfolio",
         content: `
-        <section style="padding: 4rem 1.5rem; background: #000000; width: 100%; box-sizing: border-box;">
+        <section data-cms-block="artwork-feature" style="padding: 4rem 1.5rem; background: #000000; width: 100%; box-sizing: border-box;">
           <div style="max-width: 900px; margin: 0 auto; background: #0c0c0c; border: 1px solid #222; border-radius: 4px; overflow: hidden; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); box-shadow: 0 12px 30px rgba(0,0,0,0.7);">
             <div style="min-height: 320px; position: relative;">
               <img 
@@ -8661,6 +9196,13 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       if (!editor) {
         return;
       }
+
+      try {
+        editor.stopCommand("core:component-edit");
+      } catch {}
+      try {
+        (editor.Canvas?.getDocument()?.activeElement as HTMLElement)?.blur?.();
+      } catch {}
 
       syncAllCounters(editor);
       syncContactCardDataAttributes(editor);

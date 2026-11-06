@@ -21,12 +21,17 @@ function revalidateCmsPaths(slug?: string) {
     revalidatePath("/fine-art", "page");
     revalidatePath("/contact", "page");
     revalidatePath("/[slug]", "page");
+    revalidatePath("/p/[slug]", "page");
     if (slug) {
       const clean = sanitizePageSlug(slug);
       if (clean && clean !== "/") {
         revalidatePath(`/${clean}`, "page");
+        revalidatePath(`/p/${clean}`, "page");
+        revalidatePath(`/${clean}`);
+        revalidatePath(`/p/${clean}`);
       }
     }
+    revalidatePath("/");
   } catch (err) {
     console.error("Failed to revalidate paths:", err);
   }
@@ -497,6 +502,8 @@ export async function DELETE(req: NextRequest) {
     if (!deleted.length) {
       return NextResponse.json({ error: "Page not found" }, { status: 404 });
     }
+
+    revalidateCmsPaths(deleted[0].slug);
 
     return NextResponse.json({ success: true, deletedId: id });
   } catch {

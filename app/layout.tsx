@@ -10,6 +10,8 @@ import { CustomFont, formatFontFaceCss } from "@/lib/fonts";
 import { isSafeUrl, safeCssForStyleTag } from "@/lib/sanitize";
 import "./globals.css";
 
+export const dynamic = "force-dynamic";
+
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,

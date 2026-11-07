@@ -1589,7 +1589,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
     const customFontsRef = useRef<CustomFont[]>([]);
     customFontsRef.current = customFonts;
 
-    const flushActiveRte = (ed?: Editor | null) => {
+    const flushActiveRte = useCallback((ed?: Editor | null) => {
       const editor = ed || editorRef.current;
       if (!editor) return;
       try {
@@ -1600,7 +1600,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       try {
         (editor.Canvas?.getDocument()?.activeElement as HTMLElement)?.blur?.();
       } catch {}
-    };
+    }, []);
 
     const toggleFreeformDrag = () => {
       setIsFreeformDrag((prev) => {
@@ -2160,7 +2160,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       }
     };
 
-    const setupTypographyCustomFontButton = () => {
+    const setupTypographyCustomFontButton = useCallback(() => {
       const container = document.querySelector(".gjs-sm-container");
       if (!container) return;
       const titles = container.querySelectorAll(
@@ -2196,7 +2196,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           titleEl.appendChild(btn);
         }
       });
-    };
+    }, [flushActiveRte]);
 
     useEffect(() => {
       if (!containerRef.current) {
@@ -3457,16 +3457,26 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           adjustToolbar: true,
           actions: ["bold", "italic", "underline", "strikethrough", "link"],
           custom: false,
-          onKeydown: ({ ev, rte }: { ev: KeyboardEvent; rte: any }) => {
+          onKeydown: ({
+            ev,
+            rte,
+          }: {
+            ev: KeyboardEvent;
+            rte: { doc?: Document; el?: HTMLElement };
+          }) => {
             if (ev.key === "Enter") {
               const doc = rte.doc || (rte.el && rte.el.ownerDocument) || document;
               const cmdList = ["insertOrderedList", "insertUnorderedList"];
-              if (cmdList.some((cmd) => doc.queryCommandState?.(cmd))) {
+              const docWithCmd = doc as Document & {
+                queryCommandState?: (cmd: string) => boolean;
+                execCommand?: (cmd: string) => boolean;
+              };
+              if (cmdList.some((cmd) => docWithCmd.queryCommandState?.(cmd))) {
                 return;
               }
               ev.preventDefault();
               ev.stopPropagation();
-              doc.execCommand?.("insertLineBreak");
+              docWithCmd.execCommand?.("insertLineBreak");
               rte.el?.dispatchEvent(new Event("input", { bubbles: true }));
             }
           },
@@ -3483,14 +3493,20 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       if (typeof editor.setCustomRte === "function") {
         editor.setCustomRte({
           parseContent: false,
-          enable(el: HTMLElement, rte: unknown, opts: unknown) {
-            const rteInst = (editor.RichTextEditor as any).initRte(el);
+          enable(el: HTMLElement, _rte: unknown, opts: unknown) {
+            const rteModule = editor.RichTextEditor as unknown as {
+              initRte: (element: HTMLElement) => {
+                enable: (options: unknown) => unknown;
+              };
+            };
+            const rteInst = rteModule.initRte(el);
             rteInst.enable(opts);
             return rteInst;
           },
-          disable(el: HTMLElement, rte: any) {
-            if (rte && typeof rte.disable === "function") {
-              rte.disable();
+          disable(el: HTMLElement, rte: unknown) {
+            const rteObj = rte as { disable?: () => void } | null | undefined;
+            if (rteObj && typeof rteObj.disable === "function") {
+              rteObj.disable();
             } else {
               el.contentEditable = "false";
             }
@@ -9289,6 +9305,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           destroyTimerRef.current = null;
         }, 0);
       };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialData, initialHtml, initialCss]);
 
     // Fetch installed custom fonts from DB on mount
@@ -9314,7 +9331,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         setTimeout(setupTypographyCustomFontButton, 100);
         setTimeout(setupTypographyCustomFontButton, 400);
       }
-    }, [activeRightTab]);
+    }, [activeRightTab, setupTypographyCustomFontButton]);
 
     const applyFontToComponent = (comp: Component, fontStr: string, ed: Editor) => {
       flushActiveRte(ed);

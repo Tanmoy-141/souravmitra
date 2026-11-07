@@ -1,6 +1,48 @@
 @import url("https://fonts.googleapis.com/css2?family=Almendra:ital,wght@0,400;0,700;1,400&family=Bellefair&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Cardo:ital,wght@0,400;0,700;1,400&family=Castoro+Titling&family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400..900&family=Cormorant+Garamond:ital,wght@0,300..700;1,300..700&family=Crimson+Pro:ital,wght@0,300..900;1,300..900&family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Faustina:ital,wght@0,300..800;1,300..800&family=Forum&family=Frank+Ruhl+Libre:wght@300..900&family=Italiana&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400..700;1,400..700&family=Marcellus&family=MedievalSharp&family=Merriweather:ital,wght@0,300..900;1,300..900&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Playfair+Display+SC:ital,wght@0,400;0,700;0,900;1,400&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Prata&family=Spectral:ital,wght@0,200..800;1,200..800&family=Unna:ital,wght@0,400;0,700;1,400&family=Vollkorn:ital,wght@0,400..900;1,400..900&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,300..900;1,300..900&family=Be+Vietnam+Pro:ital,wght@0,300..900;1,300..900&family=Cabin:ital,wght@0,400..700;1,400..700&family=DM+Sans:ital,opsz,wght@0,9..40,300..900;1,9..40,300..900&family=Epilogue:ital,wght@0,300..900;1,300..900&family=Inter:wght@300..900&family=Jost:ital,wght@0,300..900;1,300..900&family=Lexend:wght@300..900&family=Manrope:wght@300..800&family=Montserrat:ital,wght@0,300..900;1,300..900&family=Outfit:wght@300..900&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Poppins:ital,wght@0,300..900;1,300..900&family=Raleway:ital,wght@0,300..900;1,300..900&family=Sora:wght@300..800&family=Space+Grotesk:wght@300..700&family=Syne:wght@400..800&family=Urbanist:ital,wght@0,300..900;1,300..900&family=Work+Sans:ital,wght@0,300..900;1,300..900&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Alex+Brush&family=Anton&family=Audiowide&family=Bebas+Neue&family=Bungee&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Creepster&family=Dancing+Script:wght@400..700&family=Fira+Code:wght@400..700&family=Great+Vibes&family=JetBrains+Mono:ital,wght@0,300..800;1,300..800&family=Nosifer&family=Orbitron:wght@400..900&family=Oswald:wght@300..700&family=Parisienne&family=Pirata+One&family=Righteous&family=Russo+One&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Special+Elite&family=Teko:wght@400..700&family=Uncial+Antiqua&display=swap");
+
+/* Custom Local Web Fonts (Available on All Desktop and Mobile Devices) */
+@font-face {
+  font-family: 'stingray';
+  src: url('/fonts/Stingray.otf') format('opentype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Stingray';
+  src: url('/fonts/Stingray.otf') format('opentype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gotham Regular';
+  src: url('/fonts/Gotham Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gotham Medium';
+  src: url('/fonts/Gotham Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gotham Book';
+  src: url('/fonts/Gotham Book.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 @import "tailwindcss";
 
 :root {
@@ -375,7 +417,7 @@ textarea::placeholder {
 
 /* Heading base style (custom font/color applied via style manager will take effect) */
 :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(h1, #iznl) {
-  font-family: 'stingray', 'Playfair Display', cursive, serif;
+  font-family: 'stingray', 'Stingray', 'Playfair Display', cursive, serif;
   font-size: clamp(3rem, 7vw, 5.5rem);
   color: #FFFFFF;
   font-weight: 400;
@@ -415,11 +457,424 @@ textarea::placeholder {
   transform: translateY(-1px);
 }
 
-@media (prefers-reduced-motion: reduce) {
+/* Responsive Mobile Alignments: Match Mobile Appearance to Desktop View */
+@media (max-width: 768px) {
+  .hero-reveal-container,
+  .hero-reveal-active,
+  #ivkb,
+  [data-hero-section="true"] {
+    position: relative !important;
+    height: 380px !important;
+    min-height: 360px !important;
+    max-height: 400px !important;
+    padding: 2rem 1.25rem !important;
+    overflow: hidden !important;
+    clip-path: inset(0) !important;
+    -webkit-clip-path: inset(0) !important;
+  }
+
   .hero-reveal-container img,
   .hero-reveal-active img,
   #ivkb img,
-  [data-hero-section="true"] img {
-    position: absolute !important;
+  [data-hero-section="true"] img,
+  .hero-fixed-bg {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    width: 100dvw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    object-fit: cover !important;
+    object-position: center 25% !important;
+    pointer-events: none !important;
+    z-index: 0 !important;
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
+  }
+
+  .hero-reveal-container .hero-overlay,
+  .hero-reveal-active #iuth,
+  #ivkb #iuth,
+  [data-hero-section="true"] .hero-overlay,
+  .hero-fixed-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    width: 100dvw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    background: rgba(0, 0, 0, 0.45) !important;
+    pointer-events: none !important;
+    z-index: 1 !important;
+  }
+
+  :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(h1, #iznl) {
+    font-family: 'stingray', 'Stingray', 'Playfair Display', cursive, serif !important;
+    font-size: clamp(2.6rem, 11vw, 3.6rem) !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(button, a, #if3pf) {
+    padding: 0.65rem 1.6rem !important;
+    font-size: 0.75rem !important;
+    letter-spacing: 0.12em !important;
+  }
+
+  /* Intro narrative section below hero */
+  #ivkb + section,
+  .hero-reveal-active + section,
+  .hero-reveal-container + section,
+  [data-hero-section="true"] + section {
+    padding-left: 1.25rem !important;
+    padding-right: 1.25rem !important;
+    margin-top: 2rem !important;
+    margin-bottom: 2rem !important;
+    max-width: 100% !important;
+  }
+
+  #ivkb + section p,
+  .hero-reveal-active + section p,
+  .hero-reveal-container + section p,
+  [data-hero-section="true"] + section p,
+  p.font-serif.c2263 {
+    bottom: 0 !important;
+    top: 0 !important;
+    position: static !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    font-size: clamp(1.05rem, 3.8vw, 1.25rem) !important;
+    line-height: 1.65 !important;
+    text-align: center !important;
+  }
+
+  /* Client Logos Section: Flawless Alignment on Mobile */
+  .clients-section,
+  [data-cms-block="clients-section"],
+  [data-cms-block="client-logos"],
+  .c8527,
+  .c3594,
+  .c3858,
+  .c3959,
+  .c14723 {
+    width: 100% !important;
+    max-width: 100vw !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 2.5rem 1rem !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    margin: 0 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .clients-section > div,
+  [data-cms-block="clients-section"] > div,
+  .c8530 {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+
+  .clients-section h2,
+  [data-cms-block="clients-section"] h2,
+  .c8533,
+  .c14731,
+  .c4134,
+  .c4383,
+  .c4394,
+  .c4467,
+  .c4478 {
+    font-size: clamp(1.6rem, 6vw, 2.25rem) !important;
+    text-align: center !important;
+    margin: 0 auto 0.5rem auto !important;
+    width: 100% !important;
+  }
+
+  .clients-section .c8551,
+  [data-cms-block="clients-section"] .w-8.h-0\.5,
+  .c8551 {
+    width: 2rem !important;
+    height: 2px !important;
+    margin: 0.25rem auto 1.5rem auto !important;
+  }
+
+  .client-marquee-wrapper,
+  .c8560,
+  .c3629 {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 auto !important;
+    overflow: hidden !important;
+    padding: 0.75rem 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .client-marquee-track,
+  .c8563 {
+    display: flex !important;
+    align-items: center !important;
+    width: max-content !important;
+  }
+
+  .client-marquee-track > div,
+  .client-marquee-track .c7221,
+  .client-marquee-track .c7246,
+  .client-marquee-track .c7271,
+  .client-marquee-track .c7296,
+  .client-marquee-track .c7321 {
+    padding-left: 0.85rem !important;
+    padding-right: 0.85rem !important;
+    flex-shrink: 0 !important;
+  }
+
+  .client-marquee-track img,
+  .client-marquee-track .c7224,
+  .client-marquee-track .c7249,
+  .client-marquee-track .c7274,
+  .client-marquee-track .c7299,
+  .client-marquee-track .c7324 {
+    max-height: 40px !important;
+    height: auto !important;
+    width: auto !important;
+    max-width: 150px !important;
+    object-fit: contain !important;
+  }
+
+  /* About Page Mobile Responsiveness */
+  .c40017 {
+    padding: 2.5rem 1.25rem !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .c40020 {
+    grid-template-columns: 1fr !important;
+    gap: 2rem !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    text-align: center !important;
+  }
+
+  .c40023 {
+    max-width: 280px !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+  }
+
+  .c40026 {
+    border-radius: 6px !important;
+    max-width: 100% !important;
+    height: auto !important;
+    margin: 0 auto !important;
+  }
+
+  .c40048 {
+    width: 100% !important;
+    max-width: 100% !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+
+  .c40051 {
+    font-size: 0.85rem !important;
+    letter-spacing: 0.18em !important;
+    margin-bottom: 0.75rem !important;
+    display: block !important;
+    text-align: center !important;
+  }
+
+  .c40048 h2,
+  .c40069,
+  .c4927,
+  .c4945,
+  .c4963 {
+    width: auto !important;
+    height: auto !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    text-align: center !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  .c4927 {
+    font-size: 1.5rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  .c4945 {
+    font-size: 1.15rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  .c4963 {
+    font-family: 'stingray', 'Stingray', 'Playfair Display', cursive, serif !important;
+    font-size: clamp(2.4rem, 10vw, 3.4rem) !important;
+    line-height: 1.15 !important;
+    margin-bottom: 1.25rem !important;
+    white-space: nowrap !important;
+  }
+
+  .c40087 {
+    font-size: 0.95rem !important;
+    line-height: 1.75 !important;
+    text-align: center !important;
+    max-width: 100% !important;
+  }
+
+  .c40105 {
+    padding: 1rem 1.25rem !important;
+    margin: 1.5rem auto !important;
+    border-left: 2px solid #C5A059 !important;
+    max-width: 100% !important;
+  }
+
+  .c40108 {
+    font-size: 0.95rem !important;
+    line-height: 1.6 !important;
+    text-align: center !important;
+  }
+
+  .c40144 {
+    padding: 0.75rem 1.75rem !important;
+    font-size: 0.75rem !important;
+    margin-top: 0.5rem !important;
+    display: inline-block !important;
+  }
+
+  .c41188 {
+    padding: 2.5rem 1.25rem !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .c41212 {
+    font-size: 1.65rem !important;
+    margin-bottom: 2rem !important;
+  }
+
+  .c41230 {
+    grid-template-columns: 1fr !important;
+    gap: 1.25rem !important;
+    width: 100% !important;
+  }
+
+  .c41233,
+  .c41323,
+  .c41413 {
+    padding: 1.75rem 1.25rem !important;
+  }
+
+  /* Contact Page Mobile Responsiveness */
+  .contact-page-wrapper,
+  .c66,
+  .c8247,
+  .c65742,
+  .c9238,
+  .c1066,
+  .c1162,
+  .c1237 {
+    flex-direction: column !important;
+    align-items: center !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0.5rem !important;
+    margin: 1rem auto !important;
+    gap: 1.75rem !important;
+    box-sizing: border-box !important;
+  }
+
+  .contact-card,
+  .c79,
+  .c856,
+  .c5716,
+  .c8261,
+  .c65756,
+  .c9252,
+  .c1080,
+  .c1176,
+  .c1251 {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    padding: 2rem 1.5rem !important;
+    box-sizing: border-box !important;
+  }
+
+  .contact-form-container,
+  .c471,
+  .c8670,
+  .c66125,
+  .c9621,
+  .c1449,
+  .c1593,
+  .c1708 {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .contact-form-grid-2,
+  .c475 {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  .contact-roles-row,
+  .c672 {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 0.75rem 1.25rem !important;
+    padding: 0.5rem 0 !important;
+  }
+
+  .contact-social-icons-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 0.65rem !important;
+    align-items: center !important;
+  }
+
+  /* Prevent CMS fixed pixel width overflow on mobile */
+  #cms-page-content,
+  #cms-page-content * {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .contact-form-grid-2,
+  .c475 {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

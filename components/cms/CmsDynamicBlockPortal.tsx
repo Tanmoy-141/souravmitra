@@ -616,6 +616,8 @@ export function CmsDynamicBlockPortal({
       element.style.padding = "0";
       element.style.minHeight = "0";
       element.style.background = "transparent";
+      element.style.height = "auto";
+      element.style.maxHeight = "none";
 
       // If parent section was just an outer wrapper for this block, prevent double-padding
       if (
@@ -1415,6 +1417,57 @@ export function CmsDynamicBlockPortal({
           max-width: 900px !important;
           margin: 0 auto !important;
           width: 100% !important;
+        }
+
+        @media (max-width: 768px) {
+          .hero-reveal-container,
+          .hero-reveal-active,
+          #ivkb,
+          [data-hero-section="true"] {
+            position: relative !important;
+            height: 380px !important;
+            min-height: 360px !important;
+            max-height: 400px !important;
+            padding: 2rem 1.25rem !important;
+            overflow: hidden !important;
+            clip-path: inset(0) !important;
+            -webkit-clip-path: inset(0) !important;
+          }
+          .hero-reveal-container img,
+          .hero-reveal-active img,
+          #ivkb img,
+          [data-hero-section="true"] img,
+          .hero-fixed-bg {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            width: 100dvw !important;
+            height: 100vh !important;
+            height: 100dvh !important;
+            object-fit: cover !important;
+            object-position: center 25% !important;
+            pointer-events: none !important;
+            z-index: 0 !important;
+            transform: translate3d(0, 0, 0);
+            will-change: transform;
+          }
+          .hero-reveal-container .hero-overlay,
+          .hero-reveal-active #iuth,
+          #ivkb #iuth,
+          [data-hero-section="true"] .hero-overlay,
+          .hero-fixed-overlay {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            width: 100dvw !important;
+            height: 100vh !important;
+            height: 100dvh !important;
+            background: rgba(0, 0, 0, 0.45) !important;
+            pointer-events: none !important;
+            z-index: 1 !important;
+          }
         }
 
         [data-cms-block] {

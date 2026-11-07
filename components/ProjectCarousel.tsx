@@ -234,7 +234,7 @@ export default function ProjectCarousel({
 
             <h2
               id={headingProps?.id}
-              className={`text-3xl sm:text-4xl md:text-5xl tracking-tight leading-tight break-words whitespace-normal ${headingProps?.color || headingProps?.style?.color ? "" : "text-white"} ${
+              className={`text-3xl sm:text-4xl md:text-5xl tracking-tight leading-tight wrap-break-word whitespace-normal ${headingProps?.color || headingProps?.style?.color ? "" : "text-white"} ${
                 headingProps?.className || ""
               } ${!headingProps?.fontFamily && !headingProps?.style?.fontFamily ? "font-serif" : ""}`}
               style={{

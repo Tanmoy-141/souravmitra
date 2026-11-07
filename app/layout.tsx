@@ -77,6 +77,13 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${poppins.variable} h-full antialiased`}>
       <head>
+        <link
+          rel="preload"
+          href="/fonts/Stingray.otf"
+          as="font"
+          type="font/otf"
+          crossOrigin="anonymous"
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"

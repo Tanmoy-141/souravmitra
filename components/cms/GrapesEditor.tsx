@@ -78,7 +78,7 @@ function isProjectData(value: unknown): value is GrapesProjectData {
 function registerCmsDynamicBlockTypes(editorInstance: Editor) {
   const dynamicBlockDefaults = {
     droppable: false,
-    editable: true,
+    editable: false,
     draggable: true,
     removable: true,
     copyable: true,
@@ -102,6 +102,7 @@ function registerCmsDynamicBlockTypes(editorInstance: Editor) {
   editorInstance.Components.addType("default", {
     model: {
       defaults: {
+        editable: false,
         resizable: {
           tl: true,
           tc: true,
@@ -1588,12 +1589,27 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
     const customFontsRef = useRef<CustomFont[]>([]);
     customFontsRef.current = customFonts;
 
+    const flushActiveRte = (ed?: Editor | null) => {
+      const editor = ed || editorRef.current;
+      if (!editor) return;
+      try {
+        if (editor.Commands?.isActive("core:component-edit")) {
+          editor.stopCommand("core:component-edit");
+        }
+      } catch {}
+      try {
+        (editor.Canvas?.getDocument()?.activeElement as HTMLElement)?.blur?.();
+      } catch {}
+    };
+
     const toggleFreeformDrag = () => {
       setIsFreeformDrag((prev) => {
         const next = !prev;
+        // Never set global editor dragMode to "absolute" because GrapesJS's absolute drag
+        // removes sections and blocks from normal document flow, collapsing their height and
+        // causing blocks and sections to disappear. Keep the editor in safe, responsive flow mode ("").
         if (editorRef.current) {
-          // GrapesJS default flow drag mode is empty string ""
-          editorRef.current.setDragMode(next ? "absolute" : "");
+          editorRef.current.setDragMode("");
         }
         return next;
       });
@@ -2174,6 +2190,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           btn.onclick = (e) => {
             e.preventDefault();
             e.stopPropagation();
+            flushActiveRte(editorRef.current);
             setShowFontModal(true);
           };
           titleEl.appendChild(btn);
@@ -3807,16 +3824,20 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               command: "anchor-right",
               label: "➡ Right",
             },
-            {
-              id: "anchor-free",
-              attributes: {
-                title: isAbsolute
-                  ? "Switch to Flow Grid Mode"
-                  : "Free Move Mode (Drag anywhere without left/grid lock)",
-              },
-              command: "anchor-free",
-              label: isAbsolute ? "⚓ Flow" : "🚀 Free",
-            },
+            ...(!isSection
+              ? [
+                  {
+                    id: "anchor-free",
+                    attributes: {
+                      title: isAbsolute
+                        ? "Switch to Flow Grid Mode"
+                        : "Free Move Mode (Position within parent container)",
+                    },
+                    command: "anchor-free",
+                    label: isAbsolute ? "⚓ Flow" : "🚀 Free",
+                  },
+                ]
+              : []),
           ];
 
           // If it's a section, prepend section ordering buttons (▲ Move Up, ▼ Move Down, 📑 Sections)
@@ -4287,6 +4308,31 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           component.closest?.(".clients-section")
         ) {
           editor.runCommand("open-client-animation-customizer");
+        } else {
+          // Safeguard: Never allow containers or structural sections to enter RTE mode!
+          // Doing so would cause GrapesJS to strip child models and replace them with flat text/br tags.
+          const tagName = (component.get?.("tagName") || "").toLowerCase();
+          const isContainer =
+            tagName === "section" ||
+            tagName === "div" ||
+            tagName === "main" ||
+            tagName === "article" ||
+            tagName === "header" ||
+            tagName === "footer" ||
+            component.get?.("type") === "wrapper" ||
+            component.getClasses?.()?.includes("page-section") ||
+            (component.components?.()?.length ?? 0) > 0;
+
+          if (isContainer) {
+            // Find the first editable child text element and select it safely
+            const textChild = component.find?.("p, h1, h2, h3, h4, h5, h6, span, a, blockquote")?.[0];
+            if (textChild && textChild !== component) {
+              editor.select(textChild);
+              try {
+                editor.runCommand("core:component-edit");
+              } catch {}
+            }
+          }
         }
       });
 
@@ -4316,6 +4362,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         run: (ed) => {
           const selected = ed.getSelected();
           if (!selected) return;
+          flushActiveRte(ed);
           selected.addStyle({
             "margin-left": "0px",
             "margin-right": "auto",
@@ -4334,6 +4381,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         run: (ed) => {
           const selected = ed.getSelected();
           if (!selected) return;
+          flushActiveRte(ed);
           selected.addStyle({
             "margin-left": "auto",
             "margin-right": "auto",
@@ -4352,6 +4400,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         run: (ed) => {
           const selected = ed.getSelected();
           if (!selected) return;
+          flushActiveRte(ed);
           selected.addStyle({
             "margin-left": "auto",
             "margin-right": "0px",
@@ -4370,18 +4419,74 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         run: (ed) => {
           const selected = ed.getSelected();
           if (!selected) return;
-          const isAbsolute = selected.getDragMode() === "absolute";
-          if (isAbsolute) {
+
+          flushActiveRte(ed);
+
+          // Sections and root layout containers must ALWAYS stay in document flow — NEVER absolute
+          const wrapper = ed.getWrapper();
+          const tagName = (selected.get("tagName") || "").toLowerCase();
+          const isSectionElement =
+            tagName === "section" ||
+            (typeof selected.parent === "function" && selected.parent() === wrapper) ||
+            Boolean(selected.getClasses?.()?.includes("page-section")) ||
+            Boolean(selected.getAttributes?.()["data-section"]) ||
+            Boolean(selected.getAttributes?.()["data-cms-block"]);
+
+          if (isSectionElement) {
             selected.setDragMode("");
             selected.addStyle({
               position: "relative",
+              width: "100%",
+              left: "0px",
+              top: "0px",
+              transform: "none",
+              display: "block",
+              visibility: "visible",
+              opacity: "1",
+            });
+            ed.trigger("change:canvas");
+            return;
+          }
+
+          // For inner elements:
+          const curStyle = selected.getStyle() || {};
+          const isAbsolute = selected.getDragMode() === "absolute" || curStyle.position === "absolute";
+          if (isAbsolute) {
+            // Return to normal relative flow
+            selected.setDragMode("");
+            selected.addStyle({
+              position: "relative",
+              left: "0px",
+              top: "0px",
+              transform: "none",
+              "margin-left": "auto",
+              "margin-right": "auto",
             });
           } else {
+            // Ensure parent container has position: relative so element coordinates are scoped
+            const parent = typeof selected.parent === "function" ? selected.parent() : null;
+            if (parent && parent !== wrapper) {
+              const pPos = parent.getStyle()?.position;
+              if (!pPos || pPos === "static") {
+                parent.addStyle({ position: "relative" });
+              }
+            }
+
+            // Preserve current rendered dimensions & offsets so the element never collapses or jumps
+            const el = selected.getEl();
+            const currentWidth = el?.offsetWidth ? `${el.offsetWidth}px` : (curStyle.width || "auto");
+            const currentLeft = el?.offsetLeft ? `${el.offsetLeft}px` : "0px";
+            const currentTop = el?.offsetTop ? `${el.offsetTop}px` : "0px";
+
             selected.setDragMode("absolute");
             selected.addStyle({
               position: "absolute",
+              left: currentLeft,
+              top: currentTop,
+              width: currentWidth,
               "margin-left": "0px",
               "margin-right": "0px",
+              "z-index": "10",
             });
           }
           ed.trigger("change:canvas");
@@ -5062,6 +5167,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
        */
       editor.Commands.add("open-custom-fonts-studio", {
         run: () => {
+          flushActiveRte(editor);
           setShowFontModal(true);
         },
       });
@@ -9164,7 +9270,24 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
     }, [activeRightTab]);
 
     const applyFontToComponent = (comp: Component, fontStr: string, ed: Editor) => {
+      flushActiveRte(ed);
+
       comp.addStyle({ "font-family": fontStr });
+
+      // If the component has child text elements or is a container/section,
+      // cascade font-family to all inner text elements so typography visibly updates immediately
+      try {
+        const textElements = comp.find?.(
+          "p, h1, h2, h3, h4, h5, h6, span, a, blockquote, li, .counter-number, .counter-label",
+        );
+        if (textElements && textElements.length > 0) {
+          textElements.forEach((child: Component) => {
+            child.addStyle({ "font-family": fontStr });
+          });
+        }
+      } catch (err) {
+        console.warn("Could not cascade font to child text elements:", err);
+      }
 
       // 1. Clients Section
       const isClientSec =
@@ -9287,6 +9410,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
     const handleApplyFontToSelected = (font: CustomFont) => {
       const ed = editorRef.current;
       if (ed) {
+        flushActiveRte(ed);
         const selected = ed.getSelected();
         if (selected) {
           const fontStr = `'${font.family}', sans-serif`;
@@ -10051,7 +10175,10 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             {/* Custom Font Studio Modal Trigger */}
             <button
               type="button"
-              onClick={() => setShowFontModal(true)}
+              onClick={() => {
+                flushActiveRte();
+                setShowFontModal(true);
+              }}
               title="Install & Manage Custom Typography Fonts (Google Fonts, Web URLs, Uploads)"
               className="px-2.5 py-1.5 border border-[#333] hover:border-[#C5A059] text-[#C5A059] hover:text-white bg-[#141414] rounded transition-colors text-[11px] font-bold tracking-wider flex items-center gap-1.5">
               <span>🔤</span>
@@ -10217,7 +10344,10 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                 <span>Styles &amp; Resizing</span>
                 <button
                   type="button"
-                  onClick={() => setShowFontModal(true)}
+                  onClick={() => {
+                    flushActiveRte();
+                    setShowFontModal(true);
+                  }}
                   className="px-2 py-0.5 bg-[#1f1a10] hover:bg-[#C5A059] text-[#C5A059] hover:text-black border border-[#C5A059]/40 hover:border-[#C5A059] rounded text-[9px] font-bold tracking-wider flex items-center gap-1 transition-all"
                   title="Install Google Fonts, Web Font URLs, or Upload Font Files">
                   <span>🔤</span>

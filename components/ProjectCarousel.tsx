@@ -234,7 +234,7 @@ export default function ProjectCarousel({
 
             <h2
               id={headingProps?.id}
-              className={`text-3xl sm:text-4xl md:text-5xl tracking-tight leading-tight ${headingProps?.color || headingProps?.style?.color ? "" : "text-white"} ${
+              className={`text-3xl sm:text-4xl md:text-5xl tracking-tight leading-tight break-words whitespace-normal ${headingProps?.color || headingProps?.style?.color ? "" : "text-white"} ${
                 headingProps?.className || ""
               } ${!headingProps?.fontFamily && !headingProps?.style?.fontFamily ? "font-serif" : ""}`}
               style={{
@@ -267,8 +267,11 @@ export default function ProjectCarousel({
                 ...(headingProps?.paddingRight ? { paddingRight: headingProps.paddingRight } : {}),
                 ...(headingProps?.width ? { width: headingProps.width } : {}),
                 ...(headingProps?.height ? { height: headingProps.height } : {}),
-                ...(headingProps?.maxWidth ? { maxWidth: headingProps.maxWidth } : {}),
                 ...headingProps?.style,
+                maxWidth: "100%",
+                whiteSpace: "normal",
+                wordBreak: "break-word",
+                overflowWrap: "anywhere",
               }}>
               {heading}
             </h2>

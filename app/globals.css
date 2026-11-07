@@ -6,7 +6,63 @@
 @font-face {
   font-family: 'stingray';
   src: url('/fonts/Stingray.otf') format('opentype');
-  font-weight: 100 900;
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'stingray';
+  src: url('/fonts/Stingray.otf') format('opentype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'stingray';
+  src: url('/fonts/Stingray.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'stingray';
+  src: url('/fonts/Stingray.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'stingray';
+  src: url('/fonts/Stingray.otf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'stingray';
+  src: url('/fonts/Stingray.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'stingray';
+  src: url('/fonts/Stingray.otf') format('opentype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'stingray';
+  src: url('/fonts/Stingray.otf') format('opentype');
+  font-weight: 900;
   font-style: normal;
   font-display: swap;
 }
@@ -14,7 +70,39 @@
 @font-face {
   font-family: 'Stingray';
   src: url('/fonts/Stingray.otf') format('opentype');
-  font-weight: 100 900;
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Stingray';
+  src: url('/fonts/Stingray.otf') format('opentype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Stingray';
+  src: url('/fonts/Stingray.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Stingray';
+  src: url('/fonts/Stingray.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gotham Regular';
+  src: url('/fonts/Gotham Regular.otf') format('opentype');
+  font-weight: normal;
   font-style: normal;
   font-display: swap;
 }
@@ -36,9 +124,57 @@
 }
 
 @font-face {
+  font-family: 'Gotham Medium';
+  src: url('/fonts/Gotham Medium.otf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gotham Book';
+  src: url('/fonts/Gotham Book.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: 'Gotham Book';
   src: url('/fonts/Gotham Book.otf') format('opentype');
   font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gotham';
+  src: url('/fonts/Gotham Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gotham';
+  src: url('/fonts/Gotham Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gotham';
+  src: url('/fonts/Gotham Medium.otf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gotham';
+  src: url('/fonts/Gotham Medium.otf') format('opentype');
+  font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
@@ -464,18 +600,26 @@ textarea::placeholder {
   #ivkb,
   [data-hero-section="true"] {
     position: relative !important;
-    height: 380px !important;
-    min-height: 360px !important;
-    max-height: 400px !important;
-    padding: 2rem 1.25rem !important;
+    width: 100% !important;
+    height: 72vh !important;
+    height: 72dvh !important;
+    min-height: 520px !important;
+    max-height: 700px !important;
+    padding: 5.5rem 1.5rem 3rem 1.5rem !important;
     overflow: hidden !important;
     clip-path: inset(0) !important;
     -webkit-clip-path: inset(0) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
   }
 
   .hero-reveal-container img,
   .hero-reveal-active img,
   #ivkb img,
+  #ifjq,
   [data-hero-section="true"] img,
   .hero-fixed-bg {
     position: fixed !important;
@@ -486,16 +630,17 @@ textarea::placeholder {
     height: 100vh !important;
     height: 100dvh !important;
     object-fit: cover !important;
-    object-position: center 25% !important;
+    object-position: center center !important;
     pointer-events: none !important;
     z-index: 0 !important;
-    transform: translate3d(0, 0, 0);
-    will-change: transform;
+    transform: none !important;
+    will-change: auto !important;
   }
 
   .hero-reveal-container .hero-overlay,
   .hero-reveal-active #iuth,
   #ivkb #iuth,
+  #iuth,
   [data-hero-section="true"] .hero-overlay,
   .hero-fixed-overlay {
     position: fixed !important;
@@ -512,43 +657,102 @@ textarea::placeholder {
 
   :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(h1, #iznl) {
     font-family: 'stingray', 'Stingray', 'Playfair Display', cursive, serif !important;
-    font-size: clamp(2.6rem, 11vw, 3.6rem) !important;
-    line-height: 1.1 !important;
+    font-size: clamp(3rem, 11vw, 4.5rem) !important;
+    line-height: 1.15 !important;
     white-space: nowrap !important;
-    margin-bottom: 0.75rem !important;
+    margin-bottom: 1.25rem !important;
+    margin-top: 0 !important;
+    color: #ffffff !important;
+    text-shadow: 0 4px 16px rgba(0, 0, 0, 0.6) !important;
   }
 
   :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(button, a, #if3pf) {
-    padding: 0.65rem 1.6rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0.85rem 2.25rem !important;
     font-size: 0.75rem !important;
-    letter-spacing: 0.12em !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.18em !important;
+    text-transform: uppercase !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
+    border-radius: 2px !important;
+    margin-top: 0.5rem !important;
+    text-decoration: none !important;
   }
 
-  /* Intro narrative section below hero */
+  /* Intro narrative section below hero (Welcome Statement) */
   #ivkb + section,
   .hero-reveal-active + section,
   .hero-reveal-container + section,
-  [data-hero-section="true"] + section {
+  [data-hero-section="true"] + section,
+  section:has(> p.font-serif),
+  .c3677 {
     padding-left: 1.25rem !important;
     padding-right: 1.25rem !important;
     margin-top: 2rem !important;
     margin-bottom: 2rem !important;
-    max-width: 100% !important;
+    top: auto !important;
+    bottom: auto !important;
+    position: relative !important;
+    width: 100% !important;
+    max-width: 92% !important;
+    height: auto !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    box-sizing: border-box !important;
   }
 
   #ivkb + section p,
   .hero-reveal-active + section p,
   .hero-reveal-container + section p,
   [data-hero-section="true"] + section p,
-  p.font-serif.c2263 {
-    bottom: 0 !important;
-    top: 0 !important;
-    position: static !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-    font-size: clamp(1.05rem, 3.8vw, 1.25rem) !important;
-    line-height: 1.65 !important;
+  p.font-serif.c2263,
+  .c3684,
+  .c3656 {
+    bottom: auto !important;
+    top: auto !important;
+    position: relative !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    font-size: clamp(1.1rem, 4.2vw, 1.4rem) !important;
+    line-height: 1.75 !important;
     text-align: center !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Projects Carousel Heading & Container on Mobile */
+  [data-cms-block="project-carousel"],
+  [data-cms-block="portfolio-spotlight"],
+  [data-cms-block="gallery-carousel"],
+  .c3538,
+  .c3556,
+  .c3571 {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-top: 1.5rem !important;
+    margin-bottom: 1.5rem !important;
+  }
+
+  [data-cms-block] h2,
+  [data-cms-block] h3,
+  .c3605,
+  #i6el2 {
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    font-size: clamp(1.25rem, 5.5vw, 1.85rem) !important;
+    line-height: 1.25 !important;
+    max-width: 100% !important;
   }
 
   /* Client Logos Section: Flawless Alignment on Mobile */
@@ -860,6 +1064,69 @@ textarea::placeholder {
   #cms-page-content * {
     max-width: 100% !important;
     box-sizing: border-box !important;
+  }
+
+  /* Reset CMS free-drag pixel widths, heights, and relative offsets */
+  #cms-page-content [style*="width"],
+  #cms-page-content [style*="height"],
+  #cms-page-content div:not(.client-marquee-track):not(.client-marquee-wrapper):not([data-hero-section]):not(.hero-reveal-container):not(.hero-fixed-bg),
+  #cms-page-content section:not(#ivkb):not([data-hero-section]),
+  #cms-page-content p,
+  #cms-page-content article {
+    max-width: 100% !important;
+    width: auto !important;
+    height: auto !important;
+  }
+
+  #cms-page-content [style*="top:"],
+  #cms-page-content [style*="bottom:"],
+  #cms-page-content [style*="left:"],
+  #cms-page-content [style*="right:"] {
+    top: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+  }
+
+  /* Reset parent container loose gaps on mobile */
+  #cms-page-content .gap-16,
+  #cms-page-content .gap-20 {
+    gap: 2rem !important;
+  }
+
+  #cms-page-content .py-12,
+  #cms-page-content .py-16 {
+    padding-top: 1.5rem !important;
+    padding-bottom: 1.5rem !important;
+  }
+
+  /* About Page Robust Responsive Rules (independent of transient hash classes) */
+  #cms-page-content #igmb,
+  #igmb {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 3rem 1.25rem !important;
+    margin: 0 auto !important;
+  }
+
+  /* Contact Page Card & Form robust responsive stacking */
+  #cms-page-content #iq4w,
+  #iq4w {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 1rem 0.5rem !important;
+    margin: 1rem auto !important;
+  }
+
+  #cms-page-content #ibu1,
+  #ibu1,
+  #cms-page-content #i56sb,
+  #i56sb {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
   }
 }
 

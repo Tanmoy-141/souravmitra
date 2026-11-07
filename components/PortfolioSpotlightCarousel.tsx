@@ -634,7 +634,7 @@ export default function PortfolioSpotlightCarousel({
             }`}>
             <h2
               id={headingProps?.id}
-              className={`text-2xl sm:text-3xl font-bold tracking-tight ${headingProps?.color || headingProps?.style?.color ? "" : "text-white"} ${
+              className={`text-2xl sm:text-3xl font-bold tracking-tight break-words whitespace-normal ${headingProps?.color || headingProps?.style?.color ? "" : "text-white"} ${
                 headingProps?.className || ""
               }`}
               style={{
@@ -704,6 +704,9 @@ export default function PortfolioSpotlightCarousel({
                 height: "auto",
                 maxHeight: "none",
                 maxWidth: "100%",
+                whiteSpace: "normal",
+                wordBreak: "break-word",
+                overflowWrap: "anywhere",
               }}>
               {heading}
             </h2>

@@ -601,11 +601,10 @@ textarea::placeholder {
   [data-hero-section="true"] {
     position: relative !important;
     width: 100% !important;
-    height: 72vh !important;
-    height: 72dvh !important;
-    min-height: 520px !important;
-    max-height: 700px !important;
-    padding: 5.5rem 1.5rem 3rem 1.5rem !important;
+    height: 480px !important;
+    min-height: 450px !important;
+    max-height: 520px !important;
+    padding: 4.5rem 1.5rem 2rem 1.5rem !important;
     overflow: hidden !important;
     clip-path: inset(0) !important;
     -webkit-clip-path: inset(0) !important;
@@ -614,6 +613,8 @@ textarea::placeholder {
     align-items: center !important;
     justify-content: center !important;
     box-sizing: border-box !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
   }
 
   .hero-reveal-container img,
@@ -629,6 +630,9 @@ textarea::placeholder {
     width: 100dvw !important;
     height: 100vh !important;
     height: 100dvh !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    max-height: none !important;
     object-fit: cover !important;
     object-position: center center !important;
     pointer-events: none !important;
@@ -650,6 +654,8 @@ textarea::placeholder {
     width: 100dvw !important;
     height: 100vh !important;
     height: 100dvh !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
     background: rgba(0, 0, 0, 0.45) !important;
     pointer-events: none !important;
     z-index: 1 !important;
@@ -1066,16 +1072,24 @@ textarea::placeholder {
     box-sizing: border-box !important;
   }
 
-  /* Reset CMS free-drag pixel widths, heights, and relative offsets */
-  #cms-page-content [style*="width"],
-  #cms-page-content [style*="height"],
-  #cms-page-content div:not(.client-marquee-track):not(.client-marquee-wrapper):not([data-hero-section]):not(.hero-reveal-container):not(.hero-fixed-bg),
+  /* Reset CMS free-drag pixel widths, heights, and relative offsets on text and structural wrappers */
+  #cms-page-content p[style*="width"],
+  #cms-page-content p[style*="height"],
+  #cms-page-content h1[style*="width"],
+  #cms-page-content h2[style*="width"],
+  #cms-page-content h3[style*="width"],
+  #cms-page-content div:not(.client-marquee-track):not(.client-marquee-wrapper):not([data-hero-section]):not(.hero-reveal-container):not(.hero-fixed-bg):not(#ibak):not(#iuth),
   #cms-page-content section:not(#ivkb):not([data-hero-section]),
   #cms-page-content p,
   #cms-page-content article {
     max-width: 100% !important;
     width: auto !important;
     height: auto !important;
+  }
+
+  /* Ensure Hero section is flush at top under navbar with zero stray margins */
+  #cms-page-content > div:first-child {
+    padding-top: 0 !important;
   }
 
   #cms-page-content [style*="top:"],

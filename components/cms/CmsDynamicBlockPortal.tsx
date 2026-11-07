@@ -1393,30 +1393,41 @@ export function CmsDynamicBlockPortal({
         .hero-reveal-container img,
         .hero-reveal-active img,
         #ivkb img,
+        #ifjq,
         [data-hero-section="true"] img,
         .hero-fixed-bg {
           position: fixed !important;
           top: 0 !important;
           left: 0 !important;
           width: 100vw !important;
+          width: 100dvw !important;
           height: 100vh !important;
+          height: 100dvh !important;
+          min-height: 100vh !important;
+          min-height: 100dvh !important;
+          max-height: none !important;
           object-fit: cover !important;
-          object-position: center !important;
+          object-position: center center !important;
           pointer-events: none !important;
           z-index: 0 !important;
-          transform: translate3d(0, 0, 0);
-          will-change: transform;
+          transform: none !important;
+          will-change: auto !important;
         }
         .hero-reveal-container .hero-overlay,
         .hero-reveal-active #iuth,
         #ivkb #iuth,
+        #iuth,
         [data-hero-section="true"] .hero-overlay,
         .hero-fixed-overlay {
           position: fixed !important;
           top: 0 !important;
           left: 0 !important;
           width: 100vw !important;
+          width: 100dvw !important;
           height: 100vh !important;
+          height: 100dvh !important;
+          min-height: 100vh !important;
+          min-height: 100dvh !important;
           background: rgba(0, 0, 0, 0.45) !important;
           pointer-events: none !important;
           z-index: 1 !important;
@@ -1424,6 +1435,7 @@ export function CmsDynamicBlockPortal({
         .hero-reveal-container .hero-content,
         .hero-reveal-active #ibak,
         #ivkb #ibak,
+        #ibak,
         [data-hero-section="true"] .hero-content {
           position: relative !important;
           z-index: 2 !important;
@@ -1444,11 +1456,10 @@ export function CmsDynamicBlockPortal({
           [data-hero-section="true"] {
             position: relative !important;
             width: 100% !important;
-            height: 72vh !important;
-            height: 72dvh !important;
-            min-height: 520px !important;
-            max-height: 700px !important;
-            padding: 5.5rem 1.5rem 3rem 1.5rem !important;
+            height: 480px !important;
+            min-height: 450px !important;
+            max-height: 520px !important;
+            padding: 4.5rem 1.5rem 2rem 1.5rem !important;
             overflow: hidden !important;
             clip-path: inset(0) !important;
             -webkit-clip-path: inset(0) !important;
@@ -1457,6 +1468,8 @@ export function CmsDynamicBlockPortal({
             align-items: center !important;
             justify-content: center !important;
             box-sizing: border-box !important;
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
           }
           .hero-reveal-container img,
           .hero-reveal-active img,
@@ -1471,6 +1484,9 @@ export function CmsDynamicBlockPortal({
             width: 100dvw !important;
             height: 100vh !important;
             height: 100dvh !important;
+            min-height: 100vh !important;
+            min-height: 100dvh !important;
+            max-height: none !important;
             object-fit: cover !important;
             object-position: center center !important;
             pointer-events: none !important;
@@ -1491,6 +1507,8 @@ export function CmsDynamicBlockPortal({
             width: 100dvw !important;
             height: 100vh !important;
             height: 100dvh !important;
+            min-height: 100vh !important;
+            min-height: 100dvh !important;
             background: rgba(0, 0, 0, 0.45) !important;
             pointer-events: none !important;
             z-index: 1 !important;

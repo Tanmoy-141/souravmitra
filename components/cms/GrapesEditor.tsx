@@ -3451,9 +3451,55 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         blockManager: {
           appendTo: ".gjs-blocks-container",
         },
+
+        richTextEditor: {
+          stylePrefix: "rte-",
+          adjustToolbar: true,
+          actions: ["bold", "italic", "underline", "strikethrough", "link"],
+          custom: false,
+          onKeydown: ({ ev, rte }: { ev: KeyboardEvent; rte: any }) => {
+            if (ev.key === "Enter") {
+              const doc = rte.doc || (rte.el && rte.el.ownerDocument) || document;
+              const cmdList = ["insertOrderedList", "insertUnorderedList"];
+              if (cmdList.some((cmd) => doc.queryCommandState?.(cmd))) {
+                return;
+              }
+              ev.preventDefault();
+              ev.stopPropagation();
+              doc.execCommand?.("insertLineBreak");
+              rte.el?.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+          },
+        },
       });
 
       editorRef.current = editor;
+
+      // Safe RichTextEditor configuration to prevent text disappearance on Enter:
+      // When parseContent is true (default), GrapesJS clears model.content and runs comps.resetFromString(),
+      // which strips text nodes and causes text to completely disappear when Enter / <br> tags are inserted.
+      // Setting parseContent: false keeps el.innerHTML directly inside model.content, perfectly preserving
+      // all text and line breaks without destroying components.
+      if (typeof editor.setCustomRte === "function") {
+        editor.setCustomRte({
+          parseContent: false,
+          enable(el: HTMLElement, rte: unknown, opts: unknown) {
+            const rteInst = (editor.RichTextEditor as any).initRte(el);
+            rteInst.enable(opts);
+            return rteInst;
+          },
+          disable(el: HTMLElement, rte: any) {
+            if (rte && typeof rte.disable === "function") {
+              rte.disable();
+            } else {
+              el.contentEditable = "false";
+            }
+          },
+          getContent(el: HTMLElement) {
+            return el.innerHTML;
+          },
+        });
+      }
 
       // Safe patch for GrapesJS ClassTagsView.syncStyle / CssComposer.getIdRule TypeError:
       // When tags or styles are synced on an element without an explicit ID rule, GrapesJS calls
@@ -8234,6 +8280,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         category: "Basic",
         content: {
           type: "text",
+          tagName: "p",
           content:
             "Enter your custom text here. Click to edit or format text directly.",
           style: {

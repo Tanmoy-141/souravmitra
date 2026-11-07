@@ -743,6 +743,12 @@ export function CmsDynamicBlockPortal({
         };
 
         element.replaceChildren();
+        element.style.height = "auto";
+        element.style.minHeight = "auto";
+        element.style.maxHeight = "none";
+        element.style.border = "none";
+        element.style.padding = "0";
+        element.style.maxWidth = "100%";
         newTargets.push({
           element,
           key: `portal-carousel-${index}`,
@@ -774,6 +780,12 @@ export function CmsDynamicBlockPortal({
           sourceEl,
         );
         element.replaceChildren();
+        element.style.height = "auto";
+        element.style.minHeight = "auto";
+        element.style.maxHeight = "none";
+        element.style.border = "none";
+        element.style.padding = "0";
+        element.style.maxWidth = "100%";
         newTargets.push({
           element,
           key: `portal-gallery-carousel-${index}`,
@@ -1256,6 +1268,12 @@ export function CmsDynamicBlockPortal({
         };
 
         element.replaceChildren();
+        element.style.height = "auto";
+        element.style.minHeight = "auto";
+        element.style.maxHeight = "none";
+        element.style.border = "none";
+        element.style.padding = "0";
+        element.style.maxWidth = "100%";
         newTargets.push({
           element,
           key: `portal-portfolio-spotlight-${index}`,
@@ -1375,30 +1393,41 @@ export function CmsDynamicBlockPortal({
         .hero-reveal-container img,
         .hero-reveal-active img,
         #ivkb img,
+        #ifjq,
         [data-hero-section="true"] img,
         .hero-fixed-bg {
           position: fixed !important;
           top: 0 !important;
           left: 0 !important;
           width: 100vw !important;
+          width: 100dvw !important;
           height: 100vh !important;
+          height: 100dvh !important;
+          min-height: 100vh !important;
+          min-height: 100dvh !important;
+          max-height: none !important;
           object-fit: cover !important;
-          object-position: center !important;
+          object-position: center center !important;
           pointer-events: none !important;
           z-index: 0 !important;
-          transform: translate3d(0, 0, 0);
-          will-change: transform;
+          transform: none !important;
+          will-change: auto !important;
         }
         .hero-reveal-container .hero-overlay,
         .hero-reveal-active #iuth,
         #ivkb #iuth,
+        #iuth,
         [data-hero-section="true"] .hero-overlay,
         .hero-fixed-overlay {
           position: fixed !important;
           top: 0 !important;
           left: 0 !important;
           width: 100vw !important;
+          width: 100dvw !important;
           height: 100vh !important;
+          height: 100dvh !important;
+          min-height: 100vh !important;
+          min-height: 100dvh !important;
           background: rgba(0, 0, 0, 0.45) !important;
           pointer-events: none !important;
           z-index: 1 !important;
@@ -1406,6 +1435,7 @@ export function CmsDynamicBlockPortal({
         .hero-reveal-container .hero-content,
         .hero-reveal-active #ibak,
         #ivkb #ibak,
+        #ibak,
         [data-hero-section="true"] .hero-content {
           position: relative !important;
           z-index: 2 !important;
@@ -1425,17 +1455,26 @@ export function CmsDynamicBlockPortal({
           #ivkb,
           [data-hero-section="true"] {
             position: relative !important;
-            height: 380px !important;
-            min-height: 360px !important;
-            max-height: 400px !important;
-            padding: 2rem 1.25rem !important;
+            width: 100% !important;
+            height: 480px !important;
+            min-height: 450px !important;
+            max-height: 520px !important;
+            padding: 4.5rem 1.5rem 2rem 1.5rem !important;
             overflow: hidden !important;
             clip-path: inset(0) !important;
             -webkit-clip-path: inset(0) !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-sizing: border-box !important;
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
           }
           .hero-reveal-container img,
           .hero-reveal-active img,
           #ivkb img,
+          #ifjq,
           [data-hero-section="true"] img,
           .hero-fixed-bg {
             position: fixed !important;
@@ -1445,16 +1484,20 @@ export function CmsDynamicBlockPortal({
             width: 100dvw !important;
             height: 100vh !important;
             height: 100dvh !important;
+            min-height: 100vh !important;
+            min-height: 100dvh !important;
+            max-height: none !important;
             object-fit: cover !important;
-            object-position: center 25% !important;
+            object-position: center center !important;
             pointer-events: none !important;
             z-index: 0 !important;
-            transform: translate3d(0, 0, 0);
-            will-change: transform;
+            transform: none !important;
+            will-change: auto !important;
           }
           .hero-reveal-container .hero-overlay,
           .hero-reveal-active #iuth,
           #ivkb #iuth,
+          #iuth,
           [data-hero-section="true"] .hero-overlay,
           .hero-fixed-overlay {
             position: fixed !important;
@@ -1464,9 +1507,68 @@ export function CmsDynamicBlockPortal({
             width: 100dvw !important;
             height: 100vh !important;
             height: 100dvh !important;
+            min-height: 100vh !important;
+            min-height: 100dvh !important;
             background: rgba(0, 0, 0, 0.45) !important;
             pointer-events: none !important;
             z-index: 1 !important;
+          }
+
+          :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(h1, #iznl) {
+            font-family: 'stingray', 'Stingray', 'Playfair Display', cursive, serif !important;
+            font-size: clamp(3rem, 11vw, 4.5rem) !important;
+            line-height: 1.15 !important;
+            white-space: nowrap !important;
+            margin-bottom: 1.25rem !important;
+            margin-top: 0 !important;
+            color: #ffffff !important;
+            text-shadow: 0 4px 16px rgba(0, 0, 0, 0.6) !important;
+          }
+
+          :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(button, a, #if3pf) {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 0.85rem 2.25rem !important;
+            font-size: 0.75rem !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.18em !important;
+            text-transform: uppercase !important;
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
+            border-radius: 2px !important;
+            margin-top: 0.5rem !important;
+            text-decoration: none !important;
+          }
+
+          /* Prevent and reset CMS free-drag pixel widths, heights, and offsets on mobile */
+          [data-cms-block] h2,
+          [data-cms-block] h3,
+          .c3605,
+          #i6el2 {
+            white-space: normal !important;
+            word-break: break-word !important;
+            overflow-wrap: break-word !important;
+            font-size: clamp(1.25rem, 5.5vw, 1.85rem) !important;
+            line-height: 1.25 !important;
+            max-width: 100% !important;
+          }
+
+          #cms-page-content [style*="top:"],
+          #cms-page-content [style*="bottom:"],
+          #cms-page-content [style*="left:"],
+          #cms-page-content [style*="right:"] {
+            top: auto !important;
+            bottom: auto !important;
+            left: auto !important;
+            right: auto !important;
+          }
+
+          #cms-page-content p {
+            max-width: 100% !important;
+            width: auto !important;
+            height: auto !important;
           }
         }
 

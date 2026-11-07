@@ -8289,6 +8289,21 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
       });
 
       /*
+       * Welcome Statement / Narrative Intro block
+       */
+      bm.add("welcome-statement-block", {
+        label: "Welcome Statement",
+        category: "Portfolio",
+        content: `
+        <section class="px-10 text-center max-w-4xl mx-auto my-12" style="position: relative; width: 100%; max-width: 56rem; margin: 3rem auto; padding: 1.5rem 1rem; text-align: center;">
+          <p class="text-xl md:text-2xl font-serif text-[#FFFFFF] leading-relaxed mx-auto text-center" style="font-family: 'MedievalSharp', cursive, serif; font-size: 1.35rem; color: #FFFFFF; line-height: 1.8; text-align: center; margin: 0 auto; max-width: 48rem;">
+            Welcome to my portfolio. I am Sourav Mitra and I am dedicated to crafting bespoke visual narratives that bring stories and concepts to life with artistic precision and passion.
+          </p>
+        </section>
+      `,
+      });
+
+      /*
        * Basic: Text block
        */
       bm.add("text-block", {

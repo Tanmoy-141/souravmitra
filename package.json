@@ -22,10 +22,10 @@
     "@neondatabase/serverless": "^1.2.0",
     "@vercel/blob": "^2.8.2",
     "drizzle-orm": "^0.45.4",
-    "grapesjs": "^0.23.8",
-    "isomorphic-dompurify": "4.6.0",
-    "jose": "^6.2.14",
-    "next": "^16.4.3",
+    "grapesjs": "^0.23.9",
+    "isomorphic-dompurify": "4.7.0",
+    "jose": "^6.2.15",
+    "next": "^16.4.5",
     "pg": "^8.23.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
@@ -41,13 +41,13 @@
     "dotenv": "^18.0.8",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
-    "eslint-config-next": "^16.4.3",
+    "eslint-config-next": "^16.4.5",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"
   },
   "optionalDependencies": {
-    "@tailwindcss/oxide-linux-x64-gnu": "4.3.3",
+    "@tailwindcss/oxide-linux-x64-gnu": "4.3.5",
     "lightningcss-linux-x64-gnu": "1.33.0"
   },
   "overrides": {

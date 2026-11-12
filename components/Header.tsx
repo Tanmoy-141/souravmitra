@@ -2,6 +2,12 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CustomPage } from "@/data/cms";
+import {
+  DEFAULT_NAV_ITEMS,
+  isExternalNavHref,
+  isSafeNavHref,
+  type NavItem,
+} from "@/lib/navigation";
 
 const CORE_PAGE_SLUGS = new Set([
   "/",
@@ -14,39 +20,50 @@ const CORE_PAGE_SLUGS = new Set([
 
 export const Header = () => {
   const [customPages, setCustomPages] = useState<CustomPage[]>([]);
+  const [navItems, setNavItems] = useState<NavItem[]>(DEFAULT_NAV_ITEMS);
+  const [isCustomNav, setIsCustomNav] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [siteName, setSiteName] = useState("Sourav Mitra");
   const [logoUrl, setLogoUrl] = useState<string>("");
 
   useEffect(() => {
-    const fetchPages = async () => {
+    const loadHeaderData = async () => {
       try {
-        const res = await fetch("/api/cms", { cache: "no-store" });
-        const data = await res.json();
-        if (data.pages) {
-          setCustomPages(
-            data.pages.filter((p: CustomPage) => p.status === "published"),
-          );
+        const [settingsRes, pagesRes] = await Promise.all([
+          fetch("/api/cms/settings", { cache: "no-store" }),
+          fetch("/api/cms", { cache: "no-store" }),
+        ]);
+
+        if (settingsRes.ok) {
+          const data = await settingsRes.json();
+          if (typeof data.siteName === "string" && data.siteName.trim()) {
+            setSiteName(data.siteName);
+          }
+          if (typeof data.logoUrl === "string") {
+            setLogoUrl(data.logoUrl.trim());
+          }
+          if (data.isCustomNav === true && Array.isArray(data.navItems)) {
+            setIsCustomNav(true);
+            setNavItems(data.navItems);
+          } else {
+            setIsCustomNav(false);
+          }
+        }
+
+        if (pagesRes.ok) {
+          const pageData = await pagesRes.json();
+          if (Array.isArray(pageData.pages)) {
+            setCustomPages(
+              pageData.pages.filter((p: CustomPage) => p.status === "published"),
+            );
+          }
         }
       } catch {
-        console.error("Failed to load dynamic pages");
+        console.error("Failed to load header navigation");
       }
     };
-    fetchPages();
-  }, []);
 
-  useEffect(() => {
-    fetch("/api/cms/settings", { cache: "no-store" })
-      .then((response) => response.json())
-      .then((data) => {
-        if (typeof data.siteName === "string" && data.siteName.trim()) {
-          setSiteName(data.siteName);
-        }
-        if (typeof data.logoUrl === "string") {
-          setLogoUrl(data.logoUrl.trim());
-        }
-      })
-      .catch(() => {});
+    void loadHeaderData();
   }, []);
 
   const getPageTitle = (slug: string, fallback: string) =>
@@ -59,6 +76,52 @@ export const Header = () => {
       !page.slug.includes("/"),
   );
 
+  // When no custom nav is configured in site_settings, mirror legacy auto-discovery.
+  const resolvedItems: NavItem[] = isCustomNav
+    ? navItems.filter((item) => item.visible && isSafeNavHref(item.href))
+    : [
+        {
+          id: "nav-book-covers",
+          label: getPageTitle("book-covers", "Book Covers"),
+          href: "/book-covers",
+          visible: true,
+        },
+        {
+          id: "nav-illustration",
+          label: getPageTitle("illustration", "Illustration"),
+          href: "/illustration",
+          visible: true,
+        },
+        {
+          id: "nav-fine-art",
+          label: getPageTitle("fine-art", "Fine Art"),
+          href: "/fine-art",
+          visible: true,
+        },
+        ...customNavPages.map((page) => ({
+          id: `custom-${page.slug}`,
+          label: page.title,
+          href: `/p/${page.slug}`,
+          visible: true,
+        })),
+        {
+          id: "nav-about",
+          label: getPageTitle("about", "About"),
+          href: "/about",
+          visible: true,
+        },
+        {
+          id: "nav-contact",
+          label: getPageTitle("contact", "Contact"),
+          href: "/contact",
+          visible: true,
+          isCta: true,
+        },
+      ];
+
+  const mobilePrimaryItems = resolvedItems.filter((item) => !item.isCta);
+  const mobileCtaItems = resolvedItems.filter((item) => item.isCta);
+
   // Close the mobile menu whenever the viewport grows past the mobile
   // breakpoint, so it doesn't stay stuck open if someone resizes/rotates.
   useEffect(() => {
@@ -69,47 +132,32 @@ export const Header = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const navLinks = (
-    <>
-      <Link
-        href="/book-covers"
-        onClick={() => setIsMenuOpen(false)}
-        className="hover:text-white transition-colors">
-        {getPageTitle("book-covers", "Book Covers")}
-      </Link>
-      <Link
-        href="/illustration"
-        onClick={() => setIsMenuOpen(false)}
-        className="hover:text-white transition-colors">
-        {getPageTitle("illustration", "Illustration")}
-      </Link>
-      <Link
-        href="/fine-art"
-        onClick={() => setIsMenuOpen(false)}
-        className="hover:text-white transition-colors">
-        {getPageTitle("fine-art", "Fine Art")}
-      </Link>
-
-      {/* Dynamic CMS Pages */}
-      {customNavPages.map((page) => (
-        <Link
-          key={page.slug}
-          href={`/p/${page.slug}`}
+  const renderNavLink = (item: NavItem, className: string) => {
+    const external = item.openInNewTab || isExternalNavHref(item.href);
+    if (external) {
+      return (
+        <a
+          key={item.id}
+          href={item.href}
+          target={item.openInNewTab ? "_blank" : undefined}
+          rel={item.openInNewTab ? "noopener noreferrer" : undefined}
           onClick={() => setIsMenuOpen(false)}
-          className="hover:text-white transition-colors">
-          {page.title}
-        </Link>
-      ))}
+          className={className}>
+          {item.label}
+        </a>
+      );
+    }
 
-
+    return (
       <Link
-        href="/about"
+        key={item.id}
+        href={item.href}
         onClick={() => setIsMenuOpen(false)}
-        className="hover:text-white transition-colors">
-        {getPageTitle("about", "About")}
+        className={className}>
+        {item.label}
       </Link>
-    </>
-  );
+    );
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-[#333333] bg-[#000000]">
@@ -132,12 +180,14 @@ export const Header = () => {
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-8 text-[#D4D4D4] text-sm uppercase tracking-widest font-medium">
-          {navLinks}
-          <Link
-            href="/contact"
-            className="text-[#C5A059] hover:text-white transition-colors border border-[#C5A059] px-4 py-1">
-            {getPageTitle("contact", "Contact")}
-          </Link>
+          {resolvedItems.map((item) =>
+            renderNavLink(
+              item,
+              item.isCta
+                ? "text-[#C5A059] hover:text-white transition-colors border border-[#C5A059] px-4 py-1"
+                : "hover:text-white transition-colors",
+            ),
+          )}
         </nav>
 
         {/* Mobile menu toggle */}
@@ -173,47 +223,22 @@ export const Header = () => {
       {/* Mobile nav panel */}
       {isMenuOpen && (
         <nav className="absolute inset-x-0 top-full z-50 flex flex-col gap-4 border-t border-[#333333] bg-[#000000] px-6 pb-8 pt-5 text-sm font-medium uppercase tracking-widest text-[#D4D4D4] shadow-2xl md:hidden">
-          <div className="flex flex-col divide-y divide-[#1e1e1e]">
-            <Link
-              href="/book-covers"
-              onClick={() => setIsMenuOpen(false)}
-              className="py-3 hover:text-white transition-colors flex items-center min-h-11">
-              {getPageTitle("book-covers", "Book Covers")}
-            </Link>
-            <Link
-              href="/illustration"
-              onClick={() => setIsMenuOpen(false)}
-              className="py-3 hover:text-white transition-colors flex items-center min-h-11">
-              {getPageTitle("illustration", "Illustration")}
-            </Link>
-            <Link
-              href="/fine-art"
-              onClick={() => setIsMenuOpen(false)}
-              className="py-3 hover:text-white transition-colors flex items-center min-h-11">
-              {getPageTitle("fine-art", "Fine Art")}
-            </Link>
-            {customNavPages.map((page) => (
-              <Link
-                key={page.slug}
-                href={`/p/${page.slug}`}
-                onClick={() => setIsMenuOpen(false)}
-                className="py-3 hover:text-white transition-colors flex items-center min-h-11">
-                {page.title}
-              </Link>
-            ))}
-            <Link
-              href="/about"
-              onClick={() => setIsMenuOpen(false)}
-              className="py-3 hover:text-white transition-colors flex items-center min-h-11">
-              {getPageTitle("about", "About")}
-            </Link>
-          </div>
-          <Link
-            href="/contact"
-            onClick={() => setIsMenuOpen(false)}
-            className="text-[#C5A059] hover:text-white transition-colors border border-[#C5A059] px-4 py-3 text-center w-full min-h-11 flex items-center justify-center font-bold tracking-widest mt-2">
-            {getPageTitle("contact", "Contact")}
-          </Link>
+          {mobilePrimaryItems.length > 0 && (
+            <div className="flex flex-col divide-y divide-[#1e1e1e]">
+              {mobilePrimaryItems.map((item) =>
+                renderNavLink(
+                  item,
+                  "py-3 hover:text-white transition-colors flex items-center min-h-11",
+                ),
+              )}
+            </div>
+          )}
+          {mobileCtaItems.map((item) =>
+            renderNavLink(
+              item,
+              "text-[#C5A059] hover:text-white transition-colors border border-[#C5A059] px-4 py-3 text-center w-full min-h-11 flex items-center justify-center font-bold tracking-widest mt-2",
+            ),
+          )}
         </nav>
       )}
     </header>

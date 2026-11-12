@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import AdminLogin from "@/components/cms/AdminLogin";
 import MediaLibrary from "@/components/cms/MediaLibrary";
 import ProjectsAdmin from "@/components/cms/ProjectsAdmin";
 import MessagesAdmin from "@/components/cms/MessagesAdmin";
+import NavigationAdmin from "@/components/cms/NavigationAdmin";
 import GrapesEditor, {
   type GrapesEditorHandle,
 } from "@/components/cms/GrapesEditor";
@@ -236,11 +238,12 @@ async function getApiError(
 }
 
 export default function AdminDashboard() {
+  const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<"pages" | "projects" | "messages">(
-    "pages",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "pages" | "projects" | "messages" | "navigation"
+  >("pages");
 
   const [pages, setPages] = useState<CustomPage[]>([]);
 
@@ -565,7 +568,14 @@ export default function AdminDashboard() {
         setPages(normalizedPages);
 
         if (normalizedPages.length > 0) {
-          setActivePage(normalizedPages[0]);
+          const requestedPageId =
+            typeof window !== "undefined"
+              ? new URLSearchParams(window.location.search).get("pageId")
+              : null;
+          const requestedPage = requestedPageId
+            ? normalizedPages.find((page) => page.id === requestedPageId)
+            : null;
+          setActivePage(requestedPage || normalizedPages[0]);
         }
       } catch {
         console.error("Failed to load pages");
@@ -630,6 +640,11 @@ export default function AdminDashboard() {
   const ensurePageId = async (
     page: CustomPage,
     slug: string,
+    overrideData?: {
+      gjsData?: unknown;
+      htmlCache?: string;
+      cssCache?: string;
+    },
   ): Promise<CustomPage | null> => {
     if (page.id) {
       return page;
@@ -645,8 +660,9 @@ export default function AdminDashboard() {
           slug,
           title: page.title || "Untitled Page",
           status: page.status || "published",
-          htmlCache: (page as CmsPage).htmlCache || "",
-          cssCache: (page as CmsPage).cssCache || "",
+          gjsData: overrideData?.gjsData ?? page.gjsData,
+          htmlCache: overrideData?.htmlCache ?? (page as CmsPage).htmlCache ?? "",
+          cssCache: overrideData?.cssCache ?? (page as CmsPage).cssCache ?? "",
         }),
       });
 
@@ -975,6 +991,77 @@ export default function AdminDashboard() {
     }
   };
 
+  const handlePreviewPage = async () => {
+    if (!activePage) {
+      setSaveStatus("Select a page first.");
+      return;
+    }
+
+    const currentPage =
+      pages.find((page) => isSamePage(page, activePage)) || activePage;
+    const slug = getPublishSlug(currentPage);
+
+    if (!slug) {
+      setSaveStatus(
+        `Cannot preview: "${currentPage.title}" has no valid slug.`,
+      );
+      return;
+    }
+
+    // Open synchronously before awaiting so popup blockers never suppress it.
+    const previewWindow = window.open("about:blank", "_blank");
+    const editorContent = editorRef.current?.getCurrentContent();
+
+    try {
+      let targetId = currentPage.id;
+
+      if (!targetId) {
+        const created = await ensurePageId(currentPage, slug, {
+          gjsData: editorContent?.projectData,
+          htmlCache: editorContent?.html,
+          cssCache: editorContent?.css,
+        });
+        if (!created?.id) {
+          previewWindow?.close();
+          setSaveStatus("Failed to save draft before previewing.");
+          return;
+        }
+        targetId = created.id;
+        setActivePage(created);
+      } else if (currentPage.status === "draft" && editorContent) {
+        // Persist latest draft canvas before opening preview; never auto-overwrite published pages.
+        const res = await fetch("/api/cms", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: targetId,
+            slug,
+            title: activePage.title || currentPage.title,
+            gjsData: editorContent.projectData,
+            htmlCache: editorContent.html,
+            cssCache: editorContent.css,
+            status: "draft",
+          }),
+        });
+        if (res.ok) {
+          const freshPages = await refreshPages();
+          const updated = freshPages.find((page) => page.id === targetId);
+          if (updated) setActivePage(updated);
+        }
+      }
+
+      const previewUrl = `/admin/preview/${encodeURIComponent(targetId)}`;
+      if (previewWindow) {
+        previewWindow.location.href = previewUrl;
+      } else {
+        router.push(previewUrl);
+      }
+    } catch {
+      previewWindow?.close();
+      setSaveStatus("Failed to open page preview.");
+    }
+  };
+
   if (!isAuthenticated) {
     return <AdminLogin onSuccess={() => setIsAuthenticated(true)} />;
   }
@@ -1035,78 +1122,157 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col font-sans">
-      {/* Top Bar */}
-      <div className="border-b border-[#333333] px-4 md:px-8 py-3 md:h-16 flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 sticky top-0 bg-black/80 backdrop-blur-md z-50">
-        <div className="flex flex-wrap items-center gap-3 md:gap-4">
-          {activeTab === "pages" && (
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              className={`px-2.5 py-1.5 rounded border transition-all duration-300 flex items-center justify-center shrink-0 cursor-pointer gap-1.5 text-xs font-semibold ${
-                sidebarOpen
-                  ? "border-[#333] hover:border-[#C5A059] bg-[#111] hover:bg-[#1a1a1a] text-gray-300 hover:text-[#C5A059]"
-                  : "border-[#C5A059] bg-[#C5A059] text-black shadow-[0_0_15px_rgba(197,160,89,0.35)]"
-              }`}
-              title={
-                sidebarOpen
-                  ? "Maximize Visual Editor (Expand Broad Canvas)"
-                  : "Show Page Settings Sidebar"
-              }
-              aria-label="Toggle visual editor broad canvas view">
-              <svg
-                className="w-3.5 h-3.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2.4}>
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-              <span>{sidebarOpen ? "◀ Broad View" : "▶ Page Settings"}</span>
-            </button>
-          )}
+      {/* Sticky Admin Chrome */}
+      <header className="sticky top-0 z-50 bg-[#050505]/95 backdrop-blur-md border-b border-[#262626]">
+        {/* Row 1: Primary Admin Bar */}
+        <div className="px-4 md:px-6 min-h-13 py-2 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3 md:gap-4 min-w-0">
+            <span className="text-[#C5A059] font-bold uppercase tracking-widest text-xs whitespace-nowrap shrink-0">
+              Admin Dashboard
+            </span>
 
-          <span className="text-[#C5A059] font-bold uppercase tracking-widest text-xs shrink-0">
-            Admin Dashboard
-          </span>
+            <nav
+              aria-label="Admin sections"
+              className="flex items-center gap-0.5 border border-[#2a2a2a] bg-[#0d0d0d] p-0.5 rounded shrink-0">
+              <button
+                type="button"
+                onClick={() => setActiveTab("pages")}
+                className={`px-3 py-1 text-[11px] uppercase tracking-widest font-bold whitespace-nowrap rounded-xs transition-colors cursor-pointer ${
+                  activeTab === "pages"
+                    ? "bg-[#C5A059] text-black"
+                    : "text-gray-400 hover:text-white"
+                }`}>
+                Pages
+              </button>
 
-          <div className="flex gap-1 border border-[#333] p-0.5">
-            <button
-              onClick={() => setActiveTab("pages")}
-              className={`px-3 py-1 text-xs uppercase tracking-widest font-bold transition-colors ${
-                activeTab === "pages"
-                  ? "bg-[#C5A059] text-black"
-                  : "text-gray-500 hover:text-white"
-              }`}>
-              Pages
-            </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("projects")}
+                className={`px-3 py-1 text-[11px] uppercase tracking-widest font-bold whitespace-nowrap rounded-xs transition-colors cursor-pointer ${
+                  activeTab === "projects"
+                    ? "bg-[#C5A059] text-black"
+                    : "text-gray-400 hover:text-white"
+                }`}>
+                Projects
+              </button>
 
-            <button
-              onClick={() => setActiveTab("projects")}
-              className={`px-3 py-1 text-xs uppercase tracking-widest font-bold transition-colors ${
-                activeTab === "projects"
-                  ? "bg-[#C5A059] text-black"
-                  : "text-gray-500 hover:text-white"
-              }`}>
-              Projects
-            </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("messages")}
+                className={`px-3 py-1 text-[11px] uppercase tracking-widest font-bold whitespace-nowrap rounded-xs transition-colors cursor-pointer ${
+                  activeTab === "messages"
+                    ? "bg-[#C5A059] text-black"
+                    : "text-gray-400 hover:text-white"
+                }`}>
+                Messages
+              </button>
 
-            <button
-              onClick={() => setActiveTab("messages")}
-              className={`px-3 py-1 text-xs uppercase tracking-widest font-bold transition-colors ${
-                activeTab === "messages"
-                  ? "bg-[#C5A059] text-black"
-                  : "text-gray-500 hover:text-white"
-              }`}>
-              Messages
-            </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("navigation")}
+                className={`px-3 py-1 text-[11px] uppercase tracking-widest font-bold whitespace-nowrap rounded-xs transition-colors cursor-pointer ${
+                  activeTab === "navigation"
+                    ? "bg-[#C5A059] text-black"
+                    : "text-gray-400 hover:text-white"
+                }`}>
+                Navigation
+              </button>
+            </nav>
           </div>
 
-          {activeTab === "pages" && (
-            <>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {saveStatus && (
+              <span
+                className={`text-xs font-medium px-3 py-1 rounded whitespace-nowrap shrink-0 ${
+                  saveStatus.includes("Failed") || saveStatus.includes("Cannot")
+                    ? "bg-red-950/70 text-red-300 border border-red-800"
+                    : "bg-emerald-950/70 text-emerald-300 border border-emerald-800"
+                }`}>
+                {saveStatus}
+              </span>
+            )}
+
+            {activeTab === "pages" && activePage && !viewTrash && (
+              <button
+                type="button"
+                onClick={handlePreviewPage}
+                className="h-8 px-3 border border-[#C5A059]/60 hover:border-[#C5A059] text-[#C5A059] hover:bg-[#C5A059]/10 rounded text-[11px] uppercase tracking-widest font-semibold transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                title={
+                  activePage.status === "draft"
+                    ? "Save draft and preview with live site header & styles"
+                    : "Preview this page in a new tab"
+                }>
+                <span>👁</span>
+                <span>{activePage.status === "draft" ? "Preview Draft" : "Preview"}</span>
+              </button>
+            )}
+
+            {activeTab === "pages" && activePage && activePage.status === "published" && !viewTrash && (
+              <a
+                href={getPageLiveUrl(activePage)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-8 px-3 border border-[#333] hover:border-[#C5A059] text-gray-300 hover:text-white rounded text-[11px] uppercase tracking-widest font-semibold transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"
+                title="View live page in a new tab">
+                <span>🔗</span>
+                <span>View Live</span>
+              </a>
+            )}
+
+            {activeTab === "pages" && (
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="h-8 px-4 bg-[#C5A059] text-black rounded font-bold uppercase tracking-widest text-[11px] hover:bg-white transition-colors disabled:opacity-50 inline-flex items-center justify-center whitespace-nowrap shrink-0 cursor-pointer">
+                {saving ? "Publishing..." : "Publish Site"}
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="h-8 px-3 text-[11px] text-gray-400 hover:text-red-400 border border-[#333333] hover:border-red-800 rounded uppercase tracking-widest font-semibold transition-colors inline-flex items-center justify-center whitespace-nowrap shrink-0 cursor-pointer">
+              Sign Out
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2: Page Workspace Context Sub-Bar */}
+        {activeTab === "pages" && (
+          <div className="px-4 md:px-6 py-2 border-t border-[#1c1c1c] bg-[#0a0a0a] flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className={`h-7 px-2.5 rounded border transition-all duration-200 inline-flex items-center justify-center shrink-0 cursor-pointer gap-1.5 text-[11px] font-semibold whitespace-nowrap ${
+                  sidebarOpen
+                    ? "border-[#333] hover:border-[#C5A059] bg-[#141414] hover:bg-[#1a1a1a] text-gray-300 hover:text-[#C5A059]"
+                    : "border-[#C5A059] bg-[#C5A059] text-black shadow-[0_0_12px_rgba(197,160,89,0.3)]"
+                }`}
+                title={
+                  sidebarOpen
+                    ? "Maximize Visual Editor (Expand Broad Canvas)"
+                    : "Show Page Settings Sidebar"
+                }
+                aria-label="Toggle page settings sidebar">
+                <svg
+                  className="w-3.5 h-3.5 shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.4}>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+                <span>{sidebarOpen ? "◀ Hide Settings" : "▶ Page Settings"}</span>
+              </button>
+
+              <div className="h-4 w-px bg-[#262626] hidden sm:block shrink-0" />
+
               <select
                 value={activePage?.slug ?? ""}
                 onChange={(e) => {
@@ -1116,7 +1282,7 @@ export default function AdminDashboard() {
                     pages.find((page) => page.slug === e.target.value) || null,
                   );
                 }}
-                className="bg-[#111111] border border-[#333333] px-3 py-1.5 text-xs font-medium focus:outline-none min-w-50 max-w-85"
+                className="h-7 bg-[#141414] border border-[#333333] hover:border-[#444] focus:border-[#C5A059] rounded px-2.5 text-xs font-medium focus:outline-none w-56 sm:w-68 max-w-full"
                 disabled={viewTrash}>
                 {corePages.length > 0 && (
                   <optgroup label="Core Site Pages">
@@ -1168,82 +1334,46 @@ export default function AdminDashboard() {
               <button
                 type="button"
                 onClick={handleOpenProjectPicker}
-                className="text-xs px-2.5 py-1 uppercase tracking-widest font-bold border border-[#C5A059] text-[#C5A059] hover:bg-[#C5A059] hover:text-black transition-colors shrink-0 flex items-center gap-1.5"
+                className="h-7 text-[11px] px-2.5 uppercase tracking-wider font-bold border border-[#C5A059]/70 text-[#C5A059] hover:bg-[#C5A059] hover:text-black rounded transition-colors shrink-0 inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer disabled:opacity-40"
                 title="Select any portfolio project to visually edit its inside page"
                 disabled={viewTrash}>
-                <span>🎨 Edit Project Inside...</span>
+                <span>🎨</span>
+                <span>Edit Project Inside...</span>
               </button>
 
               <button
+                type="button"
                 onClick={() => {
                   setViewTrash(false);
                   createNewPage();
                 }}
-                className="text-xs text-gray-500 hover:text-white uppercase tracking-widest shrink-0"
+                className="h-7 text-[11px] px-2.5 border border-[#333] hover:border-[#C5A059] bg-[#141414] text-gray-300 hover:text-white rounded uppercase tracking-wider font-semibold shrink-0 whitespace-nowrap transition-colors cursor-pointer disabled:opacity-40"
                 disabled={viewTrash}>
                 + New Page
               </button>
+            </div>
 
-              <button
-                onClick={() => {
-                  const nextTrash = !viewTrash;
-
-                  setViewTrash(nextTrash);
-
-                  if (nextTrash) {
-                    void fetchTrash();
-                  }
-                }}
-                className={`text-xs px-2.5 py-1 uppercase tracking-widest font-bold border transition-colors shrink-0 ${
-                  viewTrash
-                    ? "bg-[#C5A059] text-black border-[#C5A059]"
-                    : "border-[#333] text-gray-400 hover:text-white"
-                }`}>
-                {viewTrash ? "Active Pages" : `Trash (${trashPages.length})`}
-              </button>
-            </>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3">
-          {saveStatus && (
-            <span
-              className={`text-xs font-medium px-3 py-1 ${
-                saveStatus.includes("Failed") || saveStatus.includes("Cannot")
-                  ? "bg-red-900/50 text-red-300 border border-red-800"
-                  : "bg-emerald-900/50 text-emerald-300 border border-emerald-800"
-              }`}>
-              {saveStatus}
-            </span>
-          )}
-
-          {activeTab === "pages" && activePage && (
-            <a
-              href={getPageLiveUrl(activePage)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="border border-[#333] hover:border-[#C5A059] text-gray-300 hover:text-white px-3 py-2 text-xs uppercase tracking-widest font-semibold transition-colors flex items-center gap-1.5 shrink-0"
-              title="View live page in a new tab">
-              <span>🔗 View Live</span>
-            </a>
-          )}
-
-          {activeTab === "pages" && (
             <button
-              onClick={handleSave}
-              disabled={saving}
-              className="bg-[#C5A059] text-black px-6 py-2 font-bold uppercase tracking-widest text-xs hover:bg-white transition-colors disabled:opacity-50 w-full md:w-auto">
-              {saving ? "Publishing..." : "Publish Site"}
-            </button>
-          )}
+              type="button"
+              onClick={() => {
+                const nextTrash = !viewTrash;
 
-          <button
-            onClick={handleLogout}
-            className="text-xs text-gray-400 hover:text-red-400 border border-[#333333] hover:border-red-800 px-3 py-2 uppercase tracking-widest transition-colors">
-            Sign Out
-          </button>
-        </div>
-      </div>
+                setViewTrash(nextTrash);
+
+                if (nextTrash) {
+                  void fetchTrash();
+                }
+              }}
+              className={`h-7 text-[11px] px-2.5 uppercase tracking-wider font-bold border rounded transition-colors shrink-0 whitespace-nowrap cursor-pointer ${
+                viewTrash
+                  ? "bg-[#C5A059] text-black border-[#C5A059]"
+                  : "border-[#333] bg-[#141414] text-gray-400 hover:text-white hover:border-[#444]"
+              }`}>
+              {viewTrash ? "← Active Pages" : `Trash (${trashPages.length})`}
+            </button>
+          </div>
+        )}
+      </header>
 
       {activeTab === "projects" ? (
         <div className="flex-1 overflow-y-auto p-6 md:p-12 bg-[#000000]">
@@ -1252,6 +1382,10 @@ export default function AdminDashboard() {
       ) : activeTab === "messages" ? (
         <div className="flex-1 overflow-y-auto bg-[#000000]">
           <MessagesAdmin />
+        </div>
+      ) : activeTab === "navigation" ? (
+        <div className="flex-1 overflow-y-auto p-6 md:p-12 bg-[#000000]">
+          <NavigationAdmin pages={pages} siteName={siteName} />
         </div>
       ) : viewTrash ? (
         <div className="flex-1 overflow-y-auto p-8 bg-[#000000] max-w-4xl mx-auto w-full">
@@ -1289,11 +1423,20 @@ export default function AdminDashboard() {
                     </div>
 
                     {pageId ? (
-                      <button
-                        onClick={() => executeAction(pageId, "recover")}
-                        className="px-4 py-2 bg-[#C5A059] hover:bg-white text-black text-xs font-bold uppercase tracking-widest transition-colors">
-                        Recover
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`/admin/preview/${encodeURIComponent(pageId)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-2 border border-[#333] hover:border-[#C5A059] text-gray-300 hover:text-white text-xs font-semibold uppercase tracking-widest transition-colors">
+                          Preview
+                        </a>
+                        <button
+                          onClick={() => executeAction(pageId, "recover")}
+                          className="px-4 py-2 bg-[#C5A059] hover:bg-white text-black text-xs font-bold uppercase tracking-widest transition-colors">
+                          Recover
+                        </button>
+                      </div>
                     ) : null}
                   </div>
                 );

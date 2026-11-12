@@ -37,6 +37,7 @@ export const siteSettingsKeyEnum = pgEnum("site_settings_key", [
   "header",
   "footer",
   "theme",
+  "nav",
 ]);
 
 export const commentStatusEnum = pgEnum("comment_status", [

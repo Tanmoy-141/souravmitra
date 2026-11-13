@@ -478,9 +478,10 @@ export default function NavigationAdmin({
                   <button
                     type="button"
                     onClick={() => removeItem(item.id)}
-                    className="px-2.5 py-1.5 text-[10px] uppercase tracking-wider font-bold border border-[#333] hover:border-red-700 text-gray-400 hover:text-red-400 transition-colors cursor-pointer"
-                    title="Remove link">
-                    Remove
+                    className="px-2.5 py-1.5 text-[10px] uppercase tracking-wider font-bold border border-red-950/70 hover:border-red-600 bg-red-950/20 text-red-400 hover:text-red-300 hover:bg-red-950/50 rounded transition-colors cursor-pointer inline-flex items-center gap-1"
+                    title="Delete this link from navigation">
+                    <span>🗑️</span>
+                    <span>Delete</span>
                   </button>
                 </div>
               </div>

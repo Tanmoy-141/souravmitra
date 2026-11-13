@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { siteSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { isAuthorized } from "@/lib/require-session";
-import { isSafeUrl } from "@/lib/sanitize";
+import { isSafeUrl, sanitizeColor } from "@/lib/sanitize";
 import { sanitizeFontFamily } from "@/lib/fonts";
 import {
   DEFAULT_NAV_ITEMS,
@@ -43,6 +43,7 @@ export async function GET() {
         siteName?: string;
         logoUrl?: string;
         siteFont?: string;
+        siteColor?: string;
       }) || {};
     const footerData =
       (footerSetting?.gjsData as {
@@ -74,6 +75,7 @@ export async function GET() {
       logoUrl: headerData.logoUrl || "",
       siteName: headerData.siteName || "Sourav Mitra",
       siteFont: headerData.siteFont || "serif",
+      siteColor: headerData.siteColor || "#FFFFFF",
       footerHeading: footerData.heading || "FOLLOW ME ON",
       footerText: footerData.text || "All rights reserved.",
       socialLinks,
@@ -124,7 +126,8 @@ export async function PUT(req: NextRequest) {
     const hasHeaderUpdate =
       body.siteName !== undefined ||
       body.logoUrl !== undefined ||
-      body.siteFont !== undefined;
+      body.siteFont !== undefined ||
+      body.siteColor !== undefined;
     const hasFooterUpdate =
       body.footerHeading !== undefined ||
       body.footerText !== undefined ||
@@ -143,6 +146,7 @@ export async function PUT(req: NextRequest) {
         siteName?: string;
         logoUrl?: string;
         siteFont?: string;
+        siteColor?: string;
       }) || {};
     const currentFooterData =
       (byKey.get("footer")?.gjsData as {
@@ -191,6 +195,10 @@ export async function PUT(req: NextRequest) {
           typeof body.siteFont === "string" && body.siteFont.trim()
             ? sanitizeFontFamily(body.siteFont)
             : currentHeaderData.siteFont || "serif",
+        siteColor:
+          body.siteColor !== undefined
+            ? sanitizeColor(body.siteColor, "#FFFFFF")
+            : currentHeaderData.siteColor || "#FFFFFF",
       };
       batchOperations.push(
         db

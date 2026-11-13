@@ -138,6 +138,7 @@ export default async function RootLayout({
           initialNavItems={headerData.navItems}
           initialIsCustomNav={headerData.isCustomNav}
           initialSiteFont={headerData.siteFont}
+          initialSiteColor={headerData.siteColor}
         />
         <main className="grow w-full max-w-full overflow-x-clip">{children}</main>
         <Footer />

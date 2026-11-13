@@ -43,6 +43,7 @@ type CmsApiResponse = {
   logoUrl?: string;
   siteName?: string;
   siteFont?: string;
+  siteColor?: string;
   footerHeading?: string;
   footerText?: string;
   socialLinks?: Record<string, string>;
@@ -284,6 +285,7 @@ export default function AdminDashboard() {
 
   const [siteName, setSiteName] = useState("Sourav Mitra");
   const [siteFont, setSiteFont] = useState("serif");
+  const [siteColor, setSiteColor] = useState("#FFFFFF");
 
   const [footerHeading, setFooterHeading] = useState("FOLLOW ME ON");
 
@@ -364,6 +366,7 @@ export default function AdminDashboard() {
         }
         if (data.siteName) setSiteName(data.siteName);
         if (data.siteFont) setSiteFont(data.siteFont);
+        if (data.siteColor) setSiteColor(data.siteColor);
         if (data.footerHeading) setFooterHeading(data.footerHeading);
         if (data.footerText) setFooterText(data.footerText);
         if (data.socialLinks) setSocialLinks(data.socialLinks);
@@ -383,6 +386,7 @@ export default function AdminDashboard() {
           logoUrl,
           siteName,
           siteFont,
+          siteColor,
           footerHeading,
           footerText,
           socialLinks,
@@ -1415,8 +1419,10 @@ export default function AdminDashboard() {
             siteName={siteName}
             logoUrl={logoUrl}
             siteFont={siteFont}
+            siteColor={siteColor}
             onSiteNameChange={setSiteName}
             onSiteFontChange={setSiteFont}
+            onSiteColorChange={setSiteColor}
           />
         </div>
       ) : viewTrash ? (

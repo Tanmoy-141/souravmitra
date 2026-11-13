@@ -115,6 +115,16 @@ export async function PUT(req: NextRequest) {
       validatedNavItems = parsedNav.data;
     }
 
+    const hasNavUpdate = body.navItems !== undefined || body.resetNav === true;
+    const hasThemeUpdate =
+      body.faviconUrl !== undefined || body.customFonts !== undefined;
+    const hasHeaderUpdate =
+      body.siteName !== undefined || body.logoUrl !== undefined;
+    const hasFooterUpdate =
+      body.footerHeading !== undefined ||
+      body.footerText !== undefined ||
+      body.socialLinks !== undefined;
+
     const allSettings = await db.select().from(siteSettings);
     const byKey = new Map(allSettings.map((row) => [row.key, row]));
 
@@ -135,93 +145,101 @@ export async function PUT(req: NextRequest) {
         socialLinks?: Record<string, string>;
       }) || {};
 
-    const themeData = {
-      faviconUrl:
-        typeof body.faviconUrl === "string" &&
-        (body.faviconUrl.trim() === "" || isSafeUrl(body.faviconUrl.trim()))
-          ? body.faviconUrl.trim() || "/favicon.svg"
-          : currentThemeData.faviconUrl || "/favicon.svg",
-      customFonts: currentThemeData.customFonts || [],
-    };
-    const headerData = {
-      siteName:
-        typeof body.siteName === "string"
-          ? body.siteName.trim().slice(0, 100) || "Sourav Mitra"
-          : currentHeaderData.siteName || "Sourav Mitra",
-      logoUrl:
-        typeof body.logoUrl === "string" &&
-        (body.logoUrl.trim() === "" || isSafeUrl(body.logoUrl.trim()))
-          ? body.logoUrl.trim()
-          : currentHeaderData.logoUrl || "",
-    };
-    const inputSocialLinks =
-      typeof body.socialLinks === "object" && body.socialLinks !== null
-        ? (body.socialLinks as Record<string, unknown>)
-        : currentFooterData.socialLinks || {};
-    const socialLinks = Object.fromEntries(
-      SOCIAL_LINK_KEYS.map((key) => {
-        const value = inputSocialLinks[key];
-        return [
-          key,
-          typeof value === "string" && isSafeUrl(value.trim())
-            ? value.trim()
-            : "",
-        ];
-      }),
-    );
-    const footerData = {
-      heading:
-        typeof body.footerHeading === "string"
-          ? body.footerHeading.trim().slice(0, 100) || "FOLLOW ME ON"
-          : currentFooterData.heading || "FOLLOW ME ON",
-      text:
-        typeof body.footerText === "string"
-          ? body.footerText.trim().slice(0, 200)
-          : currentFooterData.text || "All rights reserved.",
-      socialLinks,
-    };
-
     const updatedAt = new Date();
-    const writes: Array<Promise<unknown>> = [
-      db
-        .insert(siteSettings)
-        .values({ key: "theme", gjsData: themeData, updatedAt })
-        .onConflictDoUpdate({
-          target: siteSettings.key,
-          set: { gjsData: themeData, updatedAt },
-        }),
-      db
-        .insert(siteSettings)
-        .values({ key: "header", gjsData: headerData, updatedAt })
-        .onConflictDoUpdate({
-          target: siteSettings.key,
-          set: { gjsData: headerData, updatedAt },
-        }),
-      db
-        .insert(siteSettings)
-        .values({ key: "footer", gjsData: footerData, updatedAt })
-        .onConflictDoUpdate({
-          target: siteSettings.key,
-          set: { gjsData: footerData, updatedAt },
-        }),
-    ];
 
-    if (body.resetNav === true) {
-      writes.push(db.delete(siteSettings).where(eq(siteSettings.key, "nav")));
-    } else if (validatedNavItems !== null) {
-      const navPayload = { items: validatedNavItems };
-      writes.push(
-        db
+    await db.transaction(async (tx) => {
+      if (hasThemeUpdate) {
+        const themeData = {
+          faviconUrl:
+            typeof body.faviconUrl === "string" &&
+            (body.faviconUrl.trim() === "" || isSafeUrl(body.faviconUrl.trim()))
+              ? body.faviconUrl.trim() || "/favicon.svg"
+              : currentThemeData.faviconUrl || "/favicon.svg",
+          customFonts: Array.isArray(body.customFonts)
+            ? body.customFonts
+            : currentThemeData.customFonts || [],
+        };
+        await tx
           .insert(siteSettings)
-          .values({ key: "nav", gjsData: navPayload, updatedAt })
+          .values({ key: "theme", gjsData: themeData, updatedAt })
           .onConflictDoUpdate({
             target: siteSettings.key,
-            set: { gjsData: navPayload, updatedAt },
-          }),
-      );
-    }
+            set: { gjsData: themeData, updatedAt },
+          });
+      }
 
-    await Promise.all(writes);
+      if (hasHeaderUpdate) {
+        const headerData = {
+          siteName:
+            typeof body.siteName === "string"
+              ? body.siteName.trim().slice(0, 100) || "Sourav Mitra"
+              : currentHeaderData.siteName || "Sourav Mitra",
+          logoUrl:
+            typeof body.logoUrl === "string" &&
+            (body.logoUrl.trim() === "" || isSafeUrl(body.logoUrl.trim()))
+              ? body.logoUrl.trim()
+              : currentHeaderData.logoUrl || "",
+        };
+        await tx
+          .insert(siteSettings)
+          .values({ key: "header", gjsData: headerData, updatedAt })
+          .onConflictDoUpdate({
+            target: siteSettings.key,
+            set: { gjsData: headerData, updatedAt },
+          });
+      }
+
+      if (hasFooterUpdate) {
+        const inputSocialLinks =
+          typeof body.socialLinks === "object" && body.socialLinks !== null
+            ? (body.socialLinks as Record<string, unknown>)
+            : currentFooterData.socialLinks || {};
+        const socialLinks = Object.fromEntries(
+          SOCIAL_LINK_KEYS.map((key) => {
+            const value = inputSocialLinks[key];
+            return [
+              key,
+              typeof value === "string" && isSafeUrl(value.trim())
+                ? value.trim()
+                : "",
+            ];
+          }),
+        );
+        const footerData = {
+          heading:
+            typeof body.footerHeading === "string"
+              ? body.footerHeading.trim().slice(0, 100) || "FOLLOW ME ON"
+              : currentFooterData.heading || "FOLLOW ME ON",
+          text:
+            typeof body.footerText === "string"
+              ? body.footerText.trim().slice(0, 200)
+              : currentFooterData.text || "All rights reserved.",
+          socialLinks,
+        };
+        await tx
+          .insert(siteSettings)
+          .values({ key: "footer", gjsData: footerData, updatedAt })
+          .onConflictDoUpdate({
+            target: siteSettings.key,
+            set: { gjsData: footerData, updatedAt },
+          });
+      }
+
+      if (hasNavUpdate) {
+        if (body.resetNav === true) {
+          await tx.delete(siteSettings).where(eq(siteSettings.key, "nav"));
+        } else if (validatedNavItems !== null) {
+          const navPayload = { items: validatedNavItems };
+          await tx
+            .insert(siteSettings)
+            .values({ key: "nav", gjsData: navPayload, updatedAt })
+            .onConflictDoUpdate({
+              target: siteSettings.key,
+              set: { gjsData: navPayload, updatedAt },
+            });
+        }
+      }
+    });
 
     try {
       revalidatePath("/", "layout");

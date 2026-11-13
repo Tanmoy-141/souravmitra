@@ -110,6 +110,14 @@ export default function NavigationAdmin({
   const addPageLink = (page: CustomPage) => {
     const href = pageToHref(page.slug);
     if (items.some((item) => item.href === href)) return;
+
+    if (page.status === "draft") {
+      const proceed = window.confirm(
+        `"${page.title}" is currently an unpublished DRAFT.\n\nVisitors clicking this navigation link will receive a 404 until you publish this page in the Pages tab.\n\nDo you still want to add it to the navigation menu?`,
+      );
+      if (!proceed) return;
+    }
+
     setItems((prev) => [
       ...prev,
       {
@@ -344,13 +352,20 @@ export default function NavigationAdmin({
         ) : (
           items.map((item, idx) => {
             const hrefValid = isSafeNavHref(item.href);
+            const matchedDraftPage = pages.find(
+              (p) => pageToHref(p.slug) === item.href && p.status === "draft",
+            );
             return (
               <div
                 key={item.id}
                 className={`border p-4 bg-[#0a0a0a] flex flex-col lg:flex-row lg:items-center gap-4 transition-colors ${
-                  item.visible
-                    ? "border-[#2a2a2a]"
-                    : "border-[#1c1c1c] opacity-65"
+                  !hrefValid
+                    ? "border-red-900/70"
+                    : matchedDraftPage
+                      ? "border-amber-900/60"
+                      : item.visible
+                        ? "border-[#2a2a2a]"
+                        : "border-[#1c1c1c] opacity-65"
                 }`}>
                 {/* Reorder controls */}
                 <div className="flex lg:flex-col items-center gap-1 shrink-0">
@@ -390,9 +405,16 @@ export default function NavigationAdmin({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1">
-                      URL / Path
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[10px] uppercase tracking-wider text-gray-500 font-bold">
+                        URL / Path
+                      </label>
+                      {matchedDraftPage && (
+                        <span className="text-[9px] font-semibold text-amber-400 bg-amber-950/60 border border-amber-800/60 px-1.5 py-0.2 rounded">
+                          ⚠️ Draft Page (404 for visitors)
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="text"
                       maxLength={500}
@@ -402,9 +424,11 @@ export default function NavigationAdmin({
                       }
                       placeholder="/book-covers or https://..."
                       className={`w-full bg-black border px-3 py-1.5 text-xs font-mono text-white outline-none ${
-                        hrefValid
-                          ? "border-[#333] focus:border-[#C5A059]"
-                          : "border-red-700 focus:border-red-500"
+                        !hrefValid
+                          ? "border-red-700 focus:border-red-500"
+                          : matchedDraftPage
+                            ? "border-amber-800 focus:border-amber-500"
+                            : "border-[#333] focus:border-[#C5A059]"
                       }`}
                     />
                   </div>
@@ -468,26 +492,44 @@ export default function NavigationAdmin({
       {/* Quick-add from existing CMS pages */}
       {linkablePages.length > 0 && (
         <div className="border-t border-[#222] pt-6">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
-            Quick-Add Existing Pages
-          </h3>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-3">
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+              Quick-Add Existing Pages
+            </h3>
+            <span className="text-[10px] text-gray-500">
+              Pages marked <span className="text-amber-400 font-semibold">Draft</span> prompt a warning since they are not public yet.
+            </span>
+          </div>
           <div className="flex flex-wrap gap-2">
             {linkablePages.map((page) => {
               const href = pageToHref(page.slug);
               const alreadyAdded = items.some((item) => item.href === href);
+              const isDraft = page.status === "draft";
               return (
                 <button
                   key={page.id ?? page.slug}
                   type="button"
                   disabled={alreadyAdded}
                   onClick={() => addPageLink(page)}
-                  className={`px-3 py-1.5 text-xs border transition-colors ${
+                  title={
+                    isDraft
+                      ? `"${page.title}" is currently an unpublished Draft (click to add with warning)`
+                      : `Add "${page.title}" to navigation`
+                  }
+                  className={`px-3 py-1.5 text-xs border rounded transition-colors inline-flex items-center gap-1.5 ${
                     alreadyAdded
                       ? "border-[#222] bg-[#0b0b0b] text-gray-600 cursor-not-allowed"
-                      : "border-[#333] bg-[#111] hover:border-[#C5A059] text-gray-200 hover:text-[#C5A059] cursor-pointer"
+                      : isDraft
+                        ? "border-amber-900/60 bg-[#161208] text-amber-200 hover:border-amber-500 cursor-pointer"
+                        : "border-[#333] bg-[#111] hover:border-[#C5A059] text-gray-200 hover:text-[#C5A059] cursor-pointer"
                   }`}>
-                  {alreadyAdded ? "✓ " : "+ "}
-                  {page.title}{" "}
+                  <span>{alreadyAdded ? "✓" : "+"}</span>
+                  <span>{page.title}</span>
+                  {isDraft && (
+                    <span className="px-1.5 py-0.2 bg-amber-950/80 border border-amber-700/60 text-amber-300 rounded text-[9px] uppercase font-bold tracking-wider">
+                      Draft
+                    </span>
+                  )}
                   <span className="text-[10px] font-mono text-gray-500">
                     ({href})
                   </span>

@@ -18,15 +18,39 @@ const CORE_PAGE_SLUGS = new Set([
   "fine-art",
 ]);
 
-export const Header = () => {
-  const [customPages, setCustomPages] = useState<CustomPage[]>([]);
-  const [navItems, setNavItems] = useState<NavItem[]>(DEFAULT_NAV_ITEMS);
-  const [isCustomNav, setIsCustomNav] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [siteName, setSiteName] = useState("Sourav Mitra");
-  const [logoUrl, setLogoUrl] = useState<string>("");
+export interface HeaderProps {
+  initialSiteName?: string;
+  initialLogoUrl?: string;
+  initialNavItems?: NavItem[];
+  initialIsCustomNav?: boolean;
+}
 
+export const Header = ({
+  initialSiteName = "Sourav Mitra",
+  initialLogoUrl = "",
+  initialNavItems,
+  initialIsCustomNav = false,
+}: HeaderProps = {}) => {
+  const [customPages, setCustomPages] = useState<CustomPage[]>([]);
+  const [clientNavItems, setClientNavItems] = useState<NavItem[] | null>(null);
+  const [clientIsCustomNav, setClientIsCustomNav] = useState<boolean | null>(
+    null,
+  );
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [clientSiteName, setClientSiteName] = useState<string | null>(null);
+  const [clientLogoUrl, setClientLogoUrl] = useState<string | null>(null);
+
+  const siteName = clientSiteName ?? initialSiteName;
+  const logoUrl = clientLogoUrl ?? initialLogoUrl;
+  const navItems = clientNavItems ?? initialNavItems ?? DEFAULT_NAV_ITEMS;
+  const isCustomNav = clientIsCustomNav ?? initialIsCustomNav;
+
+  // Fallback client loader only when server props were not supplied
   useEffect(() => {
+    if (initialNavItems !== undefined) {
+      return;
+    }
+
     const loadHeaderData = async () => {
       try {
         const [settingsRes, pagesRes] = await Promise.all([
@@ -37,16 +61,16 @@ export const Header = () => {
         if (settingsRes.ok) {
           const data = await settingsRes.json();
           if (typeof data.siteName === "string" && data.siteName.trim()) {
-            setSiteName(data.siteName);
+            setClientSiteName(data.siteName);
           }
           if (typeof data.logoUrl === "string") {
-            setLogoUrl(data.logoUrl.trim());
+            setClientLogoUrl(data.logoUrl.trim());
           }
           if (data.isCustomNav === true && Array.isArray(data.navItems)) {
-            setIsCustomNav(true);
-            setNavItems(data.navItems);
+            setClientIsCustomNav(true);
+            setClientNavItems(data.navItems);
           } else {
-            setIsCustomNav(false);
+            setClientIsCustomNav(false);
           }
         }
 
@@ -64,7 +88,7 @@ export const Header = () => {
     };
 
     void loadHeaderData();
-  }, []);
+  }, [initialNavItems]);
 
   const getPageTitle = (slug: string, fallback: string) =>
     customPages.find((page) => page.slug === slug)?.title || fallback;
@@ -76,8 +100,8 @@ export const Header = () => {
       !page.slug.includes("/"),
   );
 
-  // When no custom nav is configured in site_settings, mirror legacy auto-discovery.
-  const resolvedItems: NavItem[] = isCustomNav
+  // When initialNavItems are supplied from server or customNav is active, use navItems directly.
+  const resolvedItems: NavItem[] = isCustomNav || initialNavItems !== undefined
     ? navItems.filter((item) => item.visible && isSafeNavHref(item.href))
     : [
         {
@@ -172,7 +196,7 @@ export const Header = () => {
               src={logoUrl}
               alt={siteName}
               className="h-8 max-w-30 object-contain shrink-0"
-              onError={() => setLogoUrl("")}
+              onError={() => setClientLogoUrl("")}
             />
           ) : null}
           <span>{siteName}</span>

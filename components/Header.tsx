@@ -189,17 +189,17 @@ export const Header = ({
         <Link
           href="/"
           onClick={() => setIsMenuOpen(false)}
-          className="flex items-center gap-3 text-xl md:text-2xl font-serif text-[#FFFFFF]">
+          className="flex items-center gap-3 text-xl md:text-2xl font-serif text-[#FFFFFF] tracking-tight hover:opacity-90 transition-opacity">
           {logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={logoUrl}
               alt={siteName}
-              className="h-8 max-w-30 object-contain shrink-0"
+              className="h-8 md:h-9 max-w-[160px] object-contain shrink-0"
               onError={() => setClientLogoUrl("")}
             />
           ) : null}
-          <span>{siteName}</span>
+          <span className={logoUrl ? "hidden sm:inline" : ""}>{siteName}</span>
         </Link>
 
         {/* Desktop nav */}

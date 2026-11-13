@@ -11,6 +11,7 @@ import {
 interface NavigationAdminProps {
   pages: CustomPage[];
   siteName: string;
+  logoUrl?: string;
 }
 
 const CORE_SLUGS = new Set([
@@ -33,6 +34,7 @@ function pageToHref(slug: string): string {
 export default function NavigationAdmin({
   pages,
   siteName,
+  logoUrl = "",
 }: NavigationAdminProps) {
   const [items, setItems] = useState<NavItem[]>(DEFAULT_NAV_ITEMS);
   const [isCustomNav, setIsCustomNav] = useState(false);
@@ -311,7 +313,22 @@ export default function NavigationAdmin({
           </span>
         </div>
         <div className="bg-black border border-[#333333] px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-          <span className="text-lg font-serif text-white">{siteName}</span>
+          <div className="flex items-center gap-3">
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoUrl}
+                alt={siteName}
+                className="h-7 max-w-[120px] object-contain shrink-0"
+              />
+            ) : null}
+            <span
+              className={`text-lg font-serif text-white ${
+                logoUrl ? "hidden sm:inline" : ""
+              }`}>
+              {siteName}
+            </span>
+          </div>
           <nav className="flex flex-wrap items-center gap-6 text-[#D4D4D4] text-xs uppercase tracking-widest font-medium">
             {previewItems.length === 0 ? (
               <span className="text-gray-600 italic normal-case tracking-normal">

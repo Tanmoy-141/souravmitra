@@ -1385,7 +1385,11 @@ export default function AdminDashboard() {
         </div>
       ) : activeTab === "navigation" ? (
         <div className="flex-1 overflow-y-auto p-6 md:p-12 bg-[#000000]">
-          <NavigationAdmin pages={pages} siteName={siteName} />
+          <NavigationAdmin
+            pages={pages}
+            siteName={siteName}
+            logoUrl={logoUrl}
+          />
         </div>
       ) : viewTrash ? (
         <div className="flex-1 overflow-y-auto p-8 bg-[#000000] max-w-4xl mx-auto w-full">

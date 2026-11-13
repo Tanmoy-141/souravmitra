@@ -542,6 +542,27 @@ export default function AdminDashboard() {
     reader.readAsDataURL(file);
   };
 
+  const handleRemoveLogo = async () => {
+    setLogoUrl("");
+    try {
+      const res = await fetch("/api/cms/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logoUrl: "" }),
+      });
+      if (res.ok) {
+        setSaveStatus("Logo removed and saved successfully!");
+        setTimeout(() => setSaveStatus(null), 3000);
+      } else {
+        setSaveStatus("Logo removed. Click 'Save Site Settings' to apply.");
+        setTimeout(() => setSaveStatus(null), 4000);
+      }
+    } catch {
+      setSaveStatus("Logo removed. Click 'Save Site Settings' to apply.");
+      setTimeout(() => setSaveStatus(null), 4000);
+    }
+  };
+
   useEffect(() => {
     const checkAuthAndFetch = async () => {
       try {
@@ -1649,14 +1670,8 @@ export default function AdminDashboard() {
                     {logoUrl && (
                       <button
                         type="button"
-                        onClick={() => {
-                          setLogoUrl("");
-                          setSaveStatus(
-                            "Logo removed! Click 'Save Site Settings' to apply.",
-                          );
-                          setTimeout(() => setSaveStatus(null), 4000);
-                        }}
-                        className="text-[10px] text-gray-500 hover:text-red-400 transition-colors uppercase tracking-wider">
+                        onClick={handleRemoveLogo}
+                        className="text-[10px] text-gray-500 hover:text-red-400 transition-colors uppercase tracking-wider cursor-pointer">
                         Remove Logo
                       </button>
                     )}
@@ -1710,14 +1725,8 @@ export default function AdminDashboard() {
                     {logoUrl && (
                       <button
                         type="button"
-                        onClick={() => {
-                          setLogoUrl("");
-                          setSaveStatus(
-                            "Logo removed! Click 'Save Site Settings' to apply.",
-                          );
-                          setTimeout(() => setSaveStatus(null), 4000);
-                        }}
-                        className="px-2 py-1 bg-[#1f1212] hover:bg-[#321616] border border-[#522] hover:border-red-500 text-red-400 hover:text-red-300 text-[10px] font-bold uppercase tracking-wider rounded transition-colors"
+                        onClick={handleRemoveLogo}
+                        className="px-2 py-1 bg-[#1f1212] hover:bg-[#321616] border border-[#522] hover:border-red-500 text-red-400 hover:text-red-300 text-[10px] font-bold uppercase tracking-wider rounded transition-colors cursor-pointer"
                         title="Remove custom logo">
                         Remove
                       </button>

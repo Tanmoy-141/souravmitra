@@ -319,6 +319,14 @@ export default function NavigationAdmin({
               <img
                 src={logoUrl}
                 alt={siteName}
+                width={120}
+                height={28}
+                style={{
+                  height: "28px",
+                  maxHeight: "28px",
+                  width: "auto",
+                  maxWidth: "120px",
+                }}
                 className="h-7 max-w-30 object-contain shrink-0"
               />
             ) : null}

@@ -195,6 +195,14 @@ export const Header = ({
             <img
               src={logoUrl}
               alt={siteName}
+              width={160}
+              height={36}
+              style={{
+                height: "36px",
+                maxHeight: "36px",
+                width: "auto",
+                maxWidth: "160px",
+              }}
               className="h-8 md:h-9 max-w-40 object-contain shrink-0"
               onError={() => setClientLogoUrl("")}
             />

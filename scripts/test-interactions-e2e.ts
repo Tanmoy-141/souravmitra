@@ -6,6 +6,7 @@ import { projects, projectLikes, projectViews, users } from "../db/schema";
 import { eq, and, or } from "drizzle-orm";
 import { GET as getLikes, POST as postLikes } from "../app/api/projects/[id]/likes/route";
 import { POST as postViews } from "../app/api/projects/[id]/views/route";
+import { GET as getSettings, PUT as putSettings } from "../app/api/cms/settings/route";
 import { getOrCreateVisitorId } from "../lib/visitor-session";
 import { createSessionToken } from "../lib/auth";
 
@@ -343,6 +344,98 @@ async function runTests() {
       }),
       { params: Promise.resolve({ id: testProject.id }) }
     );
+  }
+
+  // -------------------------------------------------------------------------
+  // TEST SUITE 5: CMS SITE SETTINGS & NAVIGATION BATCH ATOMICITY
+  // -------------------------------------------------------------------------
+  console.log("\n[TEST 5] CMS Site Settings & Navigation (db.batch atomicity)...");
+  {
+    // 5.1 Unauthorized user cannot update settings
+    const unauthReq = new NextRequest(`${BASE_URL}/api/cms/settings`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ navItems: [] }),
+    });
+    const unauthRes = await putSettings(unauthReq);
+    if (unauthRes.status !== 401) {
+      throw new Error(`Expected 401 Unauthorized for unauthenticated settings update, got ${unauthRes.status}`);
+    }
+    console.log("  ✓ Unauthenticated settings update correctly rejected with 401.");
+
+    // 5.2 Authenticated admin can save navigation and branding via db.batch
+    const [adminUser] = await db
+      .select()
+      .from(users)
+      .where(or(eq(users.role, "admin"), eq(users.role, "owner")))
+      .limit(1);
+
+    if (adminUser) {
+      const adminToken = createSessionToken({
+        id: adminUser.id,
+        username: adminUser.username,
+        email: adminUser.email,
+        role: adminUser.role,
+        sessionVersion: adminUser.sessionVersion,
+      });
+
+      // Capture original settings first to restore later
+      const initialGetRes = await getSettings();
+      const initialSettings = await initialGetRes.json();
+
+      // Update custom navigation via PUT (exercises db.batch with neon-http)
+      const testNavItems = [
+        { id: "test-home", label: "Home", href: "/", visible: true },
+        { id: "test-contact", label: "Contact Us", href: "/contact", visible: true, isCta: true },
+      ];
+
+      const updateReq = new NextRequest(`${BASE_URL}/api/cms/settings`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: `admin_session=${adminToken}`,
+        },
+        body: JSON.stringify({ navItems: testNavItems }),
+      });
+
+      const updateRes = await putSettings(updateReq);
+      const updateData = await updateRes.json();
+
+      if (!updateRes.ok || !updateData.success) {
+        throw new Error(`Settings save failed: ${JSON.stringify(updateData)}`);
+      }
+      console.log("  ✓ Navigation saved via db.batch successfully without driver errors.");
+
+      // Verify GET reflects custom navigation
+      const getRes = await getSettings();
+      const getData = await getRes.json();
+      if (!getData.isCustomNav || getData.navItems?.length !== 2) {
+        throw new Error(`GET /api/cms/settings did not return expected custom nav items: ${JSON.stringify(getData)}`);
+      }
+      console.log("  ✓ GET /api/cms/settings confirmed custom navigation is active.");
+
+      // Clean up / reset navigation
+      const resetReq = new NextRequest(`${BASE_URL}/api/cms/settings`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: `admin_session=${adminToken}`,
+        },
+        body: JSON.stringify({
+          resetNav: true,
+          siteName: initialSettings.siteName,
+          logoUrl: initialSettings.logoUrl,
+        }),
+      });
+      const resetRes = await putSettings(resetReq);
+      const resetData = await resetRes.json();
+      if (!resetRes.ok || !resetData.success) {
+        throw new Error(`Settings reset failed: ${JSON.stringify(resetData)}`);
+      }
+      console.log("  ✓ Navigation reset to default successfully via db.batch.");
+    } else {
+      console.log("  ⚠ No admin user in DB to test authenticated settings write; verified 401 gate.");
+    }
   }
 
   console.log("\n==================================================================");

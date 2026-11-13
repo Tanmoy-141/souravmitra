@@ -42,6 +42,7 @@ type CmsApiResponse = {
   faviconUrl?: string;
   logoUrl?: string;
   siteName?: string;
+  siteFont?: string;
   footerHeading?: string;
   footerText?: string;
   socialLinks?: Record<string, string>;
@@ -282,6 +283,7 @@ export default function AdminDashboard() {
   const [logoUrl, setLogoUrl] = useState("");
 
   const [siteName, setSiteName] = useState("Sourav Mitra");
+  const [siteFont, setSiteFont] = useState("serif");
 
   const [footerHeading, setFooterHeading] = useState("FOLLOW ME ON");
 
@@ -361,6 +363,7 @@ export default function AdminDashboard() {
           setLogoUrl(data.logoUrl);
         }
         if (data.siteName) setSiteName(data.siteName);
+        if (data.siteFont) setSiteFont(data.siteFont);
         if (data.footerHeading) setFooterHeading(data.footerHeading);
         if (data.footerText) setFooterText(data.footerText);
         if (data.socialLinks) setSocialLinks(data.socialLinks);
@@ -379,6 +382,7 @@ export default function AdminDashboard() {
           faviconUrl,
           logoUrl,
           siteName,
+          siteFont,
           footerHeading,
           footerText,
           socialLinks,
@@ -540,6 +544,27 @@ export default function AdminDashboard() {
     };
 
     reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = async () => {
+    setLogoUrl("");
+    try {
+      const res = await fetch("/api/cms/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logoUrl: "" }),
+      });
+      if (res.ok) {
+        setSaveStatus("Logo removed and saved successfully!");
+        setTimeout(() => setSaveStatus(null), 3000);
+      } else {
+        setSaveStatus("Logo removed. Click 'Save Site Settings' to apply.");
+        setTimeout(() => setSaveStatus(null), 4000);
+      }
+    } catch {
+      setSaveStatus("Logo removed. Click 'Save Site Settings' to apply.");
+      setTimeout(() => setSaveStatus(null), 4000);
+    }
   };
 
   useEffect(() => {
@@ -1385,7 +1410,14 @@ export default function AdminDashboard() {
         </div>
       ) : activeTab === "navigation" ? (
         <div className="flex-1 overflow-y-auto p-6 md:p-12 bg-[#000000]">
-          <NavigationAdmin pages={pages} siteName={siteName} />
+          <NavigationAdmin
+            pages={pages}
+            siteName={siteName}
+            logoUrl={logoUrl}
+            siteFont={siteFont}
+            onSiteNameChange={setSiteName}
+            onSiteFontChange={setSiteFont}
+          />
         </div>
       ) : viewTrash ? (
         <div className="flex-1 overflow-y-auto p-8 bg-[#000000] max-w-4xl mx-auto w-full">
@@ -1645,14 +1677,8 @@ export default function AdminDashboard() {
                     {logoUrl && (
                       <button
                         type="button"
-                        onClick={() => {
-                          setLogoUrl("");
-                          setSaveStatus(
-                            "Logo removed! Click 'Save Site Settings' to apply.",
-                          );
-                          setTimeout(() => setSaveStatus(null), 4000);
-                        }}
-                        className="text-[10px] text-gray-500 hover:text-red-400 transition-colors uppercase tracking-wider">
+                        onClick={handleRemoveLogo}
+                        className="text-[10px] text-gray-500 hover:text-red-400 transition-colors uppercase tracking-wider cursor-pointer">
                         Remove Logo
                       </button>
                     )}
@@ -1669,13 +1695,13 @@ export default function AdminDashboard() {
 
                   {/* Preview Card */}
                   <div className="flex items-center gap-3 p-2.5 bg-black border border-[#2b2b2b] rounded-sm mb-2">
-                    <div className="w-12 h-10 shrink-0 bg-[#141414] border border-[#3a3a3a] rounded-sm flex items-center justify-center overflow-hidden p-1 shadow-inner">
+                    <div className="w-12 h-12 shrink-0 bg-[#141414] border border-[#3a3a3a] rounded-full flex items-center justify-center overflow-hidden shadow-inner">
                       {logoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={logoUrl}
                           alt="Logo preview"
-                          className="w-full h-full object-contain"
+                          className="w-full h-full object-cover rounded-full"
                         />
                       ) : (
                         <span className="text-[9px] text-gray-600 uppercase font-bold">
@@ -1706,14 +1732,8 @@ export default function AdminDashboard() {
                     {logoUrl && (
                       <button
                         type="button"
-                        onClick={() => {
-                          setLogoUrl("");
-                          setSaveStatus(
-                            "Logo removed! Click 'Save Site Settings' to apply.",
-                          );
-                          setTimeout(() => setSaveStatus(null), 4000);
-                        }}
-                        className="px-2 py-1 bg-[#1f1212] hover:bg-[#321616] border border-[#522] hover:border-red-500 text-red-400 hover:text-red-300 text-[10px] font-bold uppercase tracking-wider rounded transition-colors"
+                        onClick={handleRemoveLogo}
+                        className="px-2 py-1 bg-[#1f1212] hover:bg-[#321616] border border-[#522] hover:border-red-500 text-red-400 hover:text-red-300 text-[10px] font-bold uppercase tracking-wider rounded transition-colors cursor-pointer"
                         title="Remove custom logo">
                         Remove
                       </button>

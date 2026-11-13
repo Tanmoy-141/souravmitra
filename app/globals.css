@@ -207,13 +207,15 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Ensure images, videos and canvases never overflow small viewports */
-img,
-video,
-iframe,
-canvas {
-  max-width: 100%;
-  height: auto;
+@layer base {
+  /* Ensure images, videos and canvases never overflow small viewports */
+  img,
+  video,
+  iframe,
+  canvas {
+    max-width: 100%;
+    height: auto;
+  }
 }
 
 /* Ensure placeholder text is visible on dark-themed inputs */

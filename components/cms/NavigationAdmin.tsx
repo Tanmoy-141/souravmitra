@@ -1,17 +1,61 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import type { CustomPage } from "@/data/cms";
 import {
   DEFAULT_NAV_ITEMS,
   isSafeNavHref,
   type NavItem,
 } from "@/lib/navigation";
+import { sanitizeFontFamily } from "@/lib/fonts";
 
 interface NavigationAdminProps {
   pages: CustomPage[];
   siteName: string;
+  logoUrl?: string;
+  siteFont?: string;
+  onSiteNameChange?: (name: string) => void;
+  onSiteFontChange?: (font: string) => void;
 }
+
+const FONT_PRESETS = [
+  {
+    group: "Standard",
+    fonts: [{ label: "Default Serif (Georgia / Classic)", value: "serif" }],
+  },
+  {
+    group: "Signature & Display",
+    fonts: [
+      { label: "Stingray (Artist Signature)", value: "Stingray" },
+      { label: "Gotham Regular (Clean Modern)", value: "Gotham Regular" },
+      { label: "Great Vibes (Fluid Cursive Signature)", value: "Great Vibes" },
+      { label: "Dancing Script (Lively Script)", value: "Dancing Script" },
+      { label: "Alex Brush (Flowing Signature)", value: "Alex Brush" },
+      { label: "Parisienne (French Boutique Cursive)", value: "Parisienne" },
+    ],
+  },
+  {
+    group: "Editorial & Literary Serif",
+    fonts: [
+      { label: "Cinzel (Classical Roman)", value: "Cinzel" },
+      { label: "Playfair Display (Luxury Editorial)", value: "Playfair Display" },
+      { label: "Bodoni Moda (Vogue Editorial)", value: "Bodoni Moda" },
+      { label: "Cormorant Garamond (Literary Calligraphic)", value: "Cormorant Garamond" },
+      { label: "Marcellus (Roman Monumental)", value: "Marcellus" },
+      { label: "Lora (Contemporary Editorial)", value: "Lora" },
+      { label: "EB Garamond (Renaissance Classical)", value: "EB Garamond" },
+      { label: "Italiana (Italian Elegance)", value: "Italiana" },
+    ],
+  },
+  {
+    group: "Modern Sans-Serif",
+    fonts: [
+      { label: "Syne (Avant-Garde Gallery)", value: "Syne" },
+      { label: "Poppins (Clean Geometric)", value: "Poppins" },
+      { label: "Outfit (Minimalist Sans)", value: "Outfit" },
+    ],
+  },
+];
 
 const CORE_SLUGS = new Set([
   "",
@@ -33,8 +77,22 @@ function pageToHref(slug: string): string {
 export default function NavigationAdmin({
   pages,
   siteName,
+  logoUrl = "",
+  siteFont = "serif",
+  onSiteNameChange,
+  onSiteFontChange,
 }: NavigationAdminProps) {
   const [items, setItems] = useState<NavItem[]>(DEFAULT_NAV_ITEMS);
+  const [userTitle, setUserTitle] = useState<string | null>(null);
+  const title = userTitle ?? siteName;
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  const [userFont, setUserFont] = useState<string | null>(null);
+  const font = userFont ?? siteFont;
+  const [isCustomFont, setIsCustomFont] = useState(false);
+  const [customFontInput, setCustomFontInput] = useState("");
+  const [installedFonts, setInstalledFonts] = useState<string[]>([]);
+
   const [isCustomNav, setIsCustomNav] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -47,13 +105,34 @@ export default function NavigationAdmin({
     let ignore = false;
     const loadSettings = async () => {
       try {
-        const res = await fetch("/api/cms/settings", { cache: "no-store" });
-        const data = await res.json();
-        if (!ignore && res.ok) {
+        const [settingsRes, fontsRes] = await Promise.all([
+          fetch("/api/cms/settings", { cache: "no-store" }),
+          fetch("/api/cms/fonts", { cache: "no-store" }),
+        ]);
+
+        if (!ignore && settingsRes.ok) {
+          const data = await settingsRes.json();
           if (Array.isArray(data.navItems) && data.navItems.length > 0) {
             setItems(data.navItems);
           }
           setIsCustomNav(Boolean(data.isCustomNav));
+          if (typeof data.siteName === "string" && data.siteName.trim()) {
+            onSiteNameChange?.(data.siteName.trim());
+          }
+          if (typeof data.siteFont === "string" && data.siteFont.trim()) {
+            onSiteFontChange?.(data.siteFont.trim());
+          }
+        }
+
+        if (!ignore && fontsRes.ok) {
+          const fontsData = await fontsRes.json();
+          if (Array.isArray(fontsData.fonts)) {
+            setInstalledFonts(
+              fontsData.fonts
+                .map((f: { family?: string }) => f.family?.trim())
+                .filter(Boolean),
+            );
+          }
         }
       } catch {
         if (!ignore) {
@@ -70,7 +149,7 @@ export default function NavigationAdmin({
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [onSiteNameChange, onSiteFontChange]);
 
   const updateItem = (id: string, patch: Partial<NavItem>) => {
     setItems((prev) =>
@@ -161,10 +240,17 @@ export default function NavigationAdmin({
         openInNewTab: Boolean(item.openInNewTab),
       }));
 
+      const cleanedSiteName = title.trim() || "Sourav Mitra";
+      const cleanedSiteFont = font.trim() || "serif";
+
       const res = await fetch("/api/cms/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ navItems: cleaned }),
+        body: JSON.stringify({
+          navItems: cleaned,
+          siteName: cleanedSiteName,
+          siteFont: cleanedSiteFont,
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -177,9 +263,13 @@ export default function NavigationAdmin({
 
       setItems(cleaned);
       setIsCustomNav(true);
+      setUserTitle(null);
+      setUserFont(null);
+      onSiteNameChange?.(cleanedSiteName);
+      onSiteFontChange?.(cleanedSiteFont);
       setStatusMessage({
         type: "success",
-        text: "Navigation saved and published to the site header!",
+        text: "Navigation, site title, and font saved and published to the site header!",
       });
       setTimeout(() => setStatusMessage(null), 4000);
     } catch {
@@ -302,6 +392,176 @@ export default function NavigationAdmin({
         </div>
       )}
 
+      {/* Site Title & Header Branding Editor */}
+      <div className="bg-[#0b0b0b] border border-[#262626] p-5 flex flex-col gap-5">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+          {/* Title input */}
+          <div className="flex-1 max-w-lg">
+            <div className="flex items-center gap-2 mb-1.5">
+              <label
+                htmlFor="site-title-input"
+                className="text-[10px] uppercase text-[#C5A059] font-bold tracking-widest">
+                Site Title (Header Brand Name)
+              </label>
+              <span className="text-[10px] text-gray-500 font-normal">
+                &bull; Displayed beside logo
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                id="site-title-input"
+                ref={titleInputRef}
+                type="text"
+                value={title}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setUserTitle(val);
+                  onSiteNameChange?.(val);
+                }}
+                placeholder="Sourav Mitra"
+                maxLength={100}
+                style={{
+                  fontFamily: font && font !== "serif" ? `'${font}', serif` : "serif",
+                }}
+                className="w-full px-3.5 py-2.5 bg-black border border-[#333] hover:border-[#555] focus:border-[#C5A059] text-white text-lg focus:outline-none transition-colors"
+              />
+              {title !== "Sourav Mitra" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUserTitle("Sourav Mitra");
+                    onSiteNameChange?.("Sourav Mitra");
+                  }}
+                  className="px-3 py-2.5 border border-[#333] hover:border-[#C5A059] text-gray-400 hover:text-white text-[10px] uppercase tracking-wider font-semibold whitespace-nowrap cursor-pointer transition-colors"
+                  title="Reset to default brand name">
+                  Reset
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Font Family Selector */}
+          <div className="flex-1 max-w-lg">
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="site-font-select"
+                  className="text-[10px] uppercase text-[#C5A059] font-bold tracking-widest">
+                  Header Brand Typography
+                </label>
+                <span className="text-[10px] text-gray-500 font-normal">
+                  &bull; Font Family
+                </span>
+              </div>
+              {font !== "serif" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCustomFont(false);
+                    setUserFont("serif");
+                    onSiteFontChange?.("serif");
+                  }}
+                  className="text-[10px] text-gray-500 hover:text-[#C5A059] uppercase tracking-wider transition-colors cursor-pointer"
+                  title="Reset font to default serif">
+                  Reset Font
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                id="site-font-select"
+                value={
+                  isCustomFont
+                    ? "__custom__"
+                    : FONT_PRESETS.some((g) => g.fonts.some((f) => f.value === font))
+                      ? font
+                      : installedFonts.includes(font)
+                        ? font
+                        : "__custom__"
+                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "__custom__") {
+                    setIsCustomFont(true);
+                    setCustomFontInput(font !== "serif" ? font : "");
+                  } else {
+                    setIsCustomFont(false);
+                    setUserFont(val);
+                    onSiteFontChange?.(val);
+                  }
+                }}
+                className="w-full px-3 py-2.5 bg-black border border-[#333] hover:border-[#555] focus:border-[#C5A059] text-white text-xs uppercase tracking-wider font-semibold focus:outline-none transition-colors cursor-pointer">
+                {FONT_PRESETS.map((group) => (
+                  <optgroup key={group.group} label={group.group}>
+                    {group.fonts.map((f) => (
+                      <option key={f.value} value={f.value}>
+                        {f.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+
+                {installedFonts.length > 0 && (
+                  <optgroup label="Installed Custom Fonts">
+                    {installedFonts.map((fam) => (
+                      <option key={fam} value={fam}>
+                        {fam} (Custom)
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+
+                <optgroup label="Other / Manual">
+                  <option value="__custom__">Custom / Other Google Font...</option>
+                </optgroup>
+              </select>
+            </div>
+
+            {isCustomFont && (
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="text"
+                  value={customFontInput}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomFontInput(val);
+                    const clean = sanitizeFontFamily(val);
+                    if (clean) {
+                      setUserFont(clean);
+                      onSiteFontChange?.(clean);
+                    }
+                  }}
+                  placeholder="Type any Google Font name (e.g. Cinzel Decorative)"
+                  className="w-full px-3 py-1.5 bg-black border border-[#444] text-white text-xs font-mono focus:border-[#C5A059] focus:outline-none transition-colors"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Active Preview Pill */}
+          <div className="text-left lg:text-right pl-0 lg:pl-6 border-t lg:border-t-0 lg:border-l border-[#222] pt-3 lg:pt-0 shrink-0">
+            <span className="text-gray-500 block font-mono text-[9px] uppercase tracking-wider mb-1">
+              Active Header Typography
+            </span>
+            <span
+              style={{
+                fontFamily: font && font !== "serif" ? `'${font}', serif` : "serif",
+              }}
+              className="text-lg text-[#C5A059] font-medium block">
+              {title.trim() || "Sourav Mitra"}
+            </span>
+            <span className="text-[10px] text-gray-500 font-mono block mt-0.5">
+              Font: {font === "serif" ? "Default Serif" : font}
+            </span>
+          </div>
+        </div>
+
+        <p className="text-[11px] text-gray-500 border-t border-[#1a1a1a] pt-3">
+          Changes reflect immediately in the live header preview below and save when you click &ldquo;Save Navigation&rdquo;.
+        </p>
+      </div>
+
       {/* Live Header Preview */}
       <div className="border border-[#262626] bg-[#070707] p-4">
         <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-3">
@@ -311,7 +571,33 @@ export default function NavigationAdmin({
           </span>
         </div>
         <div className="bg-black border border-[#333333] px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-          <span className="text-lg font-serif text-white">{siteName}</span>
+          <div
+            onClick={() => titleInputRef.current?.focus()}
+            className="flex items-center gap-3 cursor-pointer group"
+            title="Click to edit site title">
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoUrl}
+                alt={title || siteName}
+                width={44}
+                height={44}
+                style={{
+                  borderRadius: "9999px",
+                  objectFit: "cover",
+                }}
+                className="w-11 h-11 rounded-full object-cover shrink-0 border border-[#C5A059]/40 shadow-sm"
+              />
+            ) : null}
+            <span
+              style={{
+                fontFamily: font && font !== "serif" ? `'${font}', serif` : "serif",
+              }}
+              className="text-lg text-white group-hover:text-[#C5A059] transition-colors flex items-center gap-1.5">
+              {title || "Sourav Mitra"}
+              <span className="text-gray-500 group-hover:text-[#C5A059] text-xs">✎</span>
+            </span>
+          </div>
           <nav className="flex flex-wrap items-center gap-6 text-[#D4D4D4] text-xs uppercase tracking-widest font-medium">
             {previewItems.length === 0 ? (
               <span className="text-gray-600 italic normal-case tracking-normal">

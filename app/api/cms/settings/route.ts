@@ -5,6 +5,7 @@ import { siteSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { isAuthorized } from "@/lib/require-session";
 import { isSafeUrl } from "@/lib/sanitize";
+import { sanitizeFontFamily } from "@/lib/fonts";
 import {
   DEFAULT_NAV_ITEMS,
   NavItemsArraySchema,
@@ -41,6 +42,7 @@ export async function GET() {
       (headerSetting?.gjsData as {
         siteName?: string;
         logoUrl?: string;
+        siteFont?: string;
       }) || {};
     const footerData =
       (footerSetting?.gjsData as {
@@ -71,6 +73,7 @@ export async function GET() {
       customFonts: themeData.customFonts || [],
       logoUrl: headerData.logoUrl || "",
       siteName: headerData.siteName || "Sourav Mitra",
+      siteFont: headerData.siteFont || "serif",
       footerHeading: footerData.heading || "FOLLOW ME ON",
       footerText: footerData.text || "All rights reserved.",
       socialLinks,
@@ -119,7 +122,9 @@ export async function PUT(req: NextRequest) {
     const hasThemeUpdate =
       body.faviconUrl !== undefined || body.customFonts !== undefined;
     const hasHeaderUpdate =
-      body.siteName !== undefined || body.logoUrl !== undefined;
+      body.siteName !== undefined ||
+      body.logoUrl !== undefined ||
+      body.siteFont !== undefined;
     const hasFooterUpdate =
       body.footerHeading !== undefined ||
       body.footerText !== undefined ||
@@ -137,6 +142,7 @@ export async function PUT(req: NextRequest) {
       (byKey.get("header")?.gjsData as {
         siteName?: string;
         logoUrl?: string;
+        siteFont?: string;
       }) || {};
     const currentFooterData =
       (byKey.get("footer")?.gjsData as {
@@ -181,6 +187,10 @@ export async function PUT(req: NextRequest) {
           (body.logoUrl.trim() === "" || isSafeUrl(body.logoUrl.trim()))
             ? body.logoUrl.trim()
             : currentHeaderData.logoUrl || "",
+        siteFont:
+          typeof body.siteFont === "string" && body.siteFont.trim()
+            ? sanitizeFontFamily(body.siteFont)
+            : currentHeaderData.siteFont || "serif",
       };
       batchOperations.push(
         db

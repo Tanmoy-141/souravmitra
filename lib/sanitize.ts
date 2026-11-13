@@ -74,6 +74,22 @@ export function isSafeUrl(url: string): boolean {
 }
 
 /**
+ * Validates that an image or favicon URL uses a safe scheme.
+ * Allows: https://, http://, relative paths (/...), and base64 image data URLs.
+ * Blocks: javascript:, vbscript:, non-image data URLs, etc.
+ */
+export function isSafeImageUrl(url: unknown): boolean {
+  if (typeof url !== "string") return false;
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  return /^(https?:\/\/|\/(?!\/)|data:image\/(?:png|jpeg|jpg|webp|svg\+xml|x-icon|vnd\.microsoft\.icon);base64,)/i.test(
+    trimmed
+  );
+}
+
+export const isSafeFaviconUrl = isSafeImageUrl;
+
+/**
  * Creates a URL-friendly slug from a string.
  */
 export function sanitizeSlug(input: string): string {

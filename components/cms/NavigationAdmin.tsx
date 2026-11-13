@@ -16,9 +16,11 @@ interface NavigationAdminProps {
   logoUrl?: string;
   siteFont?: string;
   siteColor?: string;
+  faviconUrl?: string;
   onSiteNameChange?: (name: string) => void;
   onSiteFontChange?: (font: string) => void;
   onSiteColorChange?: (color: string) => void;
+  onFaviconUrlChange?: (favicon: string) => void;
 }
 
 const COLOR_PRESETS = [
@@ -92,9 +94,11 @@ export default function NavigationAdmin({
   logoUrl = "",
   siteFont = "serif",
   siteColor = "#FFFFFF",
+  faviconUrl = "/favicon.svg",
   onSiteNameChange,
   onSiteFontChange,
   onSiteColorChange,
+  onFaviconUrlChange,
 }: NavigationAdminProps) {
   const [items, setItems] = useState<NavItem[]>(DEFAULT_NAV_ITEMS);
   const [userTitle, setUserTitle] = useState<string | null>(null);
@@ -109,6 +113,11 @@ export default function NavigationAdmin({
 
   const [userColor, setUserColor] = useState<string | null>(null);
   const color = userColor ?? siteColor;
+
+  const [userFavicon, setUserFavicon] = useState<string | null>(null);
+  const currentFavicon = userFavicon ?? faviconUrl;
+  const [uploadingNavFavicon, setUploadingNavFavicon] = useState(false);
+  const navFaviconInputRef = useRef<HTMLInputElement>(null);
 
   const [isCustomNav, setIsCustomNav] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -142,6 +151,9 @@ export default function NavigationAdmin({
           if (typeof data.siteColor === "string" && data.siteColor.trim()) {
             onSiteColorChange?.(data.siteColor.trim());
           }
+          if (typeof data.faviconUrl === "string" && data.faviconUrl.trim()) {
+            onFaviconUrlChange?.(data.faviconUrl.trim());
+          }
         }
 
         if (!ignore && fontsRes.ok) {
@@ -169,7 +181,12 @@ export default function NavigationAdmin({
     return () => {
       ignore = true;
     };
-  }, [onSiteNameChange, onSiteFontChange, onSiteColorChange]);
+  }, [
+    onSiteNameChange,
+    onSiteFontChange,
+    onSiteColorChange,
+    onFaviconUrlChange,
+  ]);
 
   const updateItem = (id: string, patch: Partial<NavItem>) => {
     setItems((prev) =>
@@ -230,6 +247,116 @@ export default function NavigationAdmin({
     ]);
   };
 
+  const handleNavFaviconUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Favicon file size must be under 5MB.");
+      return;
+    }
+
+    setUploadingNavFavicon(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      setUserFavicon(dataUrl);
+
+      let finalFaviconUrl = dataUrl;
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch("/api/media", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json();
+        const uploadedUrl = data.asset?.blobUrl || data.data?.[0]?.src;
+        if (data.success && uploadedUrl) {
+          finalFaviconUrl = uploadedUrl;
+          setUserFavicon(uploadedUrl);
+        }
+      } catch (err) {
+        console.warn("Media API upload fallback, using data URL:", err);
+      }
+
+      // Auto-save immediately to database
+      try {
+        const saveRes = await fetch("/api/cms/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ faviconUrl: finalFaviconUrl }),
+        });
+        if (saveRes.ok) {
+          onFaviconUrlChange?.(finalFaviconUrl);
+          setStatusMessage({
+            type: "success",
+            text: "Favicon updated and saved to site!",
+          });
+        } else {
+          setStatusMessage({
+            type: "error",
+            text: "Failed to save favicon setting.",
+          });
+        }
+      } catch {
+        setStatusMessage({
+          type: "error",
+          text: "Network error saving favicon.",
+        });
+      } finally {
+        setUploadingNavFavicon(false);
+        setTimeout(() => setStatusMessage(null), 4000);
+        if (navFaviconInputRef.current) {
+          navFaviconInputRef.current.value = "";
+        }
+      }
+    };
+
+    reader.onerror = () => {
+      setUploadingNavFavicon(false);
+      alert("Failed to read the selected file.");
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const handleNavFaviconReset = async () => {
+    setUploadingNavFavicon(true);
+    setUserFavicon("/favicon.svg");
+    try {
+      const res = await fetch("/api/cms/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ faviconUrl: "/favicon.svg" }),
+      });
+      if (res.ok) {
+        onFaviconUrlChange?.("/favicon.svg");
+        setStatusMessage({
+          type: "success",
+          text: "Favicon reset to default (/favicon.svg) and saved!",
+        });
+      } else {
+        setStatusMessage({
+          type: "error",
+          text: "Failed to reset favicon.",
+        });
+      }
+    } catch {
+      setStatusMessage({
+        type: "error",
+        text: "Network error resetting favicon.",
+      });
+    } finally {
+      setUploadingNavFavicon(false);
+      setTimeout(() => setStatusMessage(null), 4000);
+    }
+  };
+
   const handleSave = async () => {
     for (const item of items) {
       if (!item.label.trim()) {
@@ -263,6 +390,7 @@ export default function NavigationAdmin({
       const cleanedSiteName = title.trim() || "Sourav Mitra";
       const cleanedSiteFont = font.trim() || "serif";
       const cleanedSiteColor = color.trim() || "#FFFFFF";
+      const cleanedFaviconUrl = currentFavicon.trim() || "/favicon.svg";
 
       const res = await fetch("/api/cms/settings", {
         method: "PUT",
@@ -272,6 +400,7 @@ export default function NavigationAdmin({
           siteName: cleanedSiteName,
           siteFont: cleanedSiteFont,
           siteColor: cleanedSiteColor,
+          faviconUrl: cleanedFaviconUrl,
         }),
       });
       const data = await res.json();
@@ -288,12 +417,14 @@ export default function NavigationAdmin({
       setUserTitle(null);
       setUserFont(null);
       setUserColor(null);
+      setUserFavicon(null);
       onSiteNameChange?.(cleanedSiteName);
       onSiteFontChange?.(cleanedSiteFont);
       onSiteColorChange?.(cleanedSiteColor);
+      onFaviconUrlChange?.(cleanedFaviconUrl);
       setStatusMessage({
         type: "success",
-        text: "Navigation, site title, font, and color saved and published to the site header!",
+        text: "Navigation, branding, and favicon saved and published to the site!",
       });
       setTimeout(() => setStatusMessage(null), 4000);
     } catch {
@@ -680,6 +811,67 @@ export default function NavigationAdmin({
                 {font === "serif" ? "Default Serif" : font} &bull; {color}
               </span>
             </div>
+          </div>
+        </div>
+
+        {/* Favicon Quick Control Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-[#1f1f1f] pt-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded bg-[#141414] border border-[#333] flex items-center justify-center overflow-hidden p-1 shrink-0 shadow-inner">
+              {currentFavicon ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={currentFavicon}
+                  alt="Site Favicon"
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <span className="text-[8px] text-gray-600">None</span>
+              )}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase text-[#C5A059] font-bold tracking-widest">
+                  Site Favicon
+                </span>
+                <span className="text-[10px] text-gray-500 font-mono">
+                  {currentFavicon.startsWith("http") ||
+                  currentFavicon.startsWith("data:")
+                    ? "Custom Active"
+                    : "Default (/favicon.svg)"}
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-400">
+                Displayed in browser tabs, bookmarks, and mobile home screen shortcuts.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              ref={navFaviconInputRef}
+              type="file"
+              accept=".jpg,.jpeg,.png,.svg,.ico,image/png,image/jpeg,image/jpg,image/webp,image/x-icon,image/svg+xml"
+              className="hidden"
+              onChange={handleNavFaviconUpload}
+            />
+            <button
+              type="button"
+              disabled={uploadingNavFavicon}
+              onClick={() => navFaviconInputRef.current?.click()}
+              className="px-3 py-1.5 bg-[#141414] hover:bg-[#202020] border border-[#333] hover:border-[#C5A059] text-white text-[10px] uppercase tracking-wider font-semibold transition-colors disabled:opacity-50 cursor-pointer">
+              {uploadingNavFavicon ? "Uploading..." : "📁 Change Favicon"}
+            </button>
+            {currentFavicon !== "/favicon.svg" && (
+              <button
+                type="button"
+                disabled={uploadingNavFavicon}
+                onClick={handleNavFaviconReset}
+                className="px-3 py-1.5 border border-[#333] hover:border-red-700 text-gray-400 hover:text-red-300 text-[10px] uppercase tracking-wider font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+                title="Reset favicon to default SVG">
+                Reset Favicon
+              </button>
+            )}
           </div>
         </div>
 

@@ -444,6 +444,7 @@ export default function AdminDashboard() {
       const dataUrl = reader.result as string;
       setFaviconUrl(dataUrl);
 
+      let finalFaviconUrl = dataUrl;
       try {
         const formData = new FormData();
         formData.append("file", file);
@@ -456,13 +457,31 @@ export default function AdminDashboard() {
         const data = await res.json();
         const uploadedUrl = data.asset?.blobUrl || data.data?.[0]?.src;
         if (data.success && uploadedUrl) {
+          finalFaviconUrl = uploadedUrl;
           setFaviconUrl(uploadedUrl);
         }
       } catch (err) {
         console.warn("Media API upload fallback, using data URL:", err);
+      }
+
+      // Auto-save immediately so the favicon takes effect without requiring an extra click
+      try {
+        const saveRes = await fetch("/api/cms/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ faviconUrl: finalFaviconUrl }),
+        });
+        if (saveRes.ok) {
+          setSaveStatus("Favicon uploaded and saved to site!");
+        } else {
+          setSaveStatus(
+            "Favicon uploaded! Click 'Save Site Settings' to apply.",
+          );
+        }
+      } catch {
+        setSaveStatus("Favicon uploaded! Click 'Save Site Settings' to apply.");
       } finally {
         setUploadingFavicon(false);
-        setSaveStatus("Favicon uploaded! Click 'Save Site Settings' to apply.");
         setTimeout(() => setSaveStatus(null), 4000);
         if (faviconInputRef.current) {
           faviconInputRef.current.value = "";
@@ -1420,9 +1439,11 @@ export default function AdminDashboard() {
             logoUrl={logoUrl}
             siteFont={siteFont}
             siteColor={siteColor}
+            faviconUrl={faviconUrl}
             onSiteNameChange={setSiteName}
             onSiteFontChange={setSiteFont}
             onSiteColorChange={setSiteColor}
+            onFaviconUrlChange={setFaviconUrl}
           />
         </div>
       ) : viewTrash ? (
@@ -1777,7 +1798,29 @@ export default function AdminDashboard() {
                     {faviconUrl !== "/favicon.svg" && (
                       <button
                         type="button"
-                        onClick={() => setFaviconUrl("/favicon.svg")}
+                        onClick={async () => {
+                          setFaviconUrl("/favicon.svg");
+                          setSaveStatus("Resetting favicon...");
+                          try {
+                            const res = await fetch("/api/cms/settings", {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ faviconUrl: "/favicon.svg" }),
+                            });
+                            if (res.ok) {
+                              setSaveStatus("Favicon reset to default and saved!");
+                            } else {
+                              setSaveStatus(
+                                "Favicon reset! Click 'Save Site Settings' to apply.",
+                              );
+                            }
+                          } catch {
+                            setSaveStatus(
+                              "Favicon reset! Click 'Save Site Settings' to apply.",
+                            );
+                          }
+                          setTimeout(() => setSaveStatus(null), 4000);
+                        }}
                         className="text-[10px] text-gray-500 hover:text-red-400 transition-colors uppercase tracking-wider">
                         Reset Default
                       </button>
@@ -1830,11 +1873,27 @@ export default function AdminDashboard() {
                     {faviconUrl !== "/favicon.svg" && (
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
                           setFaviconUrl("/favicon.svg");
-                          setSaveStatus(
-                            "Favicon reset to default! Click 'Save Site Settings' to apply.",
-                          );
+                          setSaveStatus("Resetting favicon...");
+                          try {
+                            const res = await fetch("/api/cms/settings", {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ faviconUrl: "/favicon.svg" }),
+                            });
+                            if (res.ok) {
+                              setSaveStatus("Favicon reset to default and saved!");
+                            } else {
+                              setSaveStatus(
+                                "Favicon reset! Click 'Save Site Settings' to apply.",
+                              );
+                            }
+                          } catch {
+                            setSaveStatus(
+                              "Favicon reset! Click 'Save Site Settings' to apply.",
+                            );
+                          }
                           setTimeout(() => setSaveStatus(null), 4000);
                         }}
                         className="px-2 py-1 bg-[#1f1212] hover:bg-[#321616] border border-[#522] hover:border-red-500 text-red-400 hover:text-red-300 text-[10px] font-bold uppercase tracking-wider rounded transition-colors"
@@ -1902,12 +1961,24 @@ export default function AdminDashboard() {
           onClose={() => setShowMediaLibrary(null)}
           onSelect={(asset) => {
             if (showMediaLibrary.field === "favicon") {
-              setFaviconUrl(asset.blobUrl);
+              const selectedFavicon = asset.blobUrl;
+              setFaviconUrl(selectedFavicon);
               setShowMediaLibrary(null);
-              setSaveStatus(
-                "Favicon selected! Click 'Save Site Settings' to apply.",
-              );
-              setTimeout(() => setSaveStatus(null), 4000);
+              setSaveStatus("Saving favicon...");
+              void fetch("/api/cms/settings", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ faviconUrl: selectedFavicon }),
+              }).then((res) => {
+                if (res.ok) {
+                  setSaveStatus("Favicon updated and saved to site!");
+                } else {
+                  setSaveStatus(
+                    "Favicon selected! Click 'Save Site Settings' to apply.",
+                  );
+                }
+                setTimeout(() => setSaveStatus(null), 4000);
+              });
               return;
             }
 

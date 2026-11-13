@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { siteSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { CustomFont, formatFontFaceCss } from "@/lib/fonts";
-import { isSafeUrl, safeCssForStyleTag } from "@/lib/sanitize";
+import { isSafeUrl, isSafeFaviconUrl, safeCssForStyleTag } from "@/lib/sanitize";
 import { getHeaderData } from "@/lib/navigation-server";
 import "./globals.css";
 
@@ -28,6 +28,7 @@ const poppins = Poppins({
 
 export async function generateMetadata(): Promise<Metadata> {
   let faviconUrl = "/favicon.svg";
+  let version = "";
   try {
     const [themeSetting] = await db
       .select()
@@ -36,19 +37,29 @@ export async function generateMetadata(): Promise<Metadata> {
       .limit(1);
 
     const data = (themeSetting?.gjsData as { faviconUrl?: string }) || {};
-    if (data.faviconUrl) {
+    if (data.faviconUrl && isSafeFaviconUrl(data.faviconUrl)) {
       faviconUrl = data.faviconUrl;
+    }
+    if (themeSetting?.updatedAt) {
+      version = `?v=${new Date(themeSetting.updatedAt).getTime()}`;
     }
   } catch {
     // fallback to default
   }
+
+  const finalFavicon =
+    version && !faviconUrl.startsWith("data:")
+      ? `${faviconUrl}${faviconUrl.includes("?") ? "&" : "?"}${version.replace(/^\?/, "")}`
+      : faviconUrl;
 
   return {
     title: "Sourav Mitra | Illustrator & Designer",
     description:
       "Portfolio of Sourav Mitra, Illustrator, Book Cover Designer, and Fine Artist.",
     icons: {
-      icon: faviconUrl,
+      icon: [{ url: finalFavicon }],
+      shortcut: [finalFavicon],
+      apple: [{ url: finalFavicon }],
     },
   };
 }
@@ -59,6 +70,8 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   let customFonts: CustomFont[] = [];
+  let faviconUrl = "/favicon.svg";
+  let version = "";
   try {
     const [themeSetting] = await db
       .select()
@@ -67,19 +80,44 @@ export default async function RootLayout({
       .limit(1);
 
     const data =
-      (themeSetting?.gjsData as { customFonts?: CustomFont[] }) || {};
+      (themeSetting?.gjsData as {
+        customFonts?: CustomFont[];
+        faviconUrl?: string;
+      }) || {};
     if (Array.isArray(data.customFonts)) {
       customFonts = data.customFonts;
+    }
+    if (data.faviconUrl && isSafeFaviconUrl(data.faviconUrl)) {
+      faviconUrl = data.faviconUrl;
+    }
+    if (themeSetting?.updatedAt) {
+      version = `?v=${new Date(themeSetting.updatedAt).getTime()}`;
     }
   } catch {
     // fallback to empty
   }
+
+  const finalFavicon =
+    version && !faviconUrl.startsWith("data:")
+      ? `${faviconUrl}${faviconUrl.includes("?") ? "&" : "?"}${version.replace(/^\?/, "")}`
+      : faviconUrl;
 
   const headerData = await getHeaderData();
 
   return (
     <html lang="en" className={`${poppins.variable} h-full antialiased`}>
       <head>
+        <link rel="icon" href={finalFavicon} key="dynamic-favicon" />
+        <link
+          rel="shortcut icon"
+          href={finalFavicon}
+          key="dynamic-shortcut-favicon"
+        />
+        <link
+          rel="apple-touch-icon"
+          href={finalFavicon}
+          key="dynamic-apple-favicon"
+        />
         <link
           rel="preload"
           href="/fonts/Stingray.otf"

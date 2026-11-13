@@ -4,7 +4,12 @@ import { db } from "@/db";
 import { siteSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { isAuthorized } from "@/lib/require-session";
-import { isSafeUrl, sanitizeColor } from "@/lib/sanitize";
+import {
+  isSafeUrl,
+  isSafeImageUrl,
+  isSafeFaviconUrl,
+  sanitizeColor,
+} from "@/lib/sanitize";
 import { sanitizeFontFamily } from "@/lib/fonts";
 import {
   DEFAULT_NAV_ITEMS,
@@ -162,7 +167,8 @@ export async function PUT(req: NextRequest) {
       const themeData = {
         faviconUrl:
           typeof body.faviconUrl === "string" &&
-          (body.faviconUrl.trim() === "" || isSafeUrl(body.faviconUrl.trim()))
+          (body.faviconUrl.trim() === "" ||
+            isSafeFaviconUrl(body.faviconUrl.trim()))
             ? body.faviconUrl.trim() || "/favicon.svg"
             : currentThemeData.faviconUrl || "/favicon.svg",
         customFonts: Array.isArray(body.customFonts)
@@ -188,7 +194,7 @@ export async function PUT(req: NextRequest) {
             : currentHeaderData.siteName || "Sourav Mitra",
         logoUrl:
           typeof body.logoUrl === "string" &&
-          (body.logoUrl.trim() === "" || isSafeUrl(body.logoUrl.trim()))
+          (body.logoUrl.trim() === "" || isSafeImageUrl(body.logoUrl.trim()))
             ? body.logoUrl.trim()
             : currentHeaderData.logoUrl || "",
         siteFont:

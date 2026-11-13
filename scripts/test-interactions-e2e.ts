@@ -427,6 +427,7 @@ async function runTests() {
           logoUrl: initialSettings.logoUrl,
           siteFont: initialSettings.siteFont,
           siteColor: initialSettings.siteColor,
+          faviconUrl: initialSettings.faviconUrl,
         }),
       });
       const resetRes = await putSettings(resetReq);

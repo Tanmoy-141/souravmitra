@@ -21,6 +21,7 @@ const CORE_PAGE_SLUGS = new Set([
 export interface HeaderProps {
   initialSiteName?: string;
   initialLogoUrl?: string;
+  initialSiteFont?: string;
   initialNavItems?: NavItem[];
   initialIsCustomNav?: boolean;
 }
@@ -28,6 +29,7 @@ export interface HeaderProps {
 export const Header = ({
   initialSiteName = "Sourav Mitra",
   initialLogoUrl = "",
+  initialSiteFont = "serif",
   initialNavItems,
   initialIsCustomNav = false,
 }: HeaderProps = {}) => {
@@ -39,9 +41,11 @@ export const Header = ({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [clientSiteName, setClientSiteName] = useState<string | null>(null);
   const [clientLogoUrl, setClientLogoUrl] = useState<string | null>(null);
+  const [clientSiteFont, setClientSiteFont] = useState<string | null>(null);
 
   const siteName = clientSiteName ?? initialSiteName;
   const logoUrl = clientLogoUrl ?? initialLogoUrl;
+  const siteFont = clientSiteFont ?? initialSiteFont;
   const navItems = clientNavItems ?? initialNavItems ?? DEFAULT_NAV_ITEMS;
   const isCustomNav = clientIsCustomNav ?? initialIsCustomNav;
 
@@ -65,6 +69,9 @@ export const Header = ({
           }
           if (typeof data.logoUrl === "string") {
             setClientLogoUrl(data.logoUrl.trim());
+          }
+          if (typeof data.siteFont === "string" && data.siteFont.trim()) {
+            setClientSiteFont(data.siteFont.trim());
           }
           if (data.isCustomNav === true && Array.isArray(data.navItems)) {
             setClientIsCustomNav(true);
@@ -205,7 +212,14 @@ export const Header = ({
               onError={() => setClientLogoUrl("")}
             />
           ) : null}
-          <span>{siteName}</span>
+          <span
+            style={
+              siteFont && siteFont !== "serif"
+                ? { fontFamily: `'${siteFont}', serif` }
+                : undefined
+            }>
+            {siteName}
+          </span>
         </Link>
 
         {/* Desktop nav */}

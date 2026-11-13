@@ -425,6 +425,7 @@ async function runTests() {
           resetNav: true,
           siteName: initialSettings.siteName,
           logoUrl: initialSettings.logoUrl,
+          siteFont: initialSettings.siteFont,
         }),
       });
       const resetRes = await putSettings(resetReq);

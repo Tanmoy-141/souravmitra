@@ -7,10 +7,12 @@ import {
   type NavItem,
 } from "./navigation";
 import { isSafeUrl } from "./sanitize";
+import { sanitizeFontFamily } from "./fonts";
 
 export interface HeaderData {
   siteName: string;
   logoUrl: string;
+  siteFont?: string;
   navItems: NavItem[];
   isCustomNav: boolean;
 }
@@ -53,12 +55,21 @@ export async function getHeaderData(): Promise<HeaderData> {
     const rawLogoUrl =
       typeof headerData.logoUrl === "string" ? headerData.logoUrl.trim() : "";
     const logoUrl = rawLogoUrl && isSafeUrl(rawLogoUrl) ? rawLogoUrl : "";
+    const rawSiteFont =
+      typeof (headerData as { siteFont?: string }).siteFont === "string"
+        ? (headerData as { siteFont?: string }).siteFont?.trim()
+        : "";
+    const siteFont =
+      rawSiteFont && rawSiteFont !== "serif"
+        ? sanitizeFontFamily(rawSiteFont)
+        : "serif";
 
     // If custom navigation has been configured in site_settings, return it directly.
     if (storedNavItems !== null) {
       return {
         siteName,
         logoUrl,
+        siteFont,
         navItems: storedNavItems,
         isCustomNav: true,
       };
@@ -123,6 +134,7 @@ export async function getHeaderData(): Promise<HeaderData> {
     return {
       siteName,
       logoUrl,
+      siteFont,
       navItems: defaultItems,
       isCustomNav: false,
     };
@@ -131,6 +143,7 @@ export async function getHeaderData(): Promise<HeaderData> {
     return {
       siteName: "Sourav Mitra",
       logoUrl: "",
+      siteFont: "serif",
       navItems: DEFAULT_NAV_ITEMS,
       isCustomNav: false,
     };

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."site_settings_key" ADD VALUE 'nav';

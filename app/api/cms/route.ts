@@ -164,17 +164,35 @@ export async function POST(req: NextRequest) {
         }
 
         let targetId = page.id;
-        let existingRecord = null;
+        let existingRecord: {
+          id: string;
+          status: "draft" | "published";
+          publishedAt: Date | null;
+          cssCache: string | null;
+          htmlCache: string | null;
+        } | null = null;
         if (targetId) {
           const [found] = await db
-            .select({ id: pages.id, cssCache: pages.cssCache, htmlCache: pages.htmlCache })
+            .select({
+              id: pages.id,
+              status: pages.status,
+              publishedAt: pages.publishedAt,
+              cssCache: pages.cssCache,
+              htmlCache: pages.htmlCache,
+            })
             .from(pages)
             .where(eq(pages.id, targetId))
             .limit(1);
-          existingRecord = found;
+          existingRecord = found ?? null;
         } else {
           const [found] = await db
-            .select({ id: pages.id, cssCache: pages.cssCache, htmlCache: pages.htmlCache })
+            .select({
+              id: pages.id,
+              status: pages.status,
+              publishedAt: pages.publishedAt,
+              cssCache: pages.cssCache,
+              htmlCache: pages.htmlCache,
+            })
             .from(pages)
             .where(
               cleanSlug === "/" || cleanSlug === ""
@@ -183,7 +201,7 @@ export async function POST(req: NextRequest) {
             )
             .orderBy(desc(pages.updatedAt))
             .limit(1);
-          existingRecord = found;
+          existingRecord = found ?? null;
           if (found) targetId = found.id;
         }
 
@@ -195,12 +213,22 @@ export async function POST(req: NextRequest) {
         }
 
         if (targetId) {
+          const nextStatus = page.status ?? existingRecord?.status ?? "draft";
+          let nextPublishedAt = existingRecord?.publishedAt ?? null;
+          if (
+            nextStatus === "published" &&
+            (existingRecord?.status !== "published" || !existingRecord?.publishedAt)
+          ) {
+            nextPublishedAt = new Date();
+          }
+
           const [updated] = await db
             .update(pages)
             .set({
               slug: cleanSlug,
               title: page.title,
-              status: page.status || "draft",
+              status: nextStatus,
+              publishedAt: nextPublishedAt,
               gjsData: page.gjsData ?? { blocks: page.blocks || [] },
               ...(page.htmlCache !== undefined && { htmlCache: page.htmlCache }),
               ...(cssToSave !== undefined && { cssCache: cssToSave }),
@@ -210,12 +238,14 @@ export async function POST(req: NextRequest) {
             .returning();
           results.push(updated);
         } else {
+          const nextStatus = page.status ?? "draft";
           const [inserted] = await db
             .insert(pages)
             .values({
               slug: cleanSlug,
               title: page.title,
-              status: page.status || "draft",
+              status: nextStatus,
+              publishedAt: nextStatus === "published" ? new Date() : null,
               gjsData: page.gjsData ?? { blocks: page.blocks || [] },
               ...(page.htmlCache !== undefined && { htmlCache: page.htmlCache }),
               ...(cssToSave !== undefined && { cssCache: cssToSave }),

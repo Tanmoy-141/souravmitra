@@ -5,6 +5,11 @@ import { siteSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { isAuthorized } from "@/lib/require-session";
 import { isSafeUrl } from "@/lib/sanitize";
+import {
+  DEFAULT_NAV_ITEMS,
+  NavItemsArraySchema,
+  normalizeStoredNavItems,
+} from "@/lib/navigation";
 
 const SOCIAL_LINK_KEYS = [
   "facebook",
@@ -16,43 +21,40 @@ const SOCIAL_LINK_KEYS = [
   "x",
 ] as const;
 
-// GET /api/cms/settings - Fetch global site branding and footer settings.
+// GET /api/cms/settings - Fetch global site branding, navigation, and footer settings.
 export async function GET() {
   try {
-    const [themeSetting, headerSetting, footerSetting] = await Promise.all([
-      db
-        .select()
-        .from(siteSettings)
-        .where(eq(siteSettings.key, "theme"))
-        .limit(1),
-      db
-        .select()
-        .from(siteSettings)
-        .where(eq(siteSettings.key, "header"))
-        .limit(1),
-      db
-        .select()
-        .from(siteSettings)
-        .where(eq(siteSettings.key, "footer"))
-        .limit(1),
-    ]);
+    const allSettings = await db.select().from(siteSettings);
+    const byKey = new Map(allSettings.map((row) => [row.key, row]));
+
+    const themeSetting = byKey.get("theme");
+    const headerSetting = byKey.get("header");
+    const footerSetting = byKey.get("footer");
+    const navSetting = byKey.get("nav");
 
     const themeData =
-      (themeSetting[0]?.gjsData as {
+      (themeSetting?.gjsData as {
         faviconUrl?: string;
         customFonts?: unknown[];
       }) || {};
     const headerData =
-      (headerSetting[0]?.gjsData as {
+      (headerSetting?.gjsData as {
         siteName?: string;
         logoUrl?: string;
       }) || {};
     const footerData =
-      (footerSetting[0]?.gjsData as {
+      (footerSetting?.gjsData as {
         heading?: string;
         text?: string;
         socialLinks?: Record<string, string>;
       }) || {};
+    const navData =
+      (navSetting?.gjsData as {
+        items?: unknown;
+      }) || {};
+
+    const storedNavItems = normalizeStoredNavItems(navData.items);
+
     const storedSocialLinks = footerData.socialLinks || {};
     const socialLinks = Object.fromEntries(
       SOCIAL_LINK_KEYS.map((key) => {
@@ -72,6 +74,8 @@ export async function GET() {
       footerHeading: footerData.heading || "FOLLOW ME ON",
       footerText: footerData.text || "All rights reserved.",
       socialLinks,
+      navItems: storedNavItems ?? DEFAULT_NAV_ITEMS,
+      isCustomNav: storedNavItems !== null,
     });
   } catch (error) {
     console.error("[Settings GET Error]:", error);
@@ -82,7 +86,7 @@ export async function GET() {
   }
 }
 
-// PUT /api/cms/settings - Update global site branding and footer settings.
+// PUT /api/cms/settings - Update global site branding, navigation, and footer settings.
 export async function PUT(req: NextRequest) {
   if (!(await isAuthorized())) {
     return NextResponse.json(
@@ -93,111 +97,149 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const [currentTheme, currentHeader, currentFooter] = await Promise.all([
-      db
-        .select()
-        .from(siteSettings)
-        .where(eq(siteSettings.key, "theme"))
-        .limit(1),
-      db
-        .select()
-        .from(siteSettings)
-        .where(eq(siteSettings.key, "header"))
-        .limit(1),
-      db
-        .select()
-        .from(siteSettings)
-        .where(eq(siteSettings.key, "footer"))
-        .limit(1),
-    ]);
+
+    // Validate navigation payload upfront if provided
+    let validatedNavItems: ReturnType<typeof normalizeStoredNavItems> = null;
+    if (body.navItems !== undefined) {
+      const parsedNav = NavItemsArraySchema.safeParse(body.navItems);
+      if (!parsedNav.success) {
+        return NextResponse.json(
+          {
+            error:
+              parsedNav.error.issues[0]?.message ||
+              "Invalid navigation link configuration",
+          },
+          { status: 400 },
+        );
+      }
+      validatedNavItems = parsedNav.data;
+    }
+
+    const hasNavUpdate = body.navItems !== undefined || body.resetNav === true;
+    const hasThemeUpdate =
+      body.faviconUrl !== undefined || body.customFonts !== undefined;
+    const hasHeaderUpdate =
+      body.siteName !== undefined || body.logoUrl !== undefined;
+    const hasFooterUpdate =
+      body.footerHeading !== undefined ||
+      body.footerText !== undefined ||
+      body.socialLinks !== undefined;
+
+    const allSettings = await db.select().from(siteSettings);
+    const byKey = new Map(allSettings.map((row) => [row.key, row]));
 
     const currentThemeData =
-      (currentTheme[0]?.gjsData as {
+      (byKey.get("theme")?.gjsData as {
         faviconUrl?: string;
         customFonts?: unknown[];
       }) || {};
     const currentHeaderData =
-      (currentHeader[0]?.gjsData as {
+      (byKey.get("header")?.gjsData as {
         siteName?: string;
         logoUrl?: string;
       }) || {};
     const currentFooterData =
-      (currentFooter[0]?.gjsData as {
+      (byKey.get("footer")?.gjsData as {
         heading?: string;
         text?: string;
         socialLinks?: Record<string, string>;
       }) || {};
 
-    const themeData = {
-      faviconUrl:
-        typeof body.faviconUrl === "string" &&
-        (body.faviconUrl.trim() === "" || isSafeUrl(body.faviconUrl.trim()))
-          ? body.faviconUrl.trim() || "/favicon.svg"
-          : currentThemeData.faviconUrl || "/favicon.svg",
-      customFonts: currentThemeData.customFonts || [],
-    };
-    const headerData = {
-      siteName:
-        typeof body.siteName === "string"
-          ? body.siteName.trim().slice(0, 100) || "Sourav Mitra"
-          : currentHeaderData.siteName || "Sourav Mitra",
-      logoUrl:
-        typeof body.logoUrl === "string" &&
-        (body.logoUrl.trim() === "" || isSafeUrl(body.logoUrl.trim()))
-          ? body.logoUrl.trim()
-          : currentHeaderData.logoUrl || "",
-    };
-    const inputSocialLinks =
-      typeof body.socialLinks === "object" && body.socialLinks !== null
-        ? (body.socialLinks as Record<string, unknown>)
-        : currentFooterData.socialLinks || {};
-    const socialLinks = Object.fromEntries(
-      SOCIAL_LINK_KEYS.map((key) => {
-        const value = inputSocialLinks[key];
-        return [
-          key,
-          typeof value === "string" && isSafeUrl(value.trim())
-            ? value.trim()
-            : "",
-        ];
-      }),
-    );
-    const footerData = {
-      heading:
-        typeof body.footerHeading === "string"
-          ? body.footerHeading.trim().slice(0, 100) || "FOLLOW ME ON"
-          : currentFooterData.heading || "FOLLOW ME ON",
-      text:
-        typeof body.footerText === "string"
-          ? body.footerText.trim().slice(0, 200)
-          : currentFooterData.text || "All rights reserved.",
-      socialLinks,
-    };
-
     const updatedAt = new Date();
-    await Promise.all([
-      db
-        .insert(siteSettings)
-        .values({ key: "theme", gjsData: themeData, updatedAt })
-        .onConflictDoUpdate({
-          target: siteSettings.key,
-          set: { gjsData: themeData, updatedAt },
-        }),
-      db
-        .insert(siteSettings)
-        .values({ key: "header", gjsData: headerData, updatedAt })
-        .onConflictDoUpdate({
-          target: siteSettings.key,
-          set: { gjsData: headerData, updatedAt },
-        }),
-      db
-        .insert(siteSettings)
-        .values({ key: "footer", gjsData: footerData, updatedAt })
-        .onConflictDoUpdate({
-          target: siteSettings.key,
-          set: { gjsData: footerData, updatedAt },
-        }),
-    ]);
+
+    await db.transaction(async (tx) => {
+      if (hasThemeUpdate) {
+        const themeData = {
+          faviconUrl:
+            typeof body.faviconUrl === "string" &&
+            (body.faviconUrl.trim() === "" || isSafeUrl(body.faviconUrl.trim()))
+              ? body.faviconUrl.trim() || "/favicon.svg"
+              : currentThemeData.faviconUrl || "/favicon.svg",
+          customFonts: Array.isArray(body.customFonts)
+            ? body.customFonts
+            : currentThemeData.customFonts || [],
+        };
+        await tx
+          .insert(siteSettings)
+          .values({ key: "theme", gjsData: themeData, updatedAt })
+          .onConflictDoUpdate({
+            target: siteSettings.key,
+            set: { gjsData: themeData, updatedAt },
+          });
+      }
+
+      if (hasHeaderUpdate) {
+        const headerData = {
+          siteName:
+            typeof body.siteName === "string"
+              ? body.siteName.trim().slice(0, 100) || "Sourav Mitra"
+              : currentHeaderData.siteName || "Sourav Mitra",
+          logoUrl:
+            typeof body.logoUrl === "string" &&
+            (body.logoUrl.trim() === "" || isSafeUrl(body.logoUrl.trim()))
+              ? body.logoUrl.trim()
+              : currentHeaderData.logoUrl || "",
+        };
+        await tx
+          .insert(siteSettings)
+          .values({ key: "header", gjsData: headerData, updatedAt })
+          .onConflictDoUpdate({
+            target: siteSettings.key,
+            set: { gjsData: headerData, updatedAt },
+          });
+      }
+
+      if (hasFooterUpdate) {
+        const inputSocialLinks =
+          typeof body.socialLinks === "object" && body.socialLinks !== null
+            ? (body.socialLinks as Record<string, unknown>)
+            : currentFooterData.socialLinks || {};
+        const socialLinks = Object.fromEntries(
+          SOCIAL_LINK_KEYS.map((key) => {
+            const value = inputSocialLinks[key];
+            return [
+              key,
+              typeof value === "string" && isSafeUrl(value.trim())
+                ? value.trim()
+                : "",
+            ];
+          }),
+        );
+        const footerData = {
+          heading:
+            typeof body.footerHeading === "string"
+              ? body.footerHeading.trim().slice(0, 100) || "FOLLOW ME ON"
+              : currentFooterData.heading || "FOLLOW ME ON",
+          text:
+            typeof body.footerText === "string"
+              ? body.footerText.trim().slice(0, 200)
+              : currentFooterData.text || "All rights reserved.",
+          socialLinks,
+        };
+        await tx
+          .insert(siteSettings)
+          .values({ key: "footer", gjsData: footerData, updatedAt })
+          .onConflictDoUpdate({
+            target: siteSettings.key,
+            set: { gjsData: footerData, updatedAt },
+          });
+      }
+
+      if (hasNavUpdate) {
+        if (body.resetNav === true) {
+          await tx.delete(siteSettings).where(eq(siteSettings.key, "nav"));
+        } else if (validatedNavItems !== null) {
+          const navPayload = { items: validatedNavItems };
+          await tx
+            .insert(siteSettings)
+            .values({ key: "nav", gjsData: navPayload, updatedAt })
+            .onConflictDoUpdate({
+              target: siteSettings.key,
+              set: { gjsData: navPayload, updatedAt },
+            });
+        }
+      }
+    });
 
     try {
       revalidatePath("/", "layout");

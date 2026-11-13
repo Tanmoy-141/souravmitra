@@ -10094,29 +10094,93 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             padding: 4px 8px !important;
             font-size: 11px !important;
           }
+
+          /* Obsidian Studio Theme: replace GrapesJS default grey surround & panel headers */
+          .gjs-one-bg {
+            background-color: #090909 !important;
+          }
+          .gjs-two-color {
+            color: #d4d4d4 !important;
+          }
+          .gjs-three-bg {
+            background-color: #141414 !important;
+            color: #ffffff !important;
+          }
+          .gjs-four-color,
+          .gjs-four-color-h:hover {
+            color: #C5A059 !important;
+          }
+          .gjs-editor-cont,
+          .gjs-editor,
+          .gjs-cv-canvas {
+            background-color: #0b0b0b !important;
+          }
+          .gjs-cv-canvas {
+            background-image: radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px) !important;
+            background-size: 20px 20px !important;
+          }
+          .gjs-frame-wrapper {
+            background-color: #000000 !important;
+            box-shadow: 0 0 0 1px #242424, 0 20px 50px rgba(0, 0, 0, 0.85) !important;
+          }
+          .gjs-block-category .gjs-title,
+          .gjs-sm-sector-title {
+            background-color: #0e0e0e !important;
+            border-bottom: 1px solid #1e1e1e !important;
+            color: #d4d4d4 !important;
+            font-size: 11px !important;
+            font-weight: 600 !important;
+            letter-spacing: 0.03em !important;
+            padding: 9px 12px !important;
+            transition: color 0.15s ease, background-color 0.15s ease !important;
+          }
+          .gjs-block-category .gjs-title:hover,
+          .gjs-sm-sector-title:hover {
+            background-color: #151515 !important;
+            color: #C5A059 !important;
+          }
+          .gjs-blocks-c {
+            background-color: #080808 !important;
+            padding: 6px !important;
+          }
+          .gjs-block {
+            background-color: #121212 !important;
+            border: 1px solid #242424 !important;
+            border-radius: 5px !important;
+            color: #d4d4d4 !important;
+            transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease !important;
+          }
+          .gjs-block:hover {
+            background-color: #181818 !important;
+            border-color: #C5A059 !important;
+            color: #C5A059 !important;
+          }
+          .gjs-sm-properties {
+            background-color: #090909 !important;
+          }
         `}</style>
-        <div className="flex items-center justify-between px-4 py-2.5 bg-[#0c0c0c] border-b border-[#222] text-xs text-gray-400 shrink-0">
-          <div className="flex items-center gap-3">
-            <span className="font-bold text-[#C5A059] uppercase tracking-widest text-xs whitespace-nowrap select-none">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 md:px-4 py-2 bg-[#0c0c0c] border-b border-[#222] text-xs text-gray-400 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <span className="font-bold text-[#C5A059] uppercase tracking-widest text-[11px] whitespace-nowrap select-none">
               Visual Editor
             </span>
 
             {/* Responsive Device Viewport Switcher */}
             <div
-              className="panel__devices flex items-center gap-1 rounded border border-[#333] bg-[#141414] p-0.5"
+              className="panel__devices flex items-center gap-1 rounded border border-[#333] bg-[#141414] p-0.5 shrink-0"
               role="group"
               aria-label="Preview viewport"
             />
 
-            <div className="h-4 w-px bg-[#262626]" />
+            <div className="h-4 w-px bg-[#262626] shrink-0" />
 
             {/* History Controls: Undo & Redo */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               <button
                 type="button"
                 onClick={handleUndo}
                 title="Undo last change (Ctrl+Z)"
-                className="px-2.5 py-1 text-[11px] font-semibold tracking-wider text-gray-400 hover:text-white bg-[#141414] hover:bg-[#202020] border border-[#2a2a2a] hover:border-[#444] rounded transition-all flex items-center gap-1.5">
+                className="h-7 px-2.5 text-[11px] font-semibold tracking-wider text-gray-400 hover:text-white bg-[#141414] hover:bg-[#202020] border border-[#2a2a2a] hover:border-[#444] rounded transition-all inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer">
                 <span>↶</span>
                 <span>Undo</span>
               </button>
@@ -10124,14 +10188,14 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                 type="button"
                 onClick={handleRedo}
                 title="Redo next change (Ctrl+Y)"
-                className="px-2.5 py-1 text-[11px] font-semibold tracking-wider text-gray-400 hover:text-white bg-[#141414] hover:bg-[#202020] border border-[#2a2a2a] hover:border-[#444] rounded transition-all flex items-center gap-1.5">
+                className="h-7 px-2.5 text-[11px] font-semibold tracking-wider text-gray-400 hover:text-white bg-[#141414] hover:bg-[#202020] border border-[#2a2a2a] hover:border-[#444] rounded transition-all inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer">
                 <span>↷</span>
                 <span>Redo</span>
               </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             {/* Broad View (Expansive Studio Mode) Toggle */}
             <button
               type="button"
@@ -10141,7 +10205,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   ? "Exit Broad View: Restore Side Panels"
                   : "Broad View (Studio Mode): Expand Canvas to 100% Full Width"
               }
-              className={`px-3 py-1.5 rounded text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`h-7 px-2.5 rounded text-[11px] font-bold uppercase tracking-wider transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
                 isBroadView
                   ? "bg-[#C5A059] text-black shadow-md shadow-[#C5A059]/30 border border-[#C5A059]"
                   : "border border-[#333] text-gray-300 hover:text-white hover:border-[#C5A059] bg-[#141414]"
@@ -10155,7 +10219,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               type="button"
               onClick={() => setShowLeftBlocks((prev) => !prev)}
               title="Toggle Left Blocks Panel"
-              className={`px-2.5 py-1.5 rounded text-[11px] font-bold tracking-wider transition-all flex items-center gap-1 cursor-pointer border ${
+              className={`h-7 px-2.5 rounded text-[11px] font-bold tracking-wider transition-all inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer border ${
                 showLeftBlocks
                   ? "border-[#C5A059]/60 text-[#C5A059] bg-[#181818]"
                   : "border-[#333] text-gray-400 hover:text-white bg-[#141414]"
@@ -10169,7 +10233,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               type="button"
               onClick={() => setShowRightInspector((prev) => !prev)}
               title="Toggle Right Styles & Settings Inspector"
-              className={`px-2.5 py-1.5 rounded text-[11px] font-bold tracking-wider transition-all flex items-center gap-1 cursor-pointer border ${
+              className={`h-7 px-2.5 rounded text-[11px] font-bold tracking-wider transition-all inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer border ${
                 showRightInspector
                   ? "border-[#C5A059]/60 text-[#C5A059] bg-[#181818]"
                   : "border-[#333] text-gray-400 hover:text-white bg-[#141414]"
@@ -10186,14 +10250,14 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                 setShowSectionsModal(true);
               }}
               title="Safely Reorder & Organize Page Sections"
-              className="px-2.5 py-1.5 border border-[#333] hover:border-[#C5A059] text-gray-300 hover:text-white bg-[#141414] rounded transition-colors text-[11px] font-bold tracking-wider flex items-center gap-1.5 cursor-pointer">
+              className="h-7 px-2.5 border border-[#333] hover:border-[#C5A059] text-gray-300 hover:text-white bg-[#141414] rounded transition-colors text-[11px] font-bold tracking-wider inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer">
               <span>📑</span>
               <span>
                 Sections {pageSections.length > 0 && `(${pageSections.length})`}
               </span>
             </button>
 
-            <div className="h-4 w-px bg-[#262626]" />
+            <div className="h-4 w-px bg-[#262626] shrink-0" />
 
             {/* Freeform Drag Mode Toggle */}
             <button
@@ -10204,7 +10268,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   ? "Freeform Drag Mode Active: Drag blocks freely anywhere without left/grid snapping"
                   : "Flow Grid Mode Active: Blocks snap to document order. Click to enable Freeform Drag Mode"
               }
-              className={`px-3 py-1.5 rounded text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`h-7 px-2.5 rounded text-[11px] font-bold uppercase tracking-wider transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
                 isFreeformDrag
                   ? "bg-[#C5A059] text-black shadow-md shadow-[#C5A059]/30 border border-[#C5A059]"
                   : "border border-[#333] text-gray-300 hover:text-white hover:border-[#C5A059] bg-[#141414]"
@@ -10222,7 +10286,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                   ? "Exit Preview Mode"
                   : "Preview page without editor overlays"
               }
-              className={`px-3 py-1.5 rounded text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+              className={`h-7 px-2.5 rounded text-[11px] font-bold uppercase tracking-wider transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
                 isPreviewActive
                   ? "bg-[#C5A059] text-black shadow-md shadow-[#C5A059]/20"
                   : "border border-[#333] text-gray-300 hover:text-white hover:border-[#C5A059] bg-[#141414]"
@@ -10236,7 +10300,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               type="button"
               onClick={handleViewCode}
               title="View and Export generated HTML & CSS Code"
-              className="px-2.5 py-1.5 border border-[#333] text-gray-300 hover:text-white hover:border-[#C5A059] bg-[#141414] rounded transition-colors text-[11px] font-bold tracking-wider flex items-center gap-1.5">
+              className="h-7 px-2.5 border border-[#333] text-gray-300 hover:text-white hover:border-[#C5A059] bg-[#141414] rounded transition-colors text-[11px] font-bold tracking-wider inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer">
               <span>&lt;/&gt;</span>
               <span>Code</span>
             </button>
@@ -10246,7 +10310,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               type="button"
               onClick={handleToggleFullscreen}
               title="Toggle Fullscreen Editor"
-              className="px-2.5 py-1.5 border border-[#333] text-gray-300 hover:text-white hover:border-[#C5A059] bg-[#141414] rounded transition-colors text-[11px] font-bold tracking-wider flex items-center gap-1.5">
+              className="h-7 px-2.5 border border-[#333] text-gray-300 hover:text-white hover:border-[#C5A059] bg-[#141414] rounded transition-colors text-[11px] font-bold tracking-wider inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer">
               <span>⛶</span>
               <span>Fullscreen</span>
             </button>
@@ -10259,7 +10323,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                 setShowFontModal(true);
               }}
               title="Install & Manage Custom Typography Fonts (Google Fonts, Web URLs, Uploads)"
-              className="px-2.5 py-1.5 border border-[#333] hover:border-[#C5A059] text-[#C5A059] hover:text-white bg-[#141414] rounded transition-colors text-[11px] font-bold tracking-wider flex items-center gap-1.5">
+              className="h-7 px-2.5 border border-[#333] hover:border-[#C5A059] text-[#C5A059] hover:text-white bg-[#141414] rounded transition-colors text-[11px] font-bold tracking-wider inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer">
               <span>🔤</span>
               <span>
                 Fonts {customFonts.length > 0 && `(${customFonts.length})`}
@@ -10273,7 +10337,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                 editorRef.current?.runCommand("open-contact-card-customizer");
               }}
               title="Customize Contact Card Colors, Button & Hover Style"
-              className="px-2.5 py-1.5 border border-[#333] hover:border-[#C5A059] text-[#C5A059] hover:text-white bg-[#141414] rounded transition-colors text-[11px] font-bold tracking-wider flex items-center gap-1.5 cursor-pointer">
+              className="h-7 px-2.5 border border-[#333] hover:border-[#C5A059] text-[#C5A059] hover:text-white bg-[#141414] rounded transition-colors text-[11px] font-bold tracking-wider inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer">
               <span>🎨</span>
               <span>Card Colors</span>
             </button>
@@ -10285,30 +10349,30 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
                 editorRef.current?.runCommand("open-client-animation-customizer");
               }}
               title="Customize Client Section Animation, Motion Speed & Hover Style"
-              className="px-2.5 py-1.5 border border-[#333] hover:border-[#C5A059] text-[#C5A059] hover:text-white bg-[#141414] rounded transition-colors text-[11px] font-bold tracking-wider flex items-center gap-1.5 cursor-pointer">
+              className="h-7 px-2.5 border border-[#333] hover:border-[#C5A059] text-[#C5A059] hover:text-white bg-[#141414] rounded transition-colors text-[11px] font-bold tracking-wider inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer">
               <span>✨</span>
               <span>Client Animation</span>
             </button>
 
-            <div className="h-4 w-px bg-[#262626]" />
+            <div className="h-4 w-px bg-[#262626] shrink-0" />
 
             <button
               type="button"
               onClick={() => handleExportSave(false)}
-              className="px-3 py-1.5 border border-[#333] text-gray-300 hover:text-white hover:border-[#C5A059] transition-colors uppercase tracking-widest font-bold text-xs">
+              className="h-7 px-3 border border-[#333] text-gray-300 hover:text-white hover:border-[#C5A059] rounded transition-colors uppercase tracking-wider font-bold text-[11px] whitespace-nowrap shrink-0 cursor-pointer">
               Save Draft
             </button>
 
             <button
               type="button"
               onClick={() => handleExportSave(true)}
-              className="px-3 py-1.5 bg-[#C5A059] text-black hover:bg-white transition-colors uppercase tracking-widest font-bold text-xs shadow-md shadow-[#C5A059]/20">
+              className="h-7 px-3 bg-[#C5A059] text-black hover:bg-white rounded transition-colors uppercase tracking-wider font-bold text-[11px] shadow-md shadow-[#C5A059]/20 whitespace-nowrap shrink-0 cursor-pointer">
               Publish Page
             </button>
           </div>
         </div>
 
-        <div className="flex flex-1 overflow-hidden relative w-full h-[calc(100vh-8rem)]">
+        <div className="flex flex-1 overflow-hidden relative w-full h-[calc(100vh-11.5rem)] min-h-140">
           {/* Collapsible Left Blocks Panel */}
           <div
             className={`transition-all duration-300 ease-in-out shrink-0 overflow-hidden flex flex-col border-r border-[#222] bg-[#080808] ${

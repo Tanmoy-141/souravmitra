@@ -8,6 +8,7 @@ import { siteSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { CustomFont, formatFontFaceCss } from "@/lib/fonts";
 import { isSafeUrl, safeCssForStyleTag } from "@/lib/sanitize";
+import { getHeaderData } from "@/lib/navigation-server";
 import "./globals.css";
 
 export const dynamic = "force-dynamic";
@@ -74,6 +75,8 @@ export default async function RootLayout({
     // fallback to empty
   }
 
+  const headerData = await getHeaderData();
+
   return (
     <html lang="en" className={`${poppins.variable} h-full antialiased`}>
       <head>
@@ -129,7 +132,12 @@ export default async function RootLayout({
         })}
       </head>
       <body className="min-h-full flex flex-col font-sans overflow-x-clip w-full max-w-full">
-        <Header />
+        <Header
+          initialSiteName={headerData.siteName}
+          initialLogoUrl={headerData.logoUrl}
+          initialNavItems={headerData.navItems}
+          initialIsCustomNav={headerData.isCustomNav}
+        />
         <main className="grow w-full max-w-full overflow-x-clip">{children}</main>
         <Footer />
       </body>

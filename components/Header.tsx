@@ -22,6 +22,7 @@ export interface HeaderProps {
   initialSiteName?: string;
   initialLogoUrl?: string;
   initialSiteFont?: string;
+  initialSiteColor?: string;
   initialNavItems?: NavItem[];
   initialIsCustomNav?: boolean;
 }
@@ -30,6 +31,7 @@ export const Header = ({
   initialSiteName = "Sourav Mitra",
   initialLogoUrl = "",
   initialSiteFont = "serif",
+  initialSiteColor = "#FFFFFF",
   initialNavItems,
   initialIsCustomNav = false,
 }: HeaderProps = {}) => {
@@ -42,10 +44,12 @@ export const Header = ({
   const [clientSiteName, setClientSiteName] = useState<string | null>(null);
   const [clientLogoUrl, setClientLogoUrl] = useState<string | null>(null);
   const [clientSiteFont, setClientSiteFont] = useState<string | null>(null);
+  const [clientSiteColor, setClientSiteColor] = useState<string | null>(null);
 
   const siteName = clientSiteName ?? initialSiteName;
   const logoUrl = clientLogoUrl ?? initialLogoUrl;
   const siteFont = clientSiteFont ?? initialSiteFont;
+  const siteColor = clientSiteColor ?? initialSiteColor;
   const navItems = clientNavItems ?? initialNavItems ?? DEFAULT_NAV_ITEMS;
   const isCustomNav = clientIsCustomNav ?? initialIsCustomNav;
 
@@ -72,6 +76,9 @@ export const Header = ({
           }
           if (typeof data.siteFont === "string" && data.siteFont.trim()) {
             setClientSiteFont(data.siteFont.trim());
+          }
+          if (typeof data.siteColor === "string" && data.siteColor.trim()) {
+            setClientSiteColor(data.siteColor.trim());
           }
           if (data.isCustomNav === true && Array.isArray(data.navItems)) {
             setClientIsCustomNav(true);
@@ -213,11 +220,12 @@ export const Header = ({
             />
           ) : null}
           <span
-            style={
-              siteFont && siteFont !== "serif"
+            style={{
+              ...(siteFont && siteFont !== "serif"
                 ? { fontFamily: `'${siteFont}', serif` }
-                : undefined
-            }>
+                : {}),
+              color: siteColor || "#FFFFFF",
+            }}>
             {siteName}
           </span>
         </Link>

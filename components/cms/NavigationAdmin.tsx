@@ -8,15 +8,27 @@ import {
   type NavItem,
 } from "@/lib/navigation";
 import { sanitizeFontFamily } from "@/lib/fonts";
+import { sanitizeColor } from "@/lib/sanitize";
 
 interface NavigationAdminProps {
   pages: CustomPage[];
   siteName: string;
   logoUrl?: string;
   siteFont?: string;
+  siteColor?: string;
   onSiteNameChange?: (name: string) => void;
   onSiteFontChange?: (font: string) => void;
+  onSiteColorChange?: (color: string) => void;
 }
+
+const COLOR_PRESETS = [
+  { label: "Pure White", value: "#FFFFFF" },
+  { label: "Gallery Gold", value: "#C5A059" },
+  { label: "Champagne Cream", value: "#F5EBE6" },
+  { label: "Muted Silver", value: "#D4D4D4" },
+  { label: "Warm Sand", value: "#E2D4B7" },
+  { label: "Rose Gold", value: "#E8B4B8" },
+];
 
 const FONT_PRESETS = [
   {
@@ -79,8 +91,10 @@ export default function NavigationAdmin({
   siteName,
   logoUrl = "",
   siteFont = "serif",
+  siteColor = "#FFFFFF",
   onSiteNameChange,
   onSiteFontChange,
+  onSiteColorChange,
 }: NavigationAdminProps) {
   const [items, setItems] = useState<NavItem[]>(DEFAULT_NAV_ITEMS);
   const [userTitle, setUserTitle] = useState<string | null>(null);
@@ -92,6 +106,9 @@ export default function NavigationAdmin({
   const [isCustomFont, setIsCustomFont] = useState(false);
   const [customFontInput, setCustomFontInput] = useState("");
   const [installedFonts, setInstalledFonts] = useState<string[]>([]);
+
+  const [userColor, setUserColor] = useState<string | null>(null);
+  const color = userColor ?? siteColor;
 
   const [isCustomNav, setIsCustomNav] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -122,6 +139,9 @@ export default function NavigationAdmin({
           if (typeof data.siteFont === "string" && data.siteFont.trim()) {
             onSiteFontChange?.(data.siteFont.trim());
           }
+          if (typeof data.siteColor === "string" && data.siteColor.trim()) {
+            onSiteColorChange?.(data.siteColor.trim());
+          }
         }
 
         if (!ignore && fontsRes.ok) {
@@ -149,7 +169,7 @@ export default function NavigationAdmin({
     return () => {
       ignore = true;
     };
-  }, [onSiteNameChange, onSiteFontChange]);
+  }, [onSiteNameChange, onSiteFontChange, onSiteColorChange]);
 
   const updateItem = (id: string, patch: Partial<NavItem>) => {
     setItems((prev) =>
@@ -242,6 +262,7 @@ export default function NavigationAdmin({
 
       const cleanedSiteName = title.trim() || "Sourav Mitra";
       const cleanedSiteFont = font.trim() || "serif";
+      const cleanedSiteColor = color.trim() || "#FFFFFF";
 
       const res = await fetch("/api/cms/settings", {
         method: "PUT",
@@ -250,6 +271,7 @@ export default function NavigationAdmin({
           navItems: cleaned,
           siteName: cleanedSiteName,
           siteFont: cleanedSiteFont,
+          siteColor: cleanedSiteColor,
         }),
       });
       const data = await res.json();
@@ -265,11 +287,13 @@ export default function NavigationAdmin({
       setIsCustomNav(true);
       setUserTitle(null);
       setUserFont(null);
+      setUserColor(null);
       onSiteNameChange?.(cleanedSiteName);
       onSiteFontChange?.(cleanedSiteFont);
+      onSiteColorChange?.(cleanedSiteColor);
       setStatusMessage({
         type: "success",
-        text: "Navigation, site title, and font saved and published to the site header!",
+        text: "Navigation, site title, font, and color saved and published to the site header!",
       });
       setTimeout(() => setStatusMessage(null), 4000);
     } catch {
@@ -394,9 +418,9 @@ export default function NavigationAdmin({
 
       {/* Site Title & Header Branding Editor */}
       <div className="bg-[#0b0b0b] border border-[#262626] p-5 flex flex-col gap-5">
-        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
           {/* Title input */}
-          <div className="flex-1 max-w-lg">
+          <div className="flex-1">
             <div className="flex items-center gap-2 mb-1.5">
               <label
                 htmlFor="site-title-input"
@@ -404,7 +428,7 @@ export default function NavigationAdmin({
                 Site Title (Header Brand Name)
               </label>
               <span className="text-[10px] text-gray-500 font-normal">
-                &bull; Displayed beside logo
+                &bull; Beside logo
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -422,8 +446,9 @@ export default function NavigationAdmin({
                 maxLength={100}
                 style={{
                   fontFamily: font && font !== "serif" ? `'${font}', serif` : "serif",
+                  color: color || "#FFFFFF",
                 }}
-                className="w-full px-3.5 py-2.5 bg-black border border-[#333] hover:border-[#555] focus:border-[#C5A059] text-white text-lg focus:outline-none transition-colors"
+                className="w-full px-3.5 py-2.5 bg-black border border-[#333] hover:border-[#555] focus:border-[#C5A059] text-lg focus:outline-none transition-colors"
               />
               {title !== "Sourav Mitra" && (
                 <button
@@ -441,7 +466,7 @@ export default function NavigationAdmin({
           </div>
 
           {/* Font Family Selector */}
-          <div className="flex-1 max-w-lg">
+          <div className="flex-1">
             <div className="flex items-center justify-between gap-2 mb-1.5">
               <div className="flex items-center gap-2">
                 <label
@@ -539,21 +564,122 @@ export default function NavigationAdmin({
             )}
           </div>
 
+          {/* Title Color Selector */}
+          <div className="flex-1">
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="site-color-input"
+                  className="text-[10px] uppercase text-[#C5A059] font-bold tracking-widest">
+                  Title Color
+                </label>
+                <span className="text-[10px] text-gray-500 font-normal">
+                  &bull; Brand Color
+                </span>
+              </div>
+              {color.toUpperCase() !== "#FFFFFF" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUserColor("#FFFFFF");
+                    onSiteColorChange?.("#FFFFFF");
+                  }}
+                  className="text-[10px] text-gray-500 hover:text-[#C5A059] uppercase tracking-wider transition-colors cursor-pointer"
+                  title="Reset color to pure white">
+                  Reset Color
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                {/* Native color picker square */}
+                <div
+                  className="relative w-9 h-9 shrink-0 border border-[#333] hover:border-[#C5A059] rounded overflow-hidden cursor-pointer"
+                  style={{ backgroundColor: color }}>
+                  <input
+                    id="site-color-input"
+                    type="color"
+                    value={
+                      /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)
+                        ? color.length === 4
+                          ? `#${color[1]}${color[1]}${color[2]}${color[2]}${color[3]}${color[3]}`
+                          : color
+                        : "#FFFFFF"
+                    }
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase();
+                      setUserColor(val);
+                      onSiteColorChange?.(val);
+                    }}
+                    className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                    title="Choose custom color from color picker"
+                  />
+                </div>
+
+                {/* Hex code input */}
+                <input
+                  type="text"
+                  value={color}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setUserColor(val);
+                    const clean = sanitizeColor(val, "");
+                    if (clean) {
+                      onSiteColorChange?.(clean);
+                    }
+                  }}
+                  placeholder="#FFFFFF"
+                  maxLength={9}
+                  className="w-28 px-3 py-2 bg-black border border-[#333] hover:border-[#555] focus:border-[#C5A059] text-white text-xs font-mono uppercase focus:outline-none transition-colors"
+                />
+              </div>
+
+              {/* Preset swatches */}
+              <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                {COLOR_PRESETS.map((preset) => (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    onClick={() => {
+                      setUserColor(preset.value);
+                      onSiteColorChange?.(preset.value);
+                    }}
+                    style={{ backgroundColor: preset.value }}
+                    className={`w-5 h-5 rounded-full border transition-all cursor-pointer ${
+                      color.toUpperCase() === preset.value.toUpperCase()
+                        ? "border-[#C5A059] ring-2 ring-[#C5A059]/60 scale-110"
+                        : "border-[#444] hover:scale-110"
+                    }`}
+                    title={preset.label}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
           {/* Active Preview Pill */}
-          <div className="text-left lg:text-right pl-0 lg:pl-6 border-t lg:border-t-0 lg:border-l border-[#222] pt-3 lg:pt-0 shrink-0">
+          <div className="text-left xl:text-right pl-0 xl:pl-6 border-t xl:border-t-0 xl:border-l border-[#222] pt-3 xl:pt-0 shrink-0">
             <span className="text-gray-500 block font-mono text-[9px] uppercase tracking-wider mb-1">
               Active Header Typography
             </span>
             <span
               style={{
                 fontFamily: font && font !== "serif" ? `'${font}', serif` : "serif",
+                color: color || "#FFFFFF",
               }}
-              className="text-lg text-[#C5A059] font-medium block">
+              className="text-lg font-medium block truncate max-w-xs">
               {title.trim() || "Sourav Mitra"}
             </span>
-            <span className="text-[10px] text-gray-500 font-mono block mt-0.5">
-              Font: {font === "serif" ? "Default Serif" : font}
-            </span>
+            <div className="flex items-center xl:justify-end gap-2 mt-1">
+              <span
+                className="inline-block w-2.5 h-2.5 rounded-full border border-gray-700 shrink-0"
+                style={{ backgroundColor: color }}
+              />
+              <span className="text-[10px] text-gray-400 font-mono truncate">
+                {font === "serif" ? "Default Serif" : font} &bull; {color}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -592,8 +718,9 @@ export default function NavigationAdmin({
             <span
               style={{
                 fontFamily: font && font !== "serif" ? `'${font}', serif` : "serif",
+                color: color || "#FFFFFF",
               }}
-              className="text-lg text-white group-hover:text-[#C5A059] transition-colors flex items-center gap-1.5">
+              className="text-lg transition-colors flex items-center gap-1.5">
               {title || "Sourav Mitra"}
               <span className="text-gray-500 group-hover:text-[#C5A059] text-xs">✎</span>
             </span>

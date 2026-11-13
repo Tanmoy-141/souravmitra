@@ -6,13 +6,14 @@ import {
   normalizeStoredNavItems,
   type NavItem,
 } from "./navigation";
-import { isSafeUrl } from "./sanitize";
+import { isSafeUrl, sanitizeColor } from "./sanitize";
 import { sanitizeFontFamily } from "./fonts";
 
 export interface HeaderData {
   siteName: string;
   logoUrl: string;
   siteFont?: string;
+  siteColor?: string;
   navItems: NavItem[];
   isCustomNav: boolean;
 }
@@ -40,6 +41,8 @@ export async function getHeaderData(): Promise<HeaderData> {
       (byKey.get("header")?.gjsData as {
         siteName?: string;
         logoUrl?: string;
+        siteFont?: string;
+        siteColor?: string;
       }) || {};
     const navSetting = byKey.get("nav");
     const navData =
@@ -56,13 +59,14 @@ export async function getHeaderData(): Promise<HeaderData> {
       typeof headerData.logoUrl === "string" ? headerData.logoUrl.trim() : "";
     const logoUrl = rawLogoUrl && isSafeUrl(rawLogoUrl) ? rawLogoUrl : "";
     const rawSiteFont =
-      typeof (headerData as { siteFont?: string }).siteFont === "string"
-        ? (headerData as { siteFont?: string }).siteFont?.trim()
+      typeof headerData.siteFont === "string"
+        ? headerData.siteFont.trim()
         : "";
     const siteFont =
       rawSiteFont && rawSiteFont !== "serif"
         ? sanitizeFontFamily(rawSiteFont)
         : "serif";
+    const siteColor = sanitizeColor(headerData.siteColor, "#FFFFFF");
 
     // If custom navigation has been configured in site_settings, return it directly.
     if (storedNavItems !== null) {
@@ -70,6 +74,7 @@ export async function getHeaderData(): Promise<HeaderData> {
         siteName,
         logoUrl,
         siteFont,
+        siteColor,
         navItems: storedNavItems,
         isCustomNav: true,
       };
@@ -135,6 +140,7 @@ export async function getHeaderData(): Promise<HeaderData> {
       siteName,
       logoUrl,
       siteFont,
+      siteColor,
       navItems: defaultItems,
       isCustomNav: false,
     };
@@ -144,6 +150,7 @@ export async function getHeaderData(): Promise<HeaderData> {
       siteName: "Sourav Mitra",
       logoUrl: "",
       siteFont: "serif",
+      siteColor: "#FFFFFF",
       navItems: DEFAULT_NAV_ITEMS,
       isCustomNav: false,
     };

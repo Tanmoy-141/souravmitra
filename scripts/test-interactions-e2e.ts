@@ -426,6 +426,7 @@ async function runTests() {
           siteName: initialSettings.siteName,
           logoUrl: initialSettings.logoUrl,
           siteFont: initialSettings.siteFont,
+          siteColor: initialSettings.siteColor,
         }),
       });
       const resetRes = await putSettings(resetReq);

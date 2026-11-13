@@ -102,3 +102,41 @@ export function sanitizePathSlug(input: string): string {
     .join("/");
 }
 
+/**
+ * Validates and sanitizes a CSS color value (hex, rgb/rgba, hsl/hsla, or safe named colors).
+ * Falls back to "#FFFFFF" if invalid.
+ */
+export function sanitizeColor(color: unknown, fallback = "#FFFFFF"): string {
+  if (typeof color !== "string") return fallback;
+  const trimmed = color.trim();
+  // Validates 3, 4, 6, or 8 digit hex color
+  if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(trimmed)) {
+    return trimmed;
+  }
+  // Validates rgb/rgba/hsl/hsla
+  if (
+    /^(rgb|hsl)a?\(\s*[\d.]+\s*(?:%|\s*,\s*|\s+)\s*[\d.]+\s*(?:%|\s*,\s*|\s+)\s*[\d.]+\s*(?:%|\s*,\s*|\s*\/|\s+)\s*[\d.]+\s*%?\s*\)$/i.test(
+      trimmed
+    )
+  ) {
+    return trimmed;
+  }
+  // Standard CSS safe keywords
+  const safeNamedColors = new Set([
+    "white",
+    "black",
+    "gold",
+    "silver",
+    "ivory",
+    "gray",
+    "grey",
+    "transparent",
+    "inherit",
+    "currentcolor",
+  ]);
+  if (safeNamedColors.has(trimmed.toLowerCase())) {
+    return trimmed.toLowerCase();
+  }
+  return fallback;
+}
+

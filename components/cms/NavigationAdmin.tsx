@@ -319,21 +319,16 @@ export default function NavigationAdmin({
               <img
                 src={logoUrl}
                 alt={siteName}
-                width={120}
-                height={28}
+                width={44}
+                height={44}
                 style={{
-                  height: "28px",
-                  maxHeight: "28px",
-                  width: "auto",
-                  maxWidth: "120px",
+                  borderRadius: "9999px",
+                  objectFit: "cover",
                 }}
-                className="h-7 max-w-30 object-contain shrink-0"
+                className="w-11 h-11 rounded-full object-cover shrink-0 border border-[#C5A059]/40 shadow-sm"
               />
             ) : null}
-            <span
-              className={`text-lg font-serif text-white ${
-                logoUrl ? "hidden sm:inline" : ""
-              }`}>
+            <span className="text-lg font-serif text-white">
               {siteName}
             </span>
           </div>

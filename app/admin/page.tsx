@@ -1688,13 +1688,13 @@ export default function AdminDashboard() {
 
                   {/* Preview Card */}
                   <div className="flex items-center gap-3 p-2.5 bg-black border border-[#2b2b2b] rounded-sm mb-2">
-                    <div className="w-12 h-10 shrink-0 bg-[#141414] border border-[#3a3a3a] rounded-sm flex items-center justify-center overflow-hidden p-1 shadow-inner">
+                    <div className="w-12 h-12 shrink-0 bg-[#141414] border border-[#3a3a3a] rounded-full flex items-center justify-center overflow-hidden shadow-inner">
                       {logoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={logoUrl}
                           alt="Logo preview"
-                          className="w-full h-full object-contain"
+                          className="w-full h-full object-cover rounded-full"
                         />
                       ) : (
                         <span className="text-[9px] text-gray-600 uppercase font-bold">

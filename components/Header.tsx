@@ -189,25 +189,23 @@ export const Header = ({
         <Link
           href="/"
           onClick={() => setIsMenuOpen(false)}
-          className="flex items-center gap-3 text-xl md:text-2xl font-serif text-[#FFFFFF] tracking-tight hover:opacity-90 transition-opacity">
+          className="flex items-center gap-3 md:gap-4 text-xl md:text-2xl font-serif text-[#FFFFFF] tracking-tight hover:opacity-90 transition-opacity">
           {logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={logoUrl}
               alt={siteName}
-              width={160}
-              height={36}
+              width={56}
+              height={56}
               style={{
-                height: "36px",
-                maxHeight: "36px",
-                width: "auto",
-                maxWidth: "160px",
+                borderRadius: "9999px",
+                objectFit: "cover",
               }}
-              className="h-8 md:h-9 max-w-40 object-contain shrink-0"
+              className="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover shrink-0 border border-[#C5A059]/40 shadow-sm"
               onError={() => setClientLogoUrl("")}
             />
           ) : null}
-          <span className={logoUrl ? "hidden sm:inline" : ""}>{siteName}</span>
+          <span>{siteName}</span>
         </Link>
 
         {/* Desktop nav */}

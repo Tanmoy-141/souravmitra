@@ -22,11 +22,23 @@ import { resolveSession, type SessionPayload } from "@/lib/auth";
 export async function getSessionPayload(
   req?: NextRequest,
 ): Promise<SessionPayload | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("admin_session")?.value;
-  if (sessionCookie) {
-    const result = await resolveSession(sessionCookie);
-    if (result.valid && result.payload) return result.payload;
+  if (req) {
+    const sessionCookie = req.cookies.get("admin_session")?.value;
+    if (sessionCookie) {
+      const result = await resolveSession(sessionCookie);
+      if (result.valid && result.payload) return result.payload;
+    }
+  }
+
+  try {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get("admin_session")?.value;
+    if (sessionCookie) {
+      const result = await resolveSession(sessionCookie);
+      if (result.valid && result.payload) return result.payload;
+    }
+  } catch {
+    // cookies() was called outside Next.js request scope (e.g. integration test script)
   }
 
   if (req) {

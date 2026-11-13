@@ -304,8 +304,11 @@ export default function NavigationAdmin({
 
       {/* Live Header Preview */}
       <div className="border border-[#262626] bg-[#070707] p-4">
-        <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-3">
-          Live Desktop Header Preview ({previewItems.length} visible)
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-3">
+          <span>Live Desktop Header Preview ({previewItems.length} visible)</span>
+          <span className="text-gray-400 normal-case tracking-normal font-normal">
+            Preview only &bull; Scroll down to edit or delete links &darr;
+          </span>
         </div>
         <div className="bg-black border border-[#333333] px-6 py-4 flex flex-wrap items-center justify-between gap-4">
           <span className="text-lg font-serif text-white">{siteName}</span>

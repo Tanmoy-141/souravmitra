@@ -451,7 +451,7 @@ export default function ProjectsAdmin({ onEditInsidePage }: ProjectsAdminProps =
                   </button>
                 )}
                 <a
-                  href={`/${p.category}/${p.id}`}
+                  href={`/${encodeURIComponent(p.category)}/${encodeURIComponent(p.id)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[10px] px-2 py-1 border border-[#333] text-gray-500 hover:text-white transition-colors"

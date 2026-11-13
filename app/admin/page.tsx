@@ -14,25 +14,12 @@ import { CustomPage, Block } from "@/data/cms";
 import { generateProjectDetailHtml } from "@/lib/project-detail-template";
 import { DEFAULT_CONTACT_PAGE_HTML } from "@/lib/contact-template";
 import type { Project } from "@/db/schema";
+import { isSafeUrl, isSafeImageUrl, sanitizeSlugInput } from "@/lib/sanitize";
 
 type CmsPage = CustomPage & {
   htmlCache?: string;
   cssCache?: string;
 };
-
-function sanitizeSlugInput(value: string): string {
-  const trimmed = value.trimStart();
-
-  if (trimmed === "/" || trimmed === "") {
-    return trimmed;
-  }
-
-  const withoutScheme = trimmed.replace(/^[a-zA-Z][a-zA-Z0-9+.-]*:/, "");
-  const normalized = withoutScheme.replace(/^\/+/, "");
-  const safe = normalized.replace(/[^a-zA-Z0-9\-._~/]/g, "");
-
-  return safe;
-}
 
 type CmsApiResponse = {
   authenticated?: boolean;
@@ -1100,7 +1087,11 @@ export default function AdminDashboard() {
 
       const previewUrl = `/admin/preview/${encodeURIComponent(targetId)}`;
       if (previewWindow) {
-        previewWindow.location.href = previewUrl;
+        if (isSafeUrl(previewUrl)) {
+          previewWindow.location.href = previewUrl;
+        } else {
+          previewWindow.close();
+        }
       } else {
         router.push(previewUrl);
       }
@@ -1257,7 +1248,11 @@ export default function AdminDashboard() {
 
             {activeTab === "pages" && activePage && activePage.status === "published" && !viewTrash && (
               <a
-                href={getPageLiveUrl(activePage)}
+                href={
+                  isSafeUrl(getPageLiveUrl(activePage))
+                    ? getPageLiveUrl(activePage)
+                    : "#"
+                }
                 target="_blank"
                 rel="noopener noreferrer"
                 className="h-8 px-3 border border-[#333] hover:border-[#C5A059] text-gray-300 hover:text-white rounded text-[11px] uppercase tracking-widest font-semibold transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"
@@ -1723,7 +1718,7 @@ export default function AdminDashboard() {
                   {/* Preview Card */}
                   <div className="flex items-center gap-3 p-2.5 bg-black border border-[#2b2b2b] rounded-sm mb-2">
                     <div className="w-12 h-12 shrink-0 bg-[#141414] border border-[#3a3a3a] rounded-full flex items-center justify-center overflow-hidden shadow-inner">
-                      {logoUrl ? (
+                      {logoUrl && isSafeImageUrl(logoUrl) ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={logoUrl}

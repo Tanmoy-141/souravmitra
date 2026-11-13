@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { pages, projects } from "@/db/schema";
 import { getSessionPayload } from "@/lib/require-session";
-import { sanitizeHtml, safeCssForStyleTag } from "@/lib/sanitize";
+import { sanitizeHtml, safeCssForStyleTag, sanitizeSlugInput } from "@/lib/sanitize";
 import { splitDynamicBlocks } from "@/lib/dynamic-blocks";
 import type { Block } from "@/data/cms";
 import CmsDynamicBlockPortal from "@/components/cms/CmsDynamicBlockPortal";
@@ -25,8 +25,9 @@ const PORTFOLIO_CATEGORIES = new Set([
 ]);
 
 function getPreviewLivePath(slug: string): string {
-  const clean = slug.replace(/^\/+|\/+$/g, "");
-  if (!clean) return "/";
+  const sanitized = sanitizeSlugInput(slug);
+  const clean = sanitized.replace(/^\/+|\/+$/g, "");
+  if (!clean || clean === "/") return "/";
   if (
     ["about", "contact", "book-covers", "illustration", "fine-art"].includes(
       clean,

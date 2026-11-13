@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { isSafeUrl } from "@/lib/sanitize";
 
 interface DraftPreviewBannerProps {
   pageId: string;
@@ -48,6 +49,9 @@ export default function DraftPreviewBanner({
     }
   };
 
+  const safeLivePath =
+    typeof livePath === "string" && isSafeUrl(livePath) ? livePath : "#";
+
   return (
     <div className="bg-[#0b0b0b] border-b border-[#C5A059]/40 px-4 md:px-8 py-2.5 text-xs text-gray-200 flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-2.5 min-w-0">
@@ -92,7 +96,7 @@ export default function DraftPreviewBanner({
         {!isTrashed && status === "published" && (
           <>
             <a
-              href={livePath}
+              href={safeLivePath}
               target="_blank"
               rel="noopener noreferrer"
               className="px-3 py-1.5 border border-[#333] hover:border-[#C5A059] text-gray-200 hover:text-white uppercase tracking-widest text-[10px] font-semibold transition-colors">

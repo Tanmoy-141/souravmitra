@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { safeUrlOrFallback } from "@/lib/sanitize";
 
 type FooterSettings = {
   siteName?: string;
@@ -31,7 +32,7 @@ export const Footer = () => {
       </p>
       <div className="flex justify-center gap-6 mb-4">
         <a
-          href={socialLinks.facebook || "#"}
+          href={safeUrlOrFallback(socialLinks.facebook)}
           className="hover:text-[#C5A059]"
           aria-label="Facebook">
           <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
@@ -39,7 +40,7 @@ export const Footer = () => {
           </svg>
         </a>
         <a
-          href={socialLinks.instagram || "#"}
+          href={safeUrlOrFallback(socialLinks.instagram)}
           className="hover:text-[#C5A059]"
           aria-label="Instagram">
           <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
@@ -47,7 +48,7 @@ export const Footer = () => {
           </svg>
         </a>
         <a
-          href={socialLinks.threads || socialLinks.behance || "#"}
+          href={safeUrlOrFallback(socialLinks.threads || socialLinks.behance)}
           target="_blank"
           rel="noopener noreferrer"
           className="hover:text-[#C5A059]"
@@ -61,7 +62,7 @@ export const Footer = () => {
           </svg>
         </a>
         <a
-          href={socialLinks.pinterest || "#"}
+          href={safeUrlOrFallback(socialLinks.pinterest)}
           className="hover:text-[#C5A059]"
           aria-label="Pinterest">
           <svg
@@ -73,7 +74,7 @@ export const Footer = () => {
           </svg>
         </a>
         <a
-          href={socialLinks.linkedin || "#"}
+          href={safeUrlOrFallback(socialLinks.linkedin)}
           target="_blank"
           rel="noopener noreferrer"
           className="hover:text-[#C5A059]"
@@ -86,7 +87,7 @@ export const Footer = () => {
           </svg>
         </a>
         <a
-          href={socialLinks.x || "#"}
+          href={safeUrlOrFallback(socialLinks.x || socialLinks.twitter)}
           target="_blank"
           rel="noopener noreferrer"
           className="hover:text-[#C5A059]"

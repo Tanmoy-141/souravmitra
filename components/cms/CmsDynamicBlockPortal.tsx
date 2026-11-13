@@ -23,6 +23,7 @@ import {
 } from "./ProjectDetailInteractiveBlocks";
 import Counter from "@/components/Counter";
 import { initCountersInContainer } from "@/lib/counter-animation";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 type PortfolioCategory = "book-covers" | "illustration" | "fine-art";
 
@@ -1709,7 +1710,7 @@ export function CmsDynamicBlockPortal({
         ref={containerRef}
         suppressHydrationWarning
         className={className || "w-full"}
-        dangerouslySetInnerHTML={{ __html: html }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
       />
       {targets.map((t) => createPortal(t.node, t.element, t.key))}
     </>

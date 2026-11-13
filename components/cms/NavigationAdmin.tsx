@@ -8,7 +8,7 @@ import {
   type NavItem,
 } from "@/lib/navigation";
 import { sanitizeFontFamily } from "@/lib/fonts";
-import { sanitizeColor } from "@/lib/sanitize";
+import { sanitizeColor, isSafeImageUrl } from "@/lib/sanitize";
 
 interface NavigationAdminProps {
   pages: CustomPage[];
@@ -893,7 +893,7 @@ export default function NavigationAdmin({
             onClick={() => titleInputRef.current?.focus()}
             className="flex items-center gap-3 cursor-pointer group"
             title="Click to edit site title">
-            {logoUrl ? (
+            {logoUrl && isSafeImageUrl(logoUrl) ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={logoUrl}

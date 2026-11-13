@@ -238,42 +238,50 @@ export default function MessagesAdmin() {
       {/* Right Pane: Detail View */}
       <div className="flex-1 overflow-y-auto p-6 md:p-12 bg-black flex flex-col">
         {selectedInquiry ? (
-          <div className="max-w-3xl w-full mx-auto flex flex-col gap-8">
-            {/* Header & Actions */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-[#333333]">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h2 className="text-xl font-bold tracking-tight text-white">
-                    {selectedInquiry.name}
-                  </h2>
-                  {selectedInquiry.projectType && (
-                    <span className="text-[10px] uppercase tracking-widest px-2.5 py-0.5 bg-[#1a1a1a] border border-[#333] text-[#C5A059]">
-                      {selectedInquiry.projectType}
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-4 text-xs text-gray-400">
-                  <a
-                    href={`mailto:${selectedInquiry.email}?subject=${encodeURIComponent(`Re: Portfolio Inquiry - ${selectedInquiry.projectType || "General"}`)}`}
-                    className="hover:text-[#C5A059] underline">
-                    {selectedInquiry.email}
-                  </a>
-                  {selectedInquiry.company && (
-                    <span>• Company: {selectedInquiry.company}</span>
-                  )}
-                  <span>
-                    • Received:{" "}
-                    {new Date(selectedInquiry.createdAt).toLocaleString()}
-                  </span>
-                </div>
-              </div>
+          (() => {
+            const safeMailto =
+              typeof selectedInquiry.email === "string" &&
+              /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(selectedInquiry.email.trim())
+                ? `mailto:${encodeURIComponent(selectedInquiry.email.trim())}?subject=${encodeURIComponent(`Re: Portfolio Inquiry - ${selectedInquiry.projectType || "General"}`)}`
+                : "#";
 
-              <div className="flex items-center gap-2">
-                <a
-                  href={`mailto:${selectedInquiry.email}?subject=${encodeURIComponent(`Re: Portfolio Inquiry - ${selectedInquiry.projectType || "General"}`)}`}
-                  className="bg-[#C5A059] text-black px-4 py-2 font-bold uppercase tracking-widest text-xs hover:bg-white transition-colors">
-                  Reply via Email
-                </a>
+            return (
+              <div className="max-w-3xl w-full mx-auto flex flex-col gap-8">
+                {/* Header & Actions */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-[#333333]">
+                  <div>
+                    <div className="flex items-center gap-3 mb-2">
+                      <h2 className="text-xl font-bold tracking-tight text-white">
+                        {selectedInquiry.name}
+                      </h2>
+                      {selectedInquiry.projectType && (
+                        <span className="text-[10px] uppercase tracking-widest px-2.5 py-0.5 bg-[#1a1a1a] border border-[#333] text-[#C5A059]">
+                          {selectedInquiry.projectType}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-4 text-xs text-gray-400">
+                      <a
+                        href={safeMailto}
+                        className="hover:text-[#C5A059] underline">
+                        {selectedInquiry.email}
+                      </a>
+                      {selectedInquiry.company && (
+                        <span>• Company: {selectedInquiry.company}</span>
+                      )}
+                      <span>
+                        • Received:{" "}
+                        {new Date(selectedInquiry.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={safeMailto}
+                      className="bg-[#C5A059] text-black px-4 py-2 font-bold uppercase tracking-widest text-xs hover:bg-white transition-colors">
+                      Reply via Email
+                    </a>
                 <button
                   onClick={() =>
                     updateStatus(selectedInquiry.id, {
@@ -321,7 +329,8 @@ export default function MessagesAdmin() {
               )}
             </div>
           </div>
-        ) : (
+        );
+      })()) : (
           <div className="flex-1 flex items-center justify-center text-gray-600 text-xs uppercase tracking-widest">
             Select an inquiry to view details
           </div>

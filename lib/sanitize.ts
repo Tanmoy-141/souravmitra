@@ -65,12 +65,51 @@ export function sanitizeCss(css: string): string {
 
 /**
  * Validates that a URL uses a safe scheme.
- * Allows: https://, http://, relative paths (/...), and mailto:
- * Blocks: javascript:, data:, vbscript:, etc.
+ * Allows: https://, http://, relative paths (/...), mailto:, and in-page anchors (#...).
+ * Blocks: javascript:, vbscript:, data:, protocol-relative //, and control characters.
  */
-export function isSafeUrl(url: string): boolean {
+export function isSafeUrl(url: unknown): boolean {
+  if (typeof url !== "string") return false;
   const trimmed = url.trim();
-  return /^(https?:\/\/|\/(?!\/)|mailto:)/i.test(trimmed);
+  if (!trimmed) return false;
+  // Disallow control characters
+  if (/[\u0000-\u001F\u007F]/.test(trimmed)) return false;
+  // Disallow dangerous schemes
+  if (/^(javascript|vbscript|data):/i.test(trimmed)) return false;
+  // Disallow protocol-relative URLs (//example.com or /\example.com)
+  if (/^[/\\]{2}/.test(trimmed)) return false;
+  // Allow root-relative paths like /path or /
+  if (/^\/[^/\\]/.test(trimmed) || trimmed === "/") return true;
+  // Allow in-page hash anchors like #contact
+  if (/^#[a-zA-Z0-9_-]+$/.test(trimmed)) return true;
+  // Allow safe absolute protocols: http, https, mailto
+  return /^(https?:\/\/|mailto:)/i.test(trimmed);
+}
+
+/**
+ * Returns a guaranteed safe URL or falls back to a safe fallback (default: "#").
+ */
+export function safeUrlOrFallback(url: unknown, fallback = "#"): string {
+  return typeof url === "string" && isSafeUrl(url) ? url.trim() : fallback;
+}
+
+/**
+ * Sanitizes page slug input by removing any protocol schemes, normalizing slashes,
+ * and restricting to safe URL path characters.
+ */
+export function sanitizeSlugInput(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trimStart();
+
+  if (trimmed === "/" || trimmed === "") {
+    return trimmed;
+  }
+
+  const withoutScheme = trimmed.replace(/^[a-zA-Z][a-zA-Z0-9+.-]*:/, "");
+  const normalized = withoutScheme.replace(/^\/+/, "");
+  const safe = normalized.replace(/[^a-zA-Z0-9\-._~/]/g, "");
+
+  return safe;
 }
 
 /**
@@ -82,7 +121,12 @@ export function isSafeImageUrl(url: unknown): boolean {
   if (typeof url !== "string") return false;
   const trimmed = url.trim();
   if (!trimmed) return false;
-  return /^(https?:\/\/|\/(?!\/)|data:image\/(?:png|jpeg|jpg|webp|svg\+xml|x-icon|vnd\.microsoft\.icon);base64,)/i.test(
+  if (/[\u0000-\u001F\u007F]/.test(trimmed)) return false;
+  if (/^(javascript|vbscript):/i.test(trimmed)) return false;
+  if (/^[/\\]{2}/.test(trimmed)) return false;
+  if (/^\/[^/\\]/.test(trimmed) || trimmed === "/") return true;
+  if (/^https?:\/\//i.test(trimmed)) return true;
+  return /^data:image\/(?:png|jpeg|jpg|webp|svg\+xml|x-icon|vnd\.microsoft\.icon);base64,[A-Za-z0-9+/=]+$/i.test(
     trimmed
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
-import { sanitizeHtml } from "@/lib/sanitize";
+import { sanitizeHtml, safeUrlOrFallback } from "@/lib/sanitize";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
@@ -305,7 +305,12 @@ export default function ContactFormClient({
           <div>
             <div className="mb-4">
               <a
-                href={`mailto:${initialEmail}`}
+                href={
+                  typeof initialEmail === "string" &&
+                  /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(initialEmail.trim())
+                    ? `mailto:${encodeURIComponent(initialEmail.trim())}`
+                    : "#"
+                }
                 className="text-[13px] sm:text-sm font-normal hover:underline inline-block"
                 style={{ color: cardTextColor || undefined }}>
                 {initialEmail}
@@ -316,7 +321,7 @@ export default function ContactFormClient({
             <div className="flex items-center gap-2">
               {/* Facebook */}
               <a
-                href={socialLinks.facebook || "#"}
+                href={safeUrlOrFallback(socialLinks.facebook)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="contact-social-icon w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-black flex items-center justify-center transition-all duration-200 ease-out hover:scale-115 hover:shadow-md hover:opacity-85"
@@ -330,7 +335,7 @@ export default function ContactFormClient({
 
               {/* Instagram */}
               <a
-                href={socialLinks.instagram || "#"}
+                href={safeUrlOrFallback(socialLinks.instagram)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="contact-social-icon w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-black flex items-center justify-center transition-all duration-200 ease-out hover:scale-115 hover:shadow-md hover:opacity-85"
@@ -344,7 +349,7 @@ export default function ContactFormClient({
 
               {/* Threads */}
               <a
-                href={socialLinks.threads || socialLinks.behance || "#"}
+                href={safeUrlOrFallback(socialLinks.threads || socialLinks.behance)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="contact-social-icon w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-black flex items-center justify-center transition-all duration-200 ease-out hover:scale-115 hover:shadow-md hover:opacity-85"
@@ -358,7 +363,7 @@ export default function ContactFormClient({
 
               {/* LinkedIn */}
               <a
-                href={socialLinks.linkedin || "#"}
+                href={safeUrlOrFallback(socialLinks.linkedin)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="contact-social-icon w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-black flex items-center justify-center transition-all duration-200 ease-out hover:scale-115 hover:shadow-md hover:opacity-85"
@@ -372,7 +377,7 @@ export default function ContactFormClient({
 
               {/* Twitter / X */}
               <a
-                href={socialLinks.x || socialLinks.twitter || "#"}
+                href={safeUrlOrFallback(socialLinks.x || socialLinks.twitter)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="contact-social-icon w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-black flex items-center justify-center transition-all duration-200 ease-out hover:scale-115 hover:shadow-md hover:opacity-85"
@@ -386,7 +391,7 @@ export default function ContactFormClient({
 
               {/* Pinterest */}
               <a
-                href={socialLinks.pinterest || "#"}
+                href={safeUrlOrFallback(socialLinks.pinterest)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="contact-social-icon w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-black flex items-center justify-center transition-all duration-200 ease-out hover:scale-115 hover:shadow-md hover:opacity-85"

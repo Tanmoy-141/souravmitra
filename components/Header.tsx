@@ -8,6 +8,7 @@ import {
   isSafeNavHref,
   type NavItem,
 } from "@/lib/navigation";
+import { isSafeImageUrl } from "@/lib/sanitize";
 
 const CORE_PAGE_SLUGS = new Set([
   "/",
@@ -171,12 +172,15 @@ export const Header = ({
   }, []);
 
   const renderNavLink = (item: NavItem, className: string) => {
-    const external = item.openInNewTab || isExternalNavHref(item.href);
+    const rawHref = typeof item.href === "string" ? item.href.trim() : "";
+    const safeHref = isSafeNavHref(rawHref) ? rawHref : "#";
+    const external = item.openInNewTab || isExternalNavHref(safeHref);
+
     if (external) {
       return (
         <a
           key={item.id}
-          href={item.href}
+          href={safeHref}
           target={item.openInNewTab ? "_blank" : undefined}
           rel={item.openInNewTab ? "noopener noreferrer" : undefined}
           onClick={() => setIsMenuOpen(false)}
@@ -189,7 +193,7 @@ export const Header = ({
     return (
       <Link
         key={item.id}
-        href={item.href}
+        href={safeHref}
         onClick={() => setIsMenuOpen(false)}
         className={className}>
         {item.label}
@@ -204,7 +208,7 @@ export const Header = ({
           href="/"
           onClick={() => setIsMenuOpen(false)}
           className="flex items-center gap-3 md:gap-4 text-xl md:text-2xl font-serif text-[#FFFFFF] tracking-tight hover:opacity-90 transition-opacity">
-          {logoUrl ? (
+          {logoUrl && isSafeImageUrl(logoUrl) ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={logoUrl}

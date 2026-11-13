@@ -319,7 +319,7 @@ export default function NavigationAdmin({
               <img
                 src={logoUrl}
                 alt={siteName}
-                className="h-7 max-w-[120px] object-contain shrink-0"
+                className="h-7 max-w-30 object-contain shrink-0"
               />
             ) : null}
             <span

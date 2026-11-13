@@ -1410,6 +1410,7 @@ export default function AdminDashboard() {
             pages={pages}
             siteName={siteName}
             logoUrl={logoUrl}
+            onSiteNameChange={setSiteName}
           />
         </div>
       ) : viewTrash ? (

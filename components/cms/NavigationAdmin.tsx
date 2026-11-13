@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import type { CustomPage } from "@/data/cms";
 import {
   DEFAULT_NAV_ITEMS,
@@ -12,6 +12,7 @@ interface NavigationAdminProps {
   pages: CustomPage[];
   siteName: string;
   logoUrl?: string;
+  onSiteNameChange?: (name: string) => void;
 }
 
 const CORE_SLUGS = new Set([
@@ -35,8 +36,12 @@ export default function NavigationAdmin({
   pages,
   siteName,
   logoUrl = "",
+  onSiteNameChange,
 }: NavigationAdminProps) {
   const [items, setItems] = useState<NavItem[]>(DEFAULT_NAV_ITEMS);
+  const [userTitle, setUserTitle] = useState<string | null>(null);
+  const title = userTitle ?? siteName;
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const [isCustomNav, setIsCustomNav] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -56,6 +61,9 @@ export default function NavigationAdmin({
             setItems(data.navItems);
           }
           setIsCustomNav(Boolean(data.isCustomNav));
+          if (typeof data.siteName === "string" && data.siteName.trim()) {
+            onSiteNameChange?.(data.siteName.trim());
+          }
         }
       } catch {
         if (!ignore) {
@@ -72,7 +80,7 @@ export default function NavigationAdmin({
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [onSiteNameChange]);
 
   const updateItem = (id: string, patch: Partial<NavItem>) => {
     setItems((prev) =>
@@ -163,10 +171,15 @@ export default function NavigationAdmin({
         openInNewTab: Boolean(item.openInNewTab),
       }));
 
+      const cleanedSiteName = title.trim() || "Sourav Mitra";
+
       const res = await fetch("/api/cms/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ navItems: cleaned }),
+        body: JSON.stringify({
+          navItems: cleaned,
+          siteName: cleanedSiteName,
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -179,9 +192,11 @@ export default function NavigationAdmin({
 
       setItems(cleaned);
       setIsCustomNav(true);
+      setUserTitle(null);
+      onSiteNameChange?.(cleanedSiteName);
       setStatusMessage({
         type: "success",
-        text: "Navigation saved and published to the site header!",
+        text: "Navigation and site title saved and published to the site header!",
       });
       setTimeout(() => setStatusMessage(null), 4000);
     } catch {
@@ -304,6 +319,64 @@ export default function NavigationAdmin({
         </div>
       )}
 
+      {/* Site Title / Header Branding Editor */}
+      <div className="bg-[#0b0b0b] border border-[#262626] p-5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex-1 max-w-xl">
+            <div className="flex items-center gap-2 mb-1.5">
+              <label
+                htmlFor="site-title-input"
+                className="text-[10px] uppercase text-[#C5A059] font-bold tracking-widest">
+                Site Title (Header Brand Name)
+              </label>
+              <span className="text-[10px] text-gray-500 font-normal">
+                &bull; Displayed in site header beside logo
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                id="site-title-input"
+                ref={titleInputRef}
+                type="text"
+                value={title}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setUserTitle(val);
+                  onSiteNameChange?.(val);
+                }}
+                placeholder="Sourav Mitra"
+                maxLength={100}
+                className="w-full px-3.5 py-2.5 bg-black border border-[#333] hover:border-[#555] focus:border-[#C5A059] text-white font-serif text-lg focus:outline-none transition-colors"
+              />
+              {title !== "Sourav Mitra" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUserTitle("Sourav Mitra");
+                    onSiteNameChange?.("Sourav Mitra");
+                  }}
+                  className="px-3 py-2.5 border border-[#333] hover:border-[#C5A059] text-gray-400 hover:text-white text-[10px] uppercase tracking-wider font-semibold whitespace-nowrap cursor-pointer transition-colors"
+                  title="Reset to default brand name">
+                  Reset
+                </button>
+              )}
+            </div>
+            <p className="text-[11px] text-gray-500 mt-1.5">
+              Edit the brand text shown in the global header. Updates preview live and saves with &ldquo;Save Navigation&rdquo;.
+            </p>
+          </div>
+
+          <div className="text-left md:text-right pl-0 md:pl-6 border-t md:border-t-0 md:border-l border-[#222] pt-3 md:pt-0 shrink-0">
+            <span className="text-gray-400 block font-mono text-[10px] uppercase tracking-wider mb-1">
+              Active Header Brand
+            </span>
+            <span className="text-base font-serif text-[#C5A059] font-medium block">
+              {title.trim() || "Sourav Mitra"}
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Live Header Preview */}
       <div className="border border-[#262626] bg-[#070707] p-4">
         <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-3">
@@ -313,12 +386,15 @@ export default function NavigationAdmin({
           </span>
         </div>
         <div className="bg-black border border-[#333333] px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+          <div
+            onClick={() => titleInputRef.current?.focus()}
+            className="flex items-center gap-3 cursor-pointer group"
+            title="Click to edit site title">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={logoUrl}
-                alt={siteName}
+                alt={title || siteName}
                 width={44}
                 height={44}
                 style={{
@@ -328,8 +404,9 @@ export default function NavigationAdmin({
                 className="w-11 h-11 rounded-full object-cover shrink-0 border border-[#C5A059]/40 shadow-sm"
               />
             ) : null}
-            <span className="text-lg font-serif text-white">
-              {siteName}
+            <span className="text-lg font-serif text-white group-hover:text-[#C5A059] transition-colors flex items-center gap-1.5">
+              {title || "Sourav Mitra"}
+              <span className="text-gray-500 group-hover:text-[#C5A059] text-xs">✎</span>
             </span>
           </div>
           <nav className="flex flex-wrap items-center gap-6 text-[#D4D4D4] text-xs uppercase tracking-widest font-medium">

@@ -48,7 +48,7 @@ export function sanitizeCss(css: string): string {
     /javascript\s*:/i,
     /vbscript\s*:/i,
     /expression\s*\(/i,
-    /url\s*\(\s*['"]?\s*(?:javascript|vbscript):/i,
+    /url\s*\(\s*['"]?(?:javascript|vbscript)\s*:/i,
     /-moz-binding/i,
     /-webkit-binding/i,
     /behavior\s*:/i,
@@ -164,23 +164,23 @@ export function sanitizePathSlug(input: string): string {
 
 /**
  * Validates and sanitizes a CSS color value (hex, rgb/rgba, hsl/hsla, or safe named colors).
+ * Uses linear deterministic parsing to prevent regular expression denial of service (ReDoS).
  * Falls back to "#FFFFFF" if invalid.
  */
 export function sanitizeColor(color: unknown, fallback = "#FFFFFF"): string {
   if (typeof color !== "string") return fallback;
   const trimmed = color.trim();
-  // Validates 3, 4, 6, or 8 digit hex color
-  if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(trimmed)) {
-    return trimmed;
+  if (!trimmed || trimmed.length > 100) return fallback;
+
+  // Hex colors: #RGB, #RGBA, #RRGGBB, #RRGGBBAA (checked linearly without backtracking)
+  if (/^#[0-9a-fA-F]+$/.test(trimmed)) {
+    const len = trimmed.length;
+    if (len === 4 || len === 5 || len === 7 || len === 9) {
+      return trimmed;
+    }
+    return fallback;
   }
-  // Validates rgb/rgba/hsl/hsla
-  if (
-    /^(rgb|hsl)a?\(\s*[\d.]+\s*(?:%|\s*,\s*|\s+)\s*[\d.]+\s*(?:%|\s*,\s*|\s+)\s*[\d.]+\s*(?:%|\s*,\s*|\s*\/|\s+)\s*[\d.]+\s*%?\s*\)$/i.test(
-      trimmed
-    )
-  ) {
-    return trimmed;
-  }
+
   // Standard CSS safe keywords
   const safeNamedColors = new Set([
     "white",
@@ -197,6 +197,29 @@ export function sanitizeColor(color: unknown, fallback = "#FFFFFF"): string {
   if (safeNamedColors.has(trimmed.toLowerCase())) {
     return trimmed.toLowerCase();
   }
+
+  // Validates rgb/rgba/hsl/hsla functions deterministically without nested quantifiers
+  const match = trimmed.match(/^(rgba?|hsla?)\((.+)\)$/i);
+  if (match) {
+    const content = match[2].trim();
+    // Allow only numeric digits, comma, period, percent, slash, and whitespace
+    if (/^[0-9.,%/\s]+$/.test(content)) {
+      const parts = content.includes(",")
+        ? content.split(",")
+        : content.replace(/\//g, " ").trim().split(/\s+/);
+
+      if (parts.length === 3 || parts.length === 4) {
+        const allValid = parts.every((p) => {
+          const part = p.trim();
+          return /^\d+(?:\.\d+)?%?$/.test(part);
+        });
+        if (allValid) {
+          return trimmed;
+        }
+      }
+    }
+  }
+
   return fallback;
 }
 

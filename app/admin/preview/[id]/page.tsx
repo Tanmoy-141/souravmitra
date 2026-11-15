@@ -4,7 +4,11 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { pages, projects } from "@/db/schema";
 import { getSessionPayload } from "@/lib/require-session";
-import { sanitizeHtml, safeCssForStyleTag, sanitizeSlugInput } from "@/lib/sanitize";
+import {
+  sanitizeHtml,
+  safeCssForStyleTag,
+  sanitizeSlugInput,
+} from "@/lib/sanitize";
 import { splitDynamicBlocks } from "@/lib/dynamic-blocks";
 import type { Block } from "@/data/cms";
 import CmsDynamicBlockPortal from "@/components/cms/CmsDynamicBlockPortal";
@@ -95,11 +99,7 @@ export default async function AdminDraftPreviewPage({
     notFound();
   }
 
-  const [page] = await db
-    .select()
-    .from(pages)
-    .where(eq(pages.id, id))
-    .limit(1);
+  const [page] = await db.select().from(pages).where(eq(pages.id, id)).limit(1);
 
   if (!page) {
     notFound();

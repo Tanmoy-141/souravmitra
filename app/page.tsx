@@ -21,7 +21,12 @@ export default async function Home() {
     .from(pages)
     .where(
       and(
-        or(eq(pages.slug, "/"), eq(pages.slug, "")),
+        or(
+          eq(pages.slug, "/"),
+          eq(pages.slug, ""),
+          eq(pages.slug, "home"),
+          eq(pages.slug, "/home"),
+        ),
         eq(pages.status, "published"),
         isNull(pages.deletedAt),
       ),

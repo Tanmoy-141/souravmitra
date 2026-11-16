@@ -178,7 +178,12 @@ function isSamePage(page: CustomPage, target: CustomPage): boolean {
 function getPublishSlug(page: CustomPage): string {
   const slug = typeof page.slug === "string" ? page.slug.trim() : "";
 
-  if (slug === "" || slug === "/") {
+  if (
+    slug === "" ||
+    slug === "/" ||
+    slug === "home" ||
+    slug === "/home"
+  ) {
     return "/";
   }
 

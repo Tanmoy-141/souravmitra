@@ -2219,19 +2219,21 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         typeof initialHtml === "string" && initialHtml.trim() !== ""
           ? initialHtml
           : `
-          <section style="position: relative; width: 100%; min-height: 85vh; overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; padding: 4rem 1.5rem;">
+          <section data-hero-section="true" class="hero-reveal-container" style="position: relative; width: 100%; min-height: 85vh; overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; padding: 4rem 1.5rem;">
             <!-- Background Image (Editable, Replaceable, Deletable) -->
             <img 
+              data-hero-bg="true"
+              class="hero-fixed-bg hero-bg-img"
               src="https://static.wixstatic.com/media/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg/v1/fill/w_1920,h_1080,al_c,q_90,enc_avif,quality_auto/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg" 
               alt="Sourav Mitra - Hero Artwork" 
               style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;" 
             />
 
             <!-- Dark overlay -->
-            <div style="position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); pointer-events: none; z-index: 1;"></div>
+            <div class="hero-overlay hero-fixed-overlay" style="position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); pointer-events: none; z-index: 1;"></div>
 
             <!-- Text overlay centered on the image -->
-            <div style="position: relative; z-index: 2; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;">
+            <div class="hero-content" style="position: relative; z-index: 2; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;">
               <h1 style="font-size: 4rem; font-family: serif; color: #FFFFFF; margin-bottom: 2rem; text-transform: uppercase; letter-spacing: 0.05em; text-shadow: 0 4px 20px rgba(0,0,0,0.8); line-height: 1.1;">
                 Sourav Mitra
               </h1>
@@ -8252,11 +8254,13 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         content: `
         <section data-hero-section="true" class="hero-reveal-container" style="position: relative; width: 100%; min-height: 85vh; overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; padding: 4rem 1.5rem;">
           <img 
+            data-hero-bg="true"
+            class="hero-fixed-bg hero-bg-img"
             src="https://static.wixstatic.com/media/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg/v1/fill/w_1920,h_1080,al_c,q_90,enc_avif,quality_auto/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg" 
             alt="Sourav Mitra - Hero Artwork" 
             style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;" 
           />
-          <div class="hero-overlay" style="position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); pointer-events: none; z-index: 1;"></div>
+          <div class="hero-overlay hero-fixed-overlay" style="position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); pointer-events: none; z-index: 1;"></div>
           <div class="hero-content" style="position: relative; z-index: 2; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;">
             <h1 style="font-size: 4rem; font-family: serif; color: #FFFFFF; margin-bottom: 2rem; text-transform: uppercase; letter-spacing: 0.05em; text-shadow: 0 4px 20px rgba(0,0,0,0.8); line-height: 1.1;">
               Sourav Mitra
@@ -8281,6 +8285,8 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
 
         content: `
         <img 
+          data-hero-bg="true"
+          class="hero-fixed-bg hero-bg-img"
           src="https://static.wixstatic.com/media/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg/v1/fill/w_1920,h_1080,al_c,q_90,enc_avif,quality_auto/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg" 
           alt="Hero Artwork" 
           style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;"
@@ -9044,14 +9050,16 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         label: "Hero Banner Showcase",
         category: "Portfolio",
         content: `
-        <section style="position: relative; width: 100%; min-height: 80vh; overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; padding: 5rem 1.5rem; background: #000000; box-sizing: border-box;">
+        <section data-hero-section="true" class="hero-reveal-container" style="position: relative; width: 100%; min-height: 80vh; overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; padding: 5rem 1.5rem; background: #000000; box-sizing: border-box;">
           <img 
+            data-hero-bg="true"
+            class="hero-fixed-bg hero-bg-img"
             src="https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?q=80&w=1920" 
             alt="Hero Cinematic Artwork" 
             style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; opacity: 0.5; filter: contrast(110%);" 
           />
-          <div style="position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.85) 100%); pointer-events: none; z-index: 1;"></div>
-          <div style="position: relative; z-index: 2; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;">
+          <div class="hero-overlay hero-fixed-overlay" style="position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.85) 100%); pointer-events: none; z-index: 1;"></div>
+          <div class="hero-content" style="position: relative; z-index: 2; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;">
             <span style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.25em; color: #C5A059; margin-bottom: 1.25rem;">
               Digital Painter &bull; Book Cover Artist
             </span>

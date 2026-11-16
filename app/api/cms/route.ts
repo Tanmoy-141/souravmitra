@@ -9,6 +9,10 @@ import { sanitizeHtml, sanitizeCss, sanitizePathSlug } from "@/lib/sanitize";
 import { CmsPageSchema, CmsBulkPageSchema } from "@/lib/schemas";
 
 function sanitizePageSlug(slug: string): string {
+  const s = slug.trim();
+  if (s === "/" || s === "" || s === "home" || s === "/home") {
+    return "/";
+  }
   return sanitizePathSlug(slug);
 }
 
@@ -67,8 +71,13 @@ export async function GET(req: NextRequest) {
         .from(pages)
         .where(
           and(
-            slug === "/" || slug === ""
-              ? or(eq(pages.slug, "/"), eq(pages.slug, ""))
+            slug === "/" || slug === "" || slug === "home" || slug === "/home"
+              ? or(
+                  eq(pages.slug, "/"),
+                  eq(pages.slug, ""),
+                  eq(pages.slug, "home"),
+                  eq(pages.slug, "/home"),
+                )
               : eq(pages.slug, slug),
             ...filterConditions,
           ),
@@ -195,8 +204,13 @@ export async function POST(req: NextRequest) {
             })
             .from(pages)
             .where(
-              cleanSlug === "/" || cleanSlug === ""
-                ? or(eq(pages.slug, "/"), eq(pages.slug, ""))
+              cleanSlug === "/" || cleanSlug === "" || cleanSlug === "home" || cleanSlug === "/home"
+                ? or(
+                    eq(pages.slug, "/"),
+                    eq(pages.slug, ""),
+                    eq(pages.slug, "home"),
+                    eq(pages.slug, "/home"),
+                  )
                 : eq(pages.slug, cleanSlug),
             )
             .orderBy(desc(pages.updatedAt))

@@ -1348,17 +1348,57 @@ export function CmsDynamicBlockPortal({
     setTargets(newTargets);
 
     // Hero Section Scroll Effect (Wix-style Fixed Background Parallax Window)
-    const heroEl = containerRef.current.querySelector<HTMLElement>(
-      '#ivkb, [data-hero-section="true"], .hero-reveal-container, section.c1504',
+    let heroEl = containerRef.current.querySelector<HTMLElement>(
+      '#ivkb, [data-hero-section="true"], .hero-reveal-container, section.c1504, [data-section="hero"], [data-block="hero"], [data-hero="true"]',
     );
+    if (!heroEl) {
+      const firstSection = containerRef.current.querySelector<HTMLElement>("section");
+      if (firstSection && firstSection.querySelector("h1")) {
+        heroEl = firstSection;
+      }
+    }
     if (heroEl) {
       heroEl.classList.add("hero-reveal-active");
-      // Remove any counter text from hero section
-      heroEl.querySelectorAll(".hero-tagline, p").forEach((el) => {
-        if (el.textContent?.includes("550+ covers")) {
-          el.remove();
+      heroEl.setAttribute("data-hero-section", "true");
+
+      // Identify the hero background artwork
+      let bgEl = heroEl.querySelector<HTMLElement>(
+        '.hero-fixed-bg, .hero-bg-img, [data-hero-bg="true"], #ifjq',
+      );
+      if (!bgEl) {
+        const contentContainer = heroEl.querySelector<HTMLElement>(
+          ".hero-content, #ibak",
+        );
+        const allImgs = Array.from(heroEl.querySelectorAll<HTMLImageElement>("img"));
+        const candidateImg = allImgs.find(
+          (img) => !contentContainer || !contentContainer.contains(img),
+        );
+        if (candidateImg) {
+          bgEl = candidateImg;
         }
-      });
+      }
+
+      if (bgEl) {
+        bgEl.classList.add("hero-fixed-bg");
+        bgEl.setAttribute("data-hero-bg", "true");
+      }
+
+      // Ensure content container sits on z-index: 2
+      const contentEl =
+        heroEl.querySelector<HTMLElement>(
+          '.hero-content, #ibak, [data-hero-content="true"]',
+        ) || heroEl.querySelector("h1")?.parentElement;
+      if (contentEl && contentEl !== heroEl) {
+        contentEl.classList.add("hero-content");
+      }
+
+      // Identify overlay if present
+      const overlayEl = heroEl.querySelector<HTMLElement>(
+        '.hero-overlay, #iuth, .hero-fixed-overlay',
+      );
+      if (overlayEl) {
+        overlayEl.classList.add("hero-fixed-overlay");
+      }
     }
 
     // Initialize intersection-observer counter animations for all counters in container
@@ -1378,9 +1418,7 @@ export function CmsDynamicBlockPortal({
         [data-hero-section="true"] {
           position: relative !important;
           width: 100% !important;
-          height: 480px !important;
-          min-height: 460px !important;
-          max-height: 540px !important;
+          min-height: 460px;
           overflow: hidden !important;
           clip-path: inset(0) !important;
           -webkit-clip-path: inset(0) !important;
@@ -1391,12 +1429,17 @@ export function CmsDynamicBlockPortal({
           box-sizing: border-box !important;
           padding: 3rem 1.5rem !important;
         }
-        .hero-reveal-container img,
-        .hero-reveal-active img,
-        #ivkb img,
-        #ifjq,
-        [data-hero-section="true"] img,
-        .hero-fixed-bg {
+        .hero-reveal-container img.hero-fixed-bg,
+        .hero-reveal-container img.hero-bg-img,
+        .hero-reveal-container img[data-hero-bg="true"],
+        .hero-reveal-active img.hero-fixed-bg,
+        .hero-reveal-active img.hero-bg-img,
+        .hero-reveal-active img[data-hero-bg="true"],
+        [data-hero-section="true"] img.hero-fixed-bg,
+        [data-hero-section="true"] img.hero-bg-img,
+        [data-hero-section="true"] img[data-hero-bg="true"],
+        .hero-fixed-bg,
+        #ifjq {
           position: fixed !important;
           top: 0 !important;
           left: 0 !important;
@@ -1411,14 +1454,26 @@ export function CmsDynamicBlockPortal({
           object-position: center center !important;
           pointer-events: none !important;
           z-index: 0 !important;
-          transform: none !important;
-          will-change: auto !important;
+          transform: translate3d(0, 0, 0) !important;
+          will-change: transform !important;
+        }
+        .hero-reveal-container[style*="background-image"],
+        .hero-reveal-active[style*="background-image"],
+        [data-hero-section="true"][style*="background-image"] {
+          background-attachment: fixed !important;
+          background-position: center center !important;
+          background-size: cover !important;
+          background-repeat: no-repeat !important;
         }
         .hero-reveal-container .hero-overlay,
+        .hero-reveal-container .hero-fixed-overlay,
+        .hero-reveal-active .hero-overlay,
+        .hero-reveal-active .hero-fixed-overlay,
         .hero-reveal-active #iuth,
         #ivkb #iuth,
         #iuth,
         [data-hero-section="true"] .hero-overlay,
+        [data-hero-section="true"] .hero-fixed-overlay,
         .hero-fixed-overlay {
           position: fixed !important;
           top: 0 !important;
@@ -1429,11 +1484,14 @@ export function CmsDynamicBlockPortal({
           height: 100dvh !important;
           min-height: 100vh !important;
           min-height: 100dvh !important;
-          background: rgba(0, 0, 0, 0.45) !important;
           pointer-events: none !important;
           z-index: 1 !important;
         }
+        :where(.hero-overlay, #iuth, .hero-fixed-overlay) {
+          background: rgba(0, 0, 0, 0.45);
+        }
         .hero-reveal-container .hero-content,
+        .hero-reveal-active .hero-content,
         .hero-reveal-active #ibak,
         #ivkb #ibak,
         #ibak,
@@ -1457,10 +1515,8 @@ export function CmsDynamicBlockPortal({
           [data-hero-section="true"] {
             position: relative !important;
             width: 100% !important;
-            height: 480px !important;
-            min-height: 450px !important;
-            max-height: 520px !important;
-            padding: 4.5rem 1.5rem 2rem 1.5rem !important;
+            min-height: 420px !important;
+            padding: 3.5rem 1.5rem 2rem 1.5rem !important;
             overflow: hidden !important;
             clip-path: inset(0) !important;
             -webkit-clip-path: inset(0) !important;
@@ -1472,12 +1528,17 @@ export function CmsDynamicBlockPortal({
             margin-top: 0 !important;
             margin-bottom: 0 !important;
           }
-          .hero-reveal-container img,
-          .hero-reveal-active img,
-          #ivkb img,
-          #ifjq,
-          [data-hero-section="true"] img,
-          .hero-fixed-bg {
+          .hero-reveal-container img.hero-fixed-bg,
+          .hero-reveal-container img.hero-bg-img,
+          .hero-reveal-container img[data-hero-bg="true"],
+          .hero-reveal-active img.hero-fixed-bg,
+          .hero-reveal-active img.hero-bg-img,
+          .hero-reveal-active img[data-hero-bg="true"],
+          [data-hero-section="true"] img.hero-fixed-bg,
+          [data-hero-section="true"] img.hero-bg-img,
+          [data-hero-section="true"] img[data-hero-bg="true"],
+          .hero-fixed-bg,
+          #ifjq {
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
@@ -1492,14 +1553,18 @@ export function CmsDynamicBlockPortal({
             object-position: center center !important;
             pointer-events: none !important;
             z-index: 0 !important;
-            transform: none !important;
-            will-change: auto !important;
+            transform: translate3d(0, 0, 0) !important;
+            will-change: transform !important;
           }
           .hero-reveal-container .hero-overlay,
+          .hero-reveal-container .hero-fixed-overlay,
+          .hero-reveal-active .hero-overlay,
+          .hero-reveal-active .hero-fixed-overlay,
           .hero-reveal-active #iuth,
           #ivkb #iuth,
           #iuth,
           [data-hero-section="true"] .hero-overlay,
+          [data-hero-section="true"] .hero-fixed-overlay,
           .hero-fixed-overlay {
             position: fixed !important;
             top: 0 !important;
@@ -1510,37 +1575,33 @@ export function CmsDynamicBlockPortal({
             height: 100dvh !important;
             min-height: 100vh !important;
             min-height: 100dvh !important;
-            background: rgba(0, 0, 0, 0.45) !important;
             pointer-events: none !important;
             z-index: 1 !important;
           }
 
           :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(h1, #iznl) {
-            font-family: 'stingray', 'Stingray', 'Playfair Display', cursive, serif !important;
-            font-size: clamp(3rem, 11vw, 4.5rem) !important;
-            line-height: 1.15 !important;
-            white-space: nowrap !important;
-            margin-bottom: 1.25rem !important;
-            margin-top: 0 !important;
-            color: #ffffff !important;
-            text-shadow: 0 4px 16px rgba(0, 0, 0, 0.6) !important;
+            font-size: clamp(2.5rem, 9vw, 4rem);
+            line-height: 1.15;
+            margin-bottom: 1.25rem;
+            margin-top: 0;
+            text-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+            word-break: break-word;
+            overflow-wrap: break-word;
           }
 
           :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(button, a, #if3pf) {
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            padding: 0.85rem 2.25rem !important;
-            font-size: 0.75rem !important;
-            font-weight: 700 !important;
-            letter-spacing: 0.18em !important;
-            text-transform: uppercase !important;
-            background-color: #ffffff !important;
-            color: #000000 !important;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
-            border-radius: 2px !important;
-            margin-top: 0.5rem !important;
-            text-decoration: none !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.85rem 2.25rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            border-radius: 2px;
+            margin-top: 0.5rem;
+            text-decoration: none;
           }
 
           /* Prevent and reset CMS free-drag pixel widths, heights, and offsets on mobile */

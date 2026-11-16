@@ -502,11 +502,17 @@ textarea::placeholder {
 }
 
 /* Fixed background layer: pinned to viewport, visible ONLY inside the hero section */
-.hero-reveal-container img,
-.hero-reveal-active img,
-#ivkb img,
-[data-hero-section="true"] img,
-.hero-fixed-bg {
+.hero-reveal-container img.hero-fixed-bg,
+.hero-reveal-container img.hero-bg-img,
+.hero-reveal-container img[data-hero-bg="true"],
+.hero-reveal-active img.hero-fixed-bg,
+.hero-reveal-active img.hero-bg-img,
+.hero-reveal-active img[data-hero-bg="true"],
+[data-hero-section="true"] img.hero-fixed-bg,
+[data-hero-section="true"] img.hero-bg-img,
+[data-hero-section="true"] img[data-hero-bg="true"],
+.hero-fixed-bg,
+#ifjq {
   position: fixed !important;
   top: 0 !important;
   left: 0 !important;
@@ -520,20 +526,37 @@ textarea::placeholder {
   will-change: transform;
 }
 
+/* Support for CSS background-image heroes (fixed parallax window) */
+.hero-reveal-container[style*="background-image"],
+.hero-reveal-active[style*="background-image"],
+[data-hero-section="true"][style*="background-image"] {
+  background-attachment: fixed !important;
+  background-position: center center !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+}
+
 /* Dark overlay: also fixed inside the clipped window */
 .hero-reveal-container .hero-overlay,
+.hero-reveal-container .hero-fixed-overlay,
+.hero-reveal-active .hero-overlay,
+.hero-reveal-active .hero-fixed-overlay,
 .hero-reveal-active #iuth,
 #ivkb #iuth,
 [data-hero-section="true"] .hero-overlay,
+[data-hero-section="true"] .hero-fixed-overlay,
 .hero-fixed-overlay {
   position: fixed !important;
   top: 0 !important;
   left: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
-  background: rgba(0, 0, 0, 0.45) !important;
   pointer-events: none !important;
   z-index: 1 !important;
+}
+
+:where(.hero-overlay, #iuth, .hero-fixed-overlay) {
+  background: rgba(0, 0, 0, 0.45);
 }
 
 /* Hero foreground typography and button: scrolls naturally with the section */
@@ -603,10 +626,8 @@ textarea::placeholder {
   [data-hero-section="true"] {
     position: relative !important;
     width: 100% !important;
-    height: 480px !important;
-    min-height: 450px !important;
-    max-height: 520px !important;
-    padding: 4.5rem 1.5rem 2rem 1.5rem !important;
+    min-height: 420px !important;
+    padding: 3.5rem 1.5rem 2rem 1.5rem !important;
     overflow: hidden !important;
     clip-path: inset(0) !important;
     -webkit-clip-path: inset(0) !important;
@@ -619,12 +640,17 @@ textarea::placeholder {
     margin-bottom: 0 !important;
   }
 
-  .hero-reveal-container img,
-  .hero-reveal-active img,
-  #ivkb img,
-  #ifjq,
-  [data-hero-section="true"] img,
-  .hero-fixed-bg {
+  .hero-reveal-container img.hero-fixed-bg,
+  .hero-reveal-container img.hero-bg-img,
+  .hero-reveal-container img[data-hero-bg="true"],
+  .hero-reveal-active img.hero-fixed-bg,
+  .hero-reveal-active img.hero-bg-img,
+  .hero-reveal-active img[data-hero-bg="true"],
+  [data-hero-section="true"] img.hero-fixed-bg,
+  [data-hero-section="true"] img.hero-bg-img,
+  [data-hero-section="true"] img[data-hero-bg="true"],
+  .hero-fixed-bg,
+  #ifjq {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
@@ -644,10 +670,14 @@ textarea::placeholder {
   }
 
   .hero-reveal-container .hero-overlay,
+  .hero-reveal-container .hero-fixed-overlay,
+  .hero-reveal-active .hero-overlay,
+  .hero-reveal-active .hero-fixed-overlay,
   .hero-reveal-active #iuth,
   #ivkb #iuth,
   #iuth,
   [data-hero-section="true"] .hero-overlay,
+  [data-hero-section="true"] .hero-fixed-overlay,
   .hero-fixed-overlay {
     position: fixed !important;
     top: 0 !important;
@@ -658,37 +688,33 @@ textarea::placeholder {
     height: 100dvh !important;
     min-height: 100vh !important;
     min-height: 100dvh !important;
-    background: rgba(0, 0, 0, 0.45) !important;
     pointer-events: none !important;
     z-index: 1 !important;
   }
 
   :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(h1, #iznl) {
-    font-family: 'stingray', 'Stingray', 'Playfair Display', cursive, serif !important;
-    font-size: clamp(3rem, 11vw, 4.5rem) !important;
-    line-height: 1.15 !important;
-    white-space: nowrap !important;
-    margin-bottom: 1.25rem !important;
-    margin-top: 0 !important;
-    color: #ffffff !important;
-    text-shadow: 0 4px 16px rgba(0, 0, 0, 0.6) !important;
+    font-size: clamp(2.5rem, 9vw, 4rem);
+    line-height: 1.15;
+    margin-bottom: 1.25rem;
+    margin-top: 0;
+    text-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    word-break: break-word;
+    overflow-wrap: break-word;
   }
 
   :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(button, a, #if3pf) {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0.85rem 2.25rem !important;
-    font-size: 0.75rem !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.18em !important;
-    text-transform: uppercase !important;
-    background-color: #ffffff !important;
-    color: #000000 !important;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
-    border-radius: 2px !important;
-    margin-top: 0.5rem !important;
-    text-decoration: none !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.85rem 2.25rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    border-radius: 2px;
+    margin-top: 0.5rem;
+    text-decoration: none;
   }
 
   /* Intro narrative section below hero (Welcome Statement) */

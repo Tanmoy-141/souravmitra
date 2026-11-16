@@ -23,7 +23,7 @@ export default function HeroSection({
   return (
     <section
       data-hero-section="true"
-      className="hero-reveal-container relative w-full min-h-[85vh] min-h-[85dvh] overflow-hidden flex items-center justify-center text-center px-4 py-8"
+      className="hero-reveal-container relative w-full min-h-[85vh] overflow-hidden flex items-center justify-center text-center px-4 py-8"
       style={{ clipPath: "inset(0)", WebkitClipPath: "inset(0)" }}>
       {/* Fixed background layer pinned to viewport, revealed through this section window */}
       <div

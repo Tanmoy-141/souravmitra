@@ -1411,17 +1411,16 @@ export function CmsDynamicBlockPortal({
   return (
     <>
       <style>{`
-        /* Hero Section Scroll Effect (Wix-style Fixed Background Parallax Window) */
+        /* Hero Section (Matches CMS visual editor layout and framing) */
         .hero-reveal-container,
         .hero-reveal-active,
         #ivkb,
         [data-hero-section="true"] {
           position: relative !important;
           width: 100% !important;
-          min-height: 460px;
+          min-height: 85vh !important;
+          min-height: 85dvh !important;
           overflow: hidden !important;
-          clip-path: inset(0) !important;
-          -webkit-clip-path: inset(0) !important;
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
@@ -1440,27 +1439,24 @@ export function CmsDynamicBlockPortal({
         [data-hero-section="true"] img[data-hero-bg="true"],
         .hero-fixed-bg,
         #ifjq {
-          position: fixed !important;
+          position: absolute !important;
           top: 0 !important;
           left: 0 !important;
-          width: 100vw !important;
-          width: 100dvw !important;
-          height: 100vh !important;
-          height: 100dvh !important;
-          min-height: 100vh !important;
-          min-height: 100dvh !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
           max-height: none !important;
           object-fit: cover !important;
           object-position: center center !important;
           pointer-events: none !important;
           z-index: 0 !important;
-          transform: translate3d(0, 0, 0) !important;
-          will-change: transform !important;
+          transform: none !important;
+          will-change: auto !important;
         }
         .hero-reveal-container[style*="background-image"],
         .hero-reveal-active[style*="background-image"],
         [data-hero-section="true"][style*="background-image"] {
-          background-attachment: fixed !important;
           background-position: center center !important;
           background-size: cover !important;
           background-repeat: no-repeat !important;
@@ -1475,15 +1471,13 @@ export function CmsDynamicBlockPortal({
         [data-hero-section="true"] .hero-overlay,
         [data-hero-section="true"] .hero-fixed-overlay,
         .hero-fixed-overlay {
-          position: fixed !important;
+          position: absolute !important;
           top: 0 !important;
           left: 0 !important;
-          width: 100vw !important;
-          width: 100dvw !important;
-          height: 100vh !important;
-          height: 100dvh !important;
-          min-height: 100vh !important;
-          min-height: 100dvh !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
           pointer-events: none !important;
           z-index: 1 !important;
         }
@@ -1515,11 +1509,10 @@ export function CmsDynamicBlockPortal({
           [data-hero-section="true"] {
             position: relative !important;
             width: 100% !important;
-            min-height: 420px !important;
+            min-height: 75vh !important;
+            min-height: 75dvh !important;
             padding: 3.5rem 1.5rem 2rem 1.5rem !important;
             overflow: hidden !important;
-            clip-path: inset(0) !important;
-            -webkit-clip-path: inset(0) !important;
             display: flex !important;
             flex-direction: column !important;
             align-items: center !important;
@@ -1539,22 +1532,20 @@ export function CmsDynamicBlockPortal({
           [data-hero-section="true"] img[data-hero-bg="true"],
           .hero-fixed-bg,
           #ifjq {
-            position: fixed !important;
+            position: absolute !important;
             top: 0 !important;
             left: 0 !important;
-            width: 100vw !important;
-            width: 100dvw !important;
-            height: 100vh !important;
-            height: 100dvh !important;
-            min-height: 100vh !important;
-            min-height: 100dvh !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
             max-height: none !important;
             object-fit: cover !important;
             object-position: center center !important;
             pointer-events: none !important;
             z-index: 0 !important;
-            transform: translate3d(0, 0, 0) !important;
-            will-change: transform !important;
+            transform: none !important;
+            will-change: auto !important;
           }
           .hero-reveal-container .hero-overlay,
           .hero-reveal-container .hero-fixed-overlay,
@@ -1566,15 +1557,13 @@ export function CmsDynamicBlockPortal({
           [data-hero-section="true"] .hero-overlay,
           [data-hero-section="true"] .hero-fixed-overlay,
           .hero-fixed-overlay {
-            position: fixed !important;
+            position: absolute !important;
             top: 0 !important;
             left: 0 !important;
-            width: 100vw !important;
-            width: 100dvw !important;
-            height: 100vh !important;
-            height: 100dvh !important;
-            min-height: 100vh !important;
-            min-height: 100dvh !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
             pointer-events: none !important;
             z-index: 1 !important;
           }

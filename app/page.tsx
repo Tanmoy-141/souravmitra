@@ -14,6 +14,7 @@ import HeroSection from "@/components/HeroSection";
 // dynamic API usage, so without this it's a candidate for static caching
 // that would keep serving stale content after a publish.
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function Home() {
   const pageResult = await db
@@ -40,10 +41,10 @@ export default async function Home() {
     const safeHtml = sanitizeHtml(page.htmlCache);
     return (
       <main className="min-h-screen pb-24">
-        {page.cssCache && <style>{safeCssForStyleTag(page.cssCache)}</style>}
         <div id="cms-page-content" className="w-full" suppressHydrationWarning>
           <CmsDynamicBlockPortal html={safeHtml} />
         </div>
+        {page.cssCache && <style id="cms-page-custom-css">{safeCssForStyleTag(page.cssCache)}</style>}
       </main>
     );
   }

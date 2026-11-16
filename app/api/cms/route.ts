@@ -18,7 +18,9 @@ function sanitizePageSlug(slug: string): string {
 
 function revalidateCmsPaths(slug?: string) {
   try {
+    revalidatePath("/", "layout");
     revalidatePath("/", "page");
+    revalidatePath("/admin/preview/[id]", "page");
     revalidatePath("/about", "page");
     revalidatePath("/book-covers", "page");
     revalidatePath("/illustration", "page");
@@ -31,6 +33,7 @@ function revalidateCmsPaths(slug?: string) {
       if (clean && clean !== "/") {
         revalidatePath(`/${clean}`, "page");
         revalidatePath(`/p/${clean}`, "page");
+        revalidatePath(`/${clean}`, "layout");
         revalidatePath(`/${clean}`);
         revalidatePath(`/p/${clean}`);
       }

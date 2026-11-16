@@ -23,16 +23,25 @@ export default function HeroSection({
   return (
     <section
       data-hero-section="true"
-      className="hero-reveal-container relative w-full min-h-[85vh] min-h-[85dvh] overflow-hidden flex items-center justify-center text-center px-4 py-8">
-      {/* Background artwork covering hero section with proper aspect ratio */}
-      <div className="absolute inset-0 w-full h-full pointer-events-none z-0">
+      className="hero-reveal-container relative w-full min-h-[85vh] min-h-[85dvh] overflow-hidden flex items-center justify-center text-center px-4 py-8"
+      style={{ clipPath: "inset(0)", WebkitClipPath: "inset(0)" }}>
+      {/* Fixed background layer pinned to viewport, revealed through this section window */}
+      <div
+        className="hero-fixed-bg fixed inset-0 w-screen h-screen pointer-events-none z-0"
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100vw",
+          height: "100vh",
+        }}>
         <Image
           src={imageUrl}
           alt={imageAlt}
           fill
           unoptimized
           priority
-          className="object-cover object-center"
+          className="object-cover object-top"
         />
         <div className="absolute inset-0 bg-black/45" />
       </div>

@@ -167,9 +167,6 @@ export default async function AdminDraftPreviewPage({
       <>
         {banner}
         <main className="min-h-screen pb-24">
-          {page.cssCache ? (
-            <style>{safeCssForStyleTag(page.cssCache)}</style>
-          ) : null}
           {safeHtml ? (
             <div
               id="cms-page-content"
@@ -180,6 +177,9 @@ export default async function AdminDraftPreviewPage({
           ) : null}
           {!hasProjectDisplay ? (
             <PortfolioCollection category={category} showIntro={!safeHtml} />
+          ) : null}
+          {page.cssCache ? (
+            <style id="cms-page-custom-css">{safeCssForStyleTag(page.cssCache)}</style>
           ) : null}
         </main>
       </>
@@ -216,10 +216,6 @@ export default async function AdminDraftPreviewPage({
     <>
       {banner}
       <main className="min-h-screen pb-24">
-        {page.cssCache ? (
-          <style>{safeCssForStyleTag(page.cssCache)}</style>
-        ) : null}
-
         {blocks.length > 0 && !safeHtml.trim() ? (
           <div className="flex flex-col">
             {blocks.map((block) => (
@@ -251,6 +247,10 @@ export default async function AdminDraftPreviewPage({
             />
           </div>
         )}
+
+        {page.cssCache ? (
+          <style id="cms-page-custom-css">{safeCssForStyleTag(page.cssCache)}</style>
+        ) : null}
       </main>
     </>
   );

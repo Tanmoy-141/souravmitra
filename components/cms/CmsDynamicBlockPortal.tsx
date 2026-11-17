@@ -1558,6 +1558,17 @@ export function CmsDynamicBlockPortal({
           filter: brightness(1.12) !important;
           box-shadow: 0 10px 25px -4px rgba(255, 255, 255, 0.35), 0 0 15px rgba(255, 255, 255, 0.15) !important;
         }
+        @media (max-width: 1150px) {
+          [data-cms-block],
+          [data-gjs-type],
+          .gjs-row,
+          .gjs-cell,
+          [style*="width: 1"],
+          [style*="width:1"] {
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+          }
+        }
         @media (max-width: 768px) {
           [data-cms-block],
           [data-gjs-type],

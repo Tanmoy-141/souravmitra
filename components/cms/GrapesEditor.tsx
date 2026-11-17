@@ -2226,7 +2226,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               class="hero-fixed-bg hero-bg-img"
               src="https://static.wixstatic.com/media/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg/v1/fill/w_1920,h_1080,al_c,q_90,enc_avif,quality_auto/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg" 
               alt="Sourav Mitra - Hero Artwork" 
-              style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;" 
+              style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; z-index: 0;" 
             />
 
             <!-- Dark overlay -->
@@ -4145,7 +4145,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         }
       });
 
-      // When width style is changed via Style Manager, clear max-width constraint
+      // When width style is changed via Style Manager, clear max-width constraint and clean inline style
       editor.on("styleable:change:width", () => {
         const selected = editor.getSelected();
         if (selected) {
@@ -4153,16 +4153,34 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           if (curStyle.width && curStyle.width !== "auto" && !curStyle["max-width"]) {
             selected.addStyle({ "max-width": "none" });
           }
+          // Clean conflicting width declaration from inline style attribute so CSS rule takes effect
+          const attrStyle = selected.getAttributes()?.style;
+          if (attrStyle && attrStyle.includes("width:")) {
+            const cleanAttrStyle = attrStyle
+              .split(";")
+              .filter((p: string) => !p.trim().toLowerCase().startsWith("width:") && !p.trim().toLowerCase().startsWith("max-width:"))
+              .join(";");
+            selected.addAttributes({ style: cleanAttrStyle });
+          }
         }
       });
 
-      // When height style is changed via Style Manager, clear max-height constraint
+      // When height style is changed via Style Manager, clear max-height constraint and clean inline style
       editor.on("styleable:change:height", () => {
         const selected = editor.getSelected();
         if (selected) {
           const curStyle = selected.getStyle() || {};
           if (curStyle.height && curStyle.height !== "auto" && !curStyle["max-height"]) {
             selected.addStyle({ "max-height": "none" });
+          }
+          // Clean conflicting height declaration from inline style attribute so CSS rule takes effect
+          const attrStyle = selected.getAttributes()?.style;
+          if (attrStyle && attrStyle.includes("height:")) {
+            const cleanAttrStyle = attrStyle
+              .split(";")
+              .filter((p: string) => !p.trim().toLowerCase().startsWith("height:") && !p.trim().toLowerCase().startsWith("max-height:"))
+              .join(";");
+            selected.addAttributes({ style: cleanAttrStyle });
           }
 
           const isClientSec =
@@ -8258,7 +8276,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             class="hero-fixed-bg hero-bg-img"
             src="https://static.wixstatic.com/media/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg/v1/fill/w_1920,h_1080,al_c,q_90,enc_avif,quality_auto/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg" 
             alt="Sourav Mitra - Hero Artwork" 
-            style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;" 
+            style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; z-index: 0;" 
           />
           <div class="hero-overlay hero-fixed-overlay" style="position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); pointer-events: none; z-index: 1;"></div>
           <div class="hero-content" style="position: relative; z-index: 2; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;">
@@ -8289,7 +8307,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           class="hero-fixed-bg hero-bg-img"
           src="https://static.wixstatic.com/media/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg/v1/fill/w_1920,h_1080,al_c,q_90,enc_avif,quality_auto/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg" 
           alt="Hero Artwork" 
-          style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;"
+          style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; z-index: 0;"
         />
       `,
       });
@@ -9056,7 +9074,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
             class="hero-fixed-bg hero-bg-img"
             src="https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?q=80&w=1920" 
             alt="Hero Cinematic Artwork" 
-            style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; opacity: 0.5; filter: contrast(110%);" 
+            style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; z-index: 0; opacity: 0.5; filter: contrast(110%);" 
           />
           <div class="hero-overlay hero-fixed-overlay" style="position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.85) 100%); pointer-events: none; z-index: 1;"></div>
           <div class="hero-content" style="position: relative; z-index: 2; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;">
@@ -9639,6 +9657,20 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               rule.addStyle(compStyle);
             }
           }
+        });
+
+        // Normalize hero background artwork to avoid letterbox squishing and head clipping
+        const heroBgImgs = wrapper.find?.('.hero-fixed-bg, .hero-bg-img, [data-hero-bg="true"], #ifjq') || [];
+        heroBgImgs.forEach((imgComp) => {
+          const imgAttrs = imgComp.getAttributes?.() || {};
+          if (imgAttrs.style && (imgAttrs.style.includes("height:75%") || imgAttrs.style.includes("height: 75%"))) {
+            const cleanStyle = imgAttrs.style
+              .replace(/height:\s*75%[;]?/gi, "")
+              .replace(/max-height:\s*none[;]?/gi, "")
+              .trim();
+            imgComp.addAttributes({ style: cleanStyle });
+          }
+          imgComp.addStyle({ "object-fit": "cover", "object-position": "center top" });
         });
       } catch (err) {
         console.warn("Failed to sync component styles to CSS rules:", err);

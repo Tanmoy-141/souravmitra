@@ -1360,6 +1360,8 @@ export function CmsDynamicBlockPortal({
     if (heroEl) {
       heroEl.classList.add("hero-reveal-active");
       heroEl.setAttribute("data-hero-section", "true");
+      heroEl.style.setProperty("clip-path", "inset(0)");
+      heroEl.style.setProperty("-webkit-clip-path", "inset(0)");
 
       // Identify the hero background artwork
       let bgEl = heroEl.querySelector<HTMLElement>(
@@ -1381,6 +1383,13 @@ export function CmsDynamicBlockPortal({
       if (bgEl) {
         bgEl.classList.add("hero-fixed-bg");
         bgEl.setAttribute("data-hero-bg", "true");
+        // Clear any stray height constraints that squish the hero image into a narrow letterbox
+        if (bgEl.style.height && bgEl.style.height !== "100%" && bgEl.style.height !== "100vh") {
+          bgEl.style.removeProperty("height");
+        }
+        if (bgEl.style.maxHeight) {
+          bgEl.style.removeProperty("max-height");
+        }
       }
 
       // Ensure content container sits on z-index: 2
@@ -1412,59 +1421,91 @@ export function CmsDynamicBlockPortal({
     <>
       <style>{`
         /* Hero Section (Wix-style Fixed Background Parallax Window) */
-        :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) {
-          position: relative;
-          width: 100%;
+        .hero-reveal-container,
+        .hero-reveal-active,
+        [data-hero-section="true"],
+        #ivkb {
+          position: relative !important;
+          width: 100% !important;
           min-height: 85vh;
           min-height: 85dvh;
-          overflow: hidden;
-          clip-path: inset(0);
-          -webkit-clip-path: inset(0);
+          overflow: hidden !important;
+          clip-path: inset(0) !important;
+          -webkit-clip-path: inset(0) !important;
           display: flex;
           align-items: center;
           justify-content: center;
           text-align: center;
           box-sizing: border-box;
         }
-        :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) img:where(.hero-fixed-bg, .hero-bg-img, [data-hero-bg="true"], #ifjq) {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100vw;
-          width: 100dvw;
-          height: 100vh;
-          height: 100dvh;
-          min-height: 100vh;
-          min-height: 100dvh;
-          max-height: none;
-          object-fit: cover;
-          object-position: center top;
-          pointer-events: none;
-          z-index: 0;
+        .hero-reveal-container img.hero-fixed-bg,
+        .hero-reveal-container img.hero-bg-img,
+        .hero-reveal-container img[data-hero-bg="true"],
+        .hero-reveal-active img.hero-fixed-bg,
+        .hero-reveal-active img.hero-bg-img,
+        .hero-reveal-active img[data-hero-bg="true"],
+        [data-hero-section="true"] img.hero-fixed-bg,
+        [data-hero-section="true"] img.hero-bg-img,
+        [data-hero-section="true"] img[data-hero-bg="true"],
+        img.hero-fixed-bg,
+        img.hero-bg-img,
+        img[data-hero-bg="true"],
+        #ifjq {
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 100vw !important;
+          width: 100dvw !important;
+          height: 100vh !important;
+          height: 100dvh !important;
+          min-height: 100vh !important;
+          min-height: 100dvh !important;
+          max-height: none !important;
+          object-fit: cover !important;
+          object-position: center top !important;
+          pointer-events: none !important;
+          z-index: 0 !important;
           transform: translate3d(0, 0, 0);
           will-change: transform;
         }
-        :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb)[style*="background-image"] {
-          background-attachment: fixed;
-          background-position: center top;
-          background-size: cover;
-          background-repeat: no-repeat;
+        .hero-reveal-container[style*="background-image"],
+        .hero-reveal-active[style*="background-image"],
+        [data-hero-section="true"][style*="background-image"],
+        #ivkb[style*="background-image"] {
+          background-attachment: fixed !important;
+          background-position: center top !important;
+          background-size: cover !important;
+          background-repeat: no-repeat !important;
         }
-        :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(.hero-overlay, .hero-fixed-overlay, #iuth) {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100vw;
-          width: 100dvw;
-          height: 100vh;
-          height: 100dvh;
-          pointer-events: none;
-          z-index: 1;
+        .hero-reveal-container .hero-overlay,
+        .hero-reveal-container .hero-fixed-overlay,
+        .hero-reveal-active .hero-overlay,
+        .hero-reveal-active .hero-fixed-overlay,
+        .hero-reveal-active #iuth,
+        #ivkb #iuth,
+        #iuth,
+        [data-hero-section="true"] .hero-overlay,
+        [data-hero-section="true"] .hero-fixed-overlay,
+        .hero-fixed-overlay {
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 100vw !important;
+          width: 100dvw !important;
+          height: 100vh !important;
+          height: 100dvh !important;
+          pointer-events: none !important;
+          z-index: 1 !important;
           background: rgba(0, 0, 0, 0.45);
         }
-        :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(.hero-content, #ibak) {
-          position: relative;
-          z-index: 2;
+        .hero-reveal-container .hero-content,
+        .hero-reveal-active .hero-content,
+        .hero-reveal-active #ibak,
+        #ivkb #ibak,
+        #ibak,
+        [data-hero-section="true"] .hero-content {
+          position: relative !important;
+          z-index: 2 !important;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -1479,22 +1520,26 @@ export function CmsDynamicBlockPortal({
         #ivkb + section,
         .hero-reveal-active + section,
         .hero-reveal-container + section,
-        [data-hero-section="true"] + section {
-          position: relative;
-          z-index: 10;
+        [data-hero-section="true"] + section,
+        #cms-page-content section:not(#ivkb):not([data-hero-section]):not(.hero-reveal-container) {
+          position: relative !important;
+          z-index: 10 !important;
           background-color: #000000;
         }
 
         @media (max-width: 768px) {
-          :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) {
-            position: relative;
-            width: 100%;
+          .hero-reveal-container,
+          .hero-reveal-active,
+          [data-hero-section="true"],
+          #ivkb {
+            position: relative !important;
+            width: 100% !important;
             min-height: 75vh;
             min-height: 75dvh;
             padding: 3.5rem 1.5rem 2rem 1.5rem;
-            overflow: hidden;
-            clip-path: inset(0);
-            -webkit-clip-path: inset(0);
+            overflow: hidden !important;
+            clip-path: inset(0) !important;
+            -webkit-clip-path: inset(0) !important;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -1503,34 +1548,55 @@ export function CmsDynamicBlockPortal({
             margin-top: 0;
             margin-bottom: 0;
           }
-          :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) img:where(.hero-fixed-bg, .hero-bg-img, [data-hero-bg="true"], #ifjq) {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            width: 100dvw;
-            height: 100vh;
-            height: 100dvh;
-            min-height: 100vh;
-            min-height: 100dvh;
-            max-height: none;
-            object-fit: cover;
-            object-position: center top;
-            pointer-events: none;
-            z-index: 0;
+          .hero-reveal-container img.hero-fixed-bg,
+          .hero-reveal-container img.hero-bg-img,
+          .hero-reveal-container img[data-hero-bg="true"],
+          .hero-reveal-active img.hero-fixed-bg,
+          .hero-reveal-active img.hero-bg-img,
+          .hero-reveal-active img[data-hero-bg="true"],
+          [data-hero-section="true"] img.hero-fixed-bg,
+          [data-hero-section="true"] img.hero-bg-img,
+          [data-hero-section="true"] img[data-hero-bg="true"],
+          img.hero-fixed-bg,
+          img.hero-bg-img,
+          img[data-hero-bg="true"],
+          #ifjq {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            width: 100dvw !important;
+            height: 100vh !important;
+            height: 100dvh !important;
+            min-height: 100vh !important;
+            min-height: 100dvh !important;
+            max-height: none !important;
+            object-fit: cover !important;
+            object-position: center top !important;
+            pointer-events: none !important;
+            z-index: 0 !important;
             transform: translate3d(0, 0, 0);
             will-change: transform;
           }
-          :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(.hero-overlay, .hero-fixed-overlay, #iuth) {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            width: 100dvw;
-            height: 100vh;
-            height: 100dvh;
-            pointer-events: none;
-            z-index: 1;
+          .hero-reveal-container .hero-overlay,
+          .hero-reveal-container .hero-fixed-overlay,
+          .hero-reveal-active .hero-overlay,
+          .hero-reveal-active .hero-fixed-overlay,
+          .hero-reveal-active #iuth,
+          #ivkb #iuth,
+          #iuth,
+          [data-hero-section="true"] .hero-overlay,
+          [data-hero-section="true"] .hero-fixed-overlay,
+          .hero-fixed-overlay {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            width: 100dvw !important;
+            height: 100vh !important;
+            height: 100dvh !important;
+            pointer-events: none !important;
+            z-index: 1 !important;
             background: rgba(0, 0, 0, 0.45);
           }
 

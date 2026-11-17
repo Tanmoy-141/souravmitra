@@ -23,7 +23,7 @@ export default function HeroSection({
   return (
     <section
       data-hero-section="true"
-      className="hero-reveal-container relative w-full min-h-[85vh] min-h-[85dvh] overflow-hidden flex items-center justify-center text-center px-4 py-16"
+      className="hero-reveal-container relative w-full h-[480px] min-h-[460px] max-h-[520px] overflow-hidden flex items-center justify-center text-center px-4 py-10"
       style={{ clipPath: "inset(0)", WebkitClipPath: "inset(0)" }}>
       {/* Fixed background layer pinned to viewport, revealed through this section window */}
       <div
@@ -41,22 +41,22 @@ export default function HeroSection({
           fill
           unoptimized
           priority
-          className="object-cover object-top"
+          className="object-cover object-center"
         />
-        <div className="absolute inset-0 bg-black/45" />
+        <div className="absolute inset-0 bg-black/45 z-1" />
       </div>
 
       {/* Foreground Content: scrolls naturally with the page */}
-      <div className="hero-content relative z-2 flex flex-col items-center justify-center text-center max-w-4xl mx-auto">
+      <div className="hero-content relative z-10 flex flex-col items-center justify-center text-center max-w-4xl mx-auto">
         <h1
           style={{
             fontFamily: "'stingray', 'Stingray', cursive, serif",
           }}
-          className="text-6xl sm:text-7xl md:text-8xl lg:text-[100px] text-white mb-8 font-normal leading-[1.1] tracking-normal drop-shadow-md">
+          className="text-6xl sm:text-7xl md:text-8xl lg:text-[100px] text-white mb-6 font-normal leading-[1.1] tracking-normal drop-shadow-md">
           {title}
         </h1>
         {tagline ? (
-          <p className="text-base sm:text-xl md:text-2xl text-gray-200 mb-8 max-w-xl mx-auto drop-shadow-md px-2 leading-relaxed font-light">
+          <p className="text-base sm:text-xl md:text-2xl text-gray-200 mb-6 max-w-xl mx-auto drop-shadow-md px-2 leading-relaxed font-light">
             {tagline}
           </p>
         ) : null}

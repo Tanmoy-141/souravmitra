@@ -1370,7 +1370,13 @@ export function CmsDynamicBlockPortal({
           bgImg.style.setProperty("width", "100vw");
           bgImg.style.setProperty("height", "100vh");
           bgImg.style.setProperty("object-fit", "cover");
-          bgImg.style.setProperty("object-position", "center top");
+          const rawStyle = bgImg.getAttribute("style") || "";
+          const userPosMatch = rawStyle.match(/object-position:\s*([^;]+)/i);
+          const userPos = userPosMatch ? userPosMatch[1].trim() : "";
+          bgImg.style.setProperty(
+            "object-position",
+            userPos && userPos !== "center top" ? userPos : "center center",
+          );
           bgImg.style.setProperty("pointer-events", "none");
           bgImg.style.setProperty("z-index", "0");
           bgImg.style.setProperty("transform", "translate3d(0, 0, 0)");
@@ -1393,15 +1399,21 @@ export function CmsDynamicBlockPortal({
           overlayEl.style.removeProperty("display");
         }
 
-        // Ensure foreground content scrolls naturally
+        // Ensure foreground content scrolls naturally and is ALWAYS above the fixed overlay
         const contentEl =
           heroEl.querySelector<HTMLElement>(
             '.hero-content, [data-hero-content="true"]',
           ) || heroEl.querySelector("h1")?.parentElement;
         if (contentEl && contentEl !== heroEl) {
           contentEl.style.setProperty("position", "relative");
-          contentEl.style.setProperty("z-index", "2");
+          contentEl.style.setProperty("z-index", "10");
         }
+
+        // Explicitly set z-index: 10 on all headings, buttons, and links so overlay never dims them
+        heroEl.querySelectorAll<HTMLElement>("h1, button, a, .hero-title, .hero-btn").forEach((el) => {
+          el.style.setProperty("position", "relative");
+          el.style.setProperty("z-index", "10");
+        });
 
         // Remove any counter text from hero per strict user instruction
         const counterSubtitles = heroEl.querySelectorAll<HTMLElement>(

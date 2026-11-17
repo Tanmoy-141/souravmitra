@@ -9666,7 +9666,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         heroSections.forEach((hComp) => {
           const existingStyle = hComp.getStyle?.() || {};
           hComp.addStyle({
-            "min-height": existingStyle["min-height"] || "85vh",
+            "min-height": existingStyle["min-height"] || "480px",
             "position": "relative",
             "display": "flex",
             "align-items": "center",
@@ -9687,7 +9687,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           const existingImgStyle = imgComp.getStyle?.() || {};
           imgComp.addStyle({
             "object-fit": existingImgStyle["object-fit"] || "cover",
-            "object-position": existingImgStyle["object-position"] || "center top",
+            "object-position": existingImgStyle["object-position"] || "center center",
           });
         });
       } catch (err) {

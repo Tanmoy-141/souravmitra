@@ -483,8 +483,9 @@ textarea::placeholder {
 [data-hero-section="true"] {
   position: relative !important;
   width: 100% !important;
-  min-height: 85vh;
-  min-height: 85dvh;
+  height: 480px;
+  min-height: 460px;
+  max-height: 520px;
   overflow: hidden !important;
   clip-path: inset(0) !important;
   -webkit-clip-path: inset(0) !important;
@@ -494,7 +495,7 @@ textarea::placeholder {
   justify-content: center !important;
   text-align: center !important;
   box-sizing: border-box !important;
-  padding: 6rem 1.5rem 4rem 1.5rem;
+  padding: 2.5rem 1.5rem;
 }
 
 /* Fixed background image layer: pinned to viewport, revealed through hero window */
@@ -516,7 +517,7 @@ textarea::placeholder {
   min-height: 100dvh !important;
   max-height: none !important;
   object-fit: cover !important;
-  object-position: center top !important;
+  object-position: center center !important;
   pointer-events: none !important;
   z-index: 0 !important;
   transform: translate3d(0, 0, 0);
@@ -546,7 +547,7 @@ textarea::placeholder {
 .hero-reveal-container[style*="background-image"],
 [data-hero-section="true"][style*="background-image"] {
   background-attachment: fixed !important;
-  background-position: center top !important;
+  background-position: center center !important;
   background-size: cover !important;
   background-repeat: no-repeat !important;
 }
@@ -558,11 +559,18 @@ textarea::placeholder {
   display: none !important;
 }
 
-/* Hero foreground typography and button: scrolls naturally with the section */
+/* All hero foreground text, title, button, and content MUST have z-index: 10 so overlay is NEVER on top */
+.hero-reveal-container :where(h1, .hero-title, button, a, [data-hero-content], .hero-content),
+[data-hero-section="true"] :where(h1, .hero-title, button, a, [data-hero-content], .hero-content) {
+  position: relative !important;
+  z-index: 10 !important;
+}
+
+/* Hero foreground typography and button container */
 .hero-reveal-container .hero-content,
 [data-hero-section="true"] .hero-content {
   position: relative !important;
-  z-index: 2 !important;
+  z-index: 10 !important;
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
@@ -575,7 +583,11 @@ textarea::placeholder {
 
 /* Subsequent sections scroll smoothly OVER the hero section */
 .hero-reveal-container + section,
+.hero-reveal-container ~ section,
+.hero-reveal-container ~ div,
 [data-hero-section="true"] + section,
+[data-hero-section="true"] ~ section,
+[data-hero-section="true"] ~ div,
 #cms-page-content section:not([data-hero-section]):not(.hero-reveal-container) {
   position: relative !important;
   z-index: 10 !important;
@@ -591,7 +603,7 @@ textarea::placeholder {
   text-transform: none;
   letter-spacing: 0em;
   line-height: 1.1;
-  margin: 0 0 2rem 0;
+  margin: 0 0 1.5rem 0;
   text-align: center;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
@@ -602,7 +614,7 @@ textarea::placeholder {
 }
 
 /* Default Button Style: Clean white button matching Wix (zero specificity so CMS edits override cleanly) */
-:where(.hero-reveal-container, [data-hero-section="true"]) :where(button, a.hero-btn, a[href="/book-covers"]) {
+:where(.hero-reveal-container, [data-hero-section="true"]) :where(button, a, .hero-btn) {
   background-color: #FFFFFF;
   color: #000000;
   font-size: 14px;
@@ -621,7 +633,7 @@ textarea::placeholder {
   cursor: pointer;
 }
 
-:where(.hero-reveal-container, [data-hero-section="true"]) :where(button, a.hero-btn, a[href="/book-covers"]):hover {
+:where(.hero-reveal-container, [data-hero-section="true"]) :where(button, a, .hero-btn):hover {
   background-color: #E5E5E5;
   color: #000000;
   transform: translateY(-1px);
@@ -634,9 +646,10 @@ textarea::placeholder {
   [data-hero-section="true"] {
     position: relative !important;
     width: 100% !important;
-    min-height: 75vh;
-    min-height: 75dvh;
-    padding: 5rem 1.25rem 3rem 1.25rem;
+    height: 420px;
+    min-height: 400px;
+    max-height: 460px;
+    padding: 3rem 1.25rem 2rem 1.25rem;
     overflow: hidden !important;
     clip-path: inset(0) !important;
     -webkit-clip-path: inset(0) !important;
@@ -667,7 +680,7 @@ textarea::placeholder {
     min-height: 100dvh !important;
     max-height: none !important;
     object-fit: cover !important;
-    object-position: center top !important;
+    object-position: center center !important;
     pointer-events: none !important;
     z-index: 0 !important;
     transform: translate3d(0, 0, 0);
@@ -692,6 +705,12 @@ textarea::placeholder {
     display: block !important;
   }
 
+  .hero-reveal-container :where(h1, .hero-title, button, a, [data-hero-content], .hero-content),
+  [data-hero-section="true"] :where(h1, .hero-title, button, a, [data-hero-content], .hero-content) {
+    position: relative !important;
+    z-index: 10 !important;
+  }
+
   :where(.hero-reveal-container, [data-hero-section="true"]) :where(h1, .hero-title) {
     font-size: clamp(2.75rem, 10vw, 4.5rem);
     line-height: 1.15;
@@ -702,7 +721,7 @@ textarea::placeholder {
     overflow-wrap: break-word;
   }
 
-  :where(.hero-reveal-container, [data-hero-section="true"]) :where(button, a.hero-btn, a[href="/book-covers"]) {
+  :where(.hero-reveal-container, [data-hero-section="true"]) :where(button, a, .hero-btn) {
     display: inline-flex;
     align-items: center;
     justify-content: center;

@@ -2219,7 +2219,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         typeof initialHtml === "string" && initialHtml.trim() !== ""
           ? initialHtml
           : `
-          <section data-hero-section="true" class="hero-reveal-container" style="position: relative; width: 100%; min-height: 85vh; overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; padding: 4rem 1.5rem;">
+          <section data-hero-section="true" class="hero-reveal-container" style="position: relative; width: 100%; min-height: 85vh; overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; padding: 6rem 1.5rem 4rem 1.5rem;">
             <!-- Background Image (Editable, Replaceable, Deletable) -->
             <img 
               data-hero-bg="true"
@@ -2234,15 +2234,16 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
 
             <!-- Text overlay centered on the image -->
             <div class="hero-content" style="position: relative; z-index: 2; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;">
-              <h1 style="font-size: 4rem; font-family: serif; color: #FFFFFF; margin-bottom: 2rem; text-transform: uppercase; letter-spacing: 0.05em; text-shadow: 0 4px 20px rgba(0,0,0,0.8); line-height: 1.1;">
+              <h1 style="font-family: 'stingray', 'Stingray', cursive, serif; font-size: 100px; font-weight: 400; color: #FFFFFF; text-transform: none; letter-spacing: 0em; line-height: 1.1; margin: 0 0 2rem 0; text-align: center; text-shadow: 0 2px 10px rgba(0,0,0,0.5);">
                 Sourav Mitra
               </h1>
 
               <a
                 href="/book-covers"
-                style="display: inline-block; padding: 1rem 2.5rem; background-color: #C5A059; color: #000000; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; font-size: 0.75rem; text-decoration: none; border-radius: 2px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);"
+                style="background-color: #FFFFFF; color: #000000; font-size: 14px; font-weight: 500; text-transform: none; letter-spacing: 0em; padding: 0.75rem 2rem; border-radius: 2px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.3);"
               >
-                Explore My Work
+                <span>Explore My Work</span>
+                <svg viewBox="0 0 200 200" width="14" height="14" style="fill: currentColor; transform: rotate(180deg);"><path d="M172.5 142a7.485 7.485 0 0 1-5.185-2.073L100 75.808l-67.315 64.12c-2.998 2.846-7.74 2.744-10.606-.234a7.454 7.454 0 0 1 .235-10.565l72.5-69.057a7.524 7.524 0 0 1 10.371 0l72.5 69.057a7.455 7.455 0 0 1 .235 10.565A7.503 7.503 0 0 1 172.5 142z"></path></svg>
               </a>
             </div>
           </section>
@@ -8270,7 +8271,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
         category: "Portfolio",
 
         content: `
-        <section data-hero-section="true" class="hero-reveal-container" style="position: relative; width: 100%; min-height: 85vh; overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; padding: 4rem 1.5rem;">
+        <section data-hero-section="true" class="hero-reveal-container" style="position: relative; width: 100%; min-height: 85vh; overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; padding: 6rem 1.5rem 4rem 1.5rem;">
           <img 
             data-hero-bg="true"
             class="hero-fixed-bg hero-bg-img"
@@ -8280,14 +8281,15 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           />
           <div class="hero-overlay hero-fixed-overlay" style="position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); pointer-events: none; z-index: 1;"></div>
           <div class="hero-content" style="position: relative; z-index: 2; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;">
-            <h1 style="font-size: 4rem; font-family: serif; color: #FFFFFF; margin-bottom: 2rem; text-transform: uppercase; letter-spacing: 0.05em; text-shadow: 0 4px 20px rgba(0,0,0,0.8); line-height: 1.1;">
+            <h1 style="font-family: 'stingray', 'Stingray', cursive, serif; font-size: 100px; font-weight: 400; color: #FFFFFF; text-transform: none; letter-spacing: 0em; line-height: 1.1; margin: 0 0 2rem 0; text-align: center; text-shadow: 0 2px 10px rgba(0,0,0,0.5);">
               Sourav Mitra
             </h1>
             <a
               href="/book-covers"
-              style="display: inline-block; padding: 1rem 2.5rem; background-color: #C5A059; color: #000000; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; font-size: 0.75rem; text-decoration: none; border-radius: 2px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);"
+              style="background-color: #FFFFFF; color: #000000; font-size: 14px; font-weight: 500; text-transform: none; letter-spacing: 0em; padding: 0.75rem 2rem; border-radius: 2px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.3);"
             >
-              Explore My Work
+              <span>Explore My Work</span>
+              <svg viewBox="0 0 200 200" width="14" height="14" style="fill: currentColor; transform: rotate(180deg);"><path d="M172.5 142a7.485 7.485 0 0 1-5.185-2.073L100 75.808l-67.315 64.12c-2.998 2.846-7.74 2.744-10.606-.234a7.454 7.454 0 0 1 .235-10.565l72.5-69.057a7.524 7.524 0 0 1 10.371 0l72.5 69.057a7.455 7.455 0 0 1 .235 10.565A7.503 7.503 0 0 1 172.5 142z"></path></svg>
             </a>
           </div>
         </section>
@@ -9659,7 +9661,18 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           }
         });
 
-        // Normalize hero background artwork to avoid letterbox squishing and head clipping
+        // Normalize hero section and background artwork to avoid letterbox squishing and head clipping
+        const heroSections = wrapper.find?.('.hero-reveal-container, [data-hero-section="true"]') || [];
+        heroSections.forEach((hComp) => {
+          hComp.addStyle({
+            "min-height": "85vh",
+            "position": "relative",
+            "display": "flex",
+            "align-items": "center",
+            "justify-content": "center",
+            "text-align": "center",
+          });
+        });
         const heroBgImgs = wrapper.find?.('.hero-fixed-bg, .hero-bg-img, [data-hero-bg="true"], #ifjq') || [];
         heroBgImgs.forEach((imgComp) => {
           const imgAttrs = imgComp.getAttributes?.() || {};

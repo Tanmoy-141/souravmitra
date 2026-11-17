@@ -67,7 +67,7 @@ export default async function Home() {
               <Link
                 key={item.title}
                 href={item.href}
-                className="group aspect-[16/11] sm:aspect-square bg-[#111111] p-6 sm:p-8 flex flex-col justify-end transition-transform hover:scale-105 border border-[#333333] rounded-[2px]">
+                className="group aspect-16/11 sm:aspect-square bg-[#111111] p-6 sm:p-8 flex flex-col justify-end transition-transform hover:scale-105 border border-[#333333] rounded-xs">
                 <h2 className="text-xl sm:text-2xl font-serif text-[#FFFFFF] group-hover:text-[#C5A059]">
                   {item.title}
                 </h2>

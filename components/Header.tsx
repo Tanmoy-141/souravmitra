@@ -292,7 +292,7 @@ export const Header = ({
           {mobileCtaItems.map((item) =>
             renderNavLink(
               item,
-              "text-[#C5A059] hover:text-white hover:bg-[#C5A059]/10 transition-colors border border-[#C5A059] px-4 py-3 text-center w-full min-h-11 flex items-center justify-center font-bold tracking-widest mt-2 rounded-[2px]",
+              "text-[#C5A059] hover:text-white hover:bg-[#C5A059]/10 transition-colors border border-[#C5A059] px-4 py-3 text-center w-full min-h-11 flex items-center justify-center font-bold tracking-widest mt-2 rounded-xs",
             ),
           )}
         </nav>

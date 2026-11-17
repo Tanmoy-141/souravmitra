@@ -23,7 +23,7 @@ export default function HeroSection({
   return (
     <section
       data-hero-section="true"
-      className="hero-reveal-container relative w-full h-[360px] sm:h-[420px] md:h-[480px] min-h-[340px] md:min-h-[460px] max-h-[380px] sm:max-h-[440px] md:max-h-[520px] overflow-hidden flex items-center justify-center text-center px-4 py-8 md:py-10"
+      className="hero-reveal-container relative w-full h-90 sm:h-105 md:h-120 min-h-85 md:min-h-115 max-h-95 sm:max-h-110 md:max-h-130 overflow-hidden flex items-center justify-center text-center px-4 py-8 md:py-10"
       style={{ clipPath: "inset(0)", WebkitClipPath: "inset(0)" }}>
       {/* Fixed background layer pinned to viewport, revealed through this section window */}
       <div
@@ -62,7 +62,7 @@ export default function HeroSection({
         ) : null}
         <Link
           href={buttonHref}
-          className="inline-flex items-center justify-center gap-2 px-6 sm:px-8 py-2.5 sm:py-3 bg-white text-black hover:bg-gray-200 transition-all font-medium text-xs sm:text-sm rounded-[2px] shadow-lg cursor-pointer">
+          className="inline-flex items-center justify-center gap-2 px-6 sm:px-8 py-2.5 sm:py-3 bg-white text-black hover:bg-gray-200 transition-all font-medium text-xs sm:text-sm rounded-xs shadow-lg cursor-pointer">
           <span>{buttonText}</span>
           <svg
             viewBox="0 0 200 200"

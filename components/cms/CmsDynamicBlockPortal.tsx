@@ -1373,9 +1373,11 @@ export function CmsDynamicBlockPortal({
           const rawStyle = bgImg.getAttribute("style") || "";
           const userPosMatch = rawStyle.match(/object-position:\s*([^;]+)/i);
           const userPos = userPosMatch ? userPosMatch[1].trim() : "";
+          const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
+          const defaultPos = isMobile ? "center 25%" : "center center";
           bgImg.style.setProperty(
             "object-position",
-            userPos && userPos !== "center top" ? userPos : "center center",
+            userPos && userPos !== "center top" ? userPos : defaultPos,
           );
           bgImg.style.setProperty("pointer-events", "none");
           bgImg.style.setProperty("z-index", "0");
@@ -1564,7 +1566,7 @@ export function CmsDynamicBlockPortal({
             max-width: 100% !important;
             box-sizing: border-box !important;
           }
-          [data-cms-block] img {
+          [data-cms-block] img:not(.hero-fixed-bg):not([data-hero-bg="true"]):not(.hero-bg-img) {
             max-width: 100% !important;
             height: auto !important;
           }

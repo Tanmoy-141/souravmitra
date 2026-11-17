@@ -202,12 +202,12 @@ export const Header = ({
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[#333333] bg-[#000000]">
-      <div className="flex justify-between items-center py-6 px-6 md:px-10">
+    <header className="sticky top-0 z-50 border-b border-[#333333] bg-[#000000]/95 backdrop-blur-md">
+      <div className="flex justify-between items-center py-3.5 px-4 sm:px-6 md:py-6 md:px-10">
         <Link
           href="/"
           onClick={() => setIsMenuOpen(false)}
-          className="flex items-center gap-3 md:gap-4 text-xl md:text-2xl font-serif text-[#FFFFFF] tracking-tight hover:opacity-90 transition-opacity">
+          className="flex items-center gap-2.5 sm:gap-3 md:gap-4 text-lg sm:text-xl md:text-2xl font-serif text-[#FFFFFF] tracking-tight hover:opacity-90 transition-opacity">
           {logoUrl && isSafeImageUrl(logoUrl) ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -219,7 +219,7 @@ export const Header = ({
                 borderRadius: "9999px",
                 objectFit: "cover",
               }}
-              className="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover shrink-0 border border-[#C5A059]/40 shadow-sm"
+              className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full object-cover shrink-0 border border-[#C5A059]/40 shadow-sm"
               onError={() => setClientLogoUrl("")}
             />
           ) : null}
@@ -252,7 +252,7 @@ export const Header = ({
           onClick={() => setIsMenuOpen((open) => !open)}
           aria-label={isMenuOpen ? "Close menu" : "Open menu"}
           aria-expanded={isMenuOpen}
-          className="md:hidden p-2 text-white min-w-11 min-h-11 flex items-center justify-center focus:outline-none focus:ring-1 focus:ring-[#C5A059] rounded-md transition-colors">
+          className="md:hidden p-2 text-white min-w-11 min-h-11 flex items-center justify-center focus:outline-none focus:ring-1 focus:ring-[#C5A059] rounded-md transition-colors cursor-pointer">
           <svg
             className="w-6 h-6"
             fill="none"
@@ -276,15 +276,15 @@ export const Header = ({
         </button>
       </div>
 
-      {/* Mobile nav panel */}
+      {/* Mobile nav panel with refined dark glass styling */}
       {isMenuOpen && (
-        <nav className="absolute inset-x-0 top-full z-50 flex flex-col gap-4 border-t border-[#333333] bg-[#000000] px-6 pb-8 pt-5 text-sm font-medium uppercase tracking-widest text-[#D4D4D4] shadow-2xl md:hidden">
+        <nav className="absolute inset-x-0 top-full z-50 flex flex-col gap-4 border-t border-[#262626] bg-[#000000]/98 backdrop-blur-2xl px-5 pb-8 pt-4 text-xs sm:text-sm font-medium uppercase tracking-widest text-[#D4D4D4] shadow-2xl md:hidden">
           {mobilePrimaryItems.length > 0 && (
             <div className="flex flex-col divide-y divide-[#1e1e1e]">
               {mobilePrimaryItems.map((item) =>
                 renderNavLink(
                   item,
-                  "py-3 hover:text-white transition-colors flex items-center min-h-11",
+                  "py-3.5 hover:text-white hover:text-[#C5A059] transition-colors flex items-center min-h-11",
                 ),
               )}
             </div>
@@ -292,7 +292,7 @@ export const Header = ({
           {mobileCtaItems.map((item) =>
             renderNavLink(
               item,
-              "text-[#C5A059] hover:text-white transition-colors border border-[#C5A059] px-4 py-3 text-center w-full min-h-11 flex items-center justify-center font-bold tracking-widest mt-2",
+              "text-[#C5A059] hover:text-white hover:bg-[#C5A059]/10 transition-colors border border-[#C5A059] px-4 py-3 text-center w-full min-h-11 flex items-center justify-center font-bold tracking-widest mt-2 rounded-[2px]",
             ),
           )}
         </nav>

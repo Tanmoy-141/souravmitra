@@ -472,73 +472,94 @@ textarea::placeholder {
 }
 
 /* Neutralize any legacy negative offset on the subsequent section text */
-.hero-reveal-active + section p,
 .hero-reveal-container + section p,
-#ivkb + section p {
+[data-hero-section="true"] + section p {
   bottom: 0;
   position: static;
 }
 
 /* Hero section window: fixed background parallax curtain matching Wix */
 .hero-reveal-container,
-.hero-reveal-active,
-[data-hero-section="true"],
-#ivkb {
+[data-hero-section="true"] {
   position: relative !important;
   width: 100% !important;
-  min-height: 85vh !important;
-  min-height: 85dvh !important;
-  background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url("https://static.wixstatic.com/media/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg/v1/fill/w_1920,h_1080,al_c,q_90,enc_avif,quality_auto/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg");
-  background-attachment: fixed !important;
-  background-position: center top !important;
-  background-size: cover !important;
-  background-repeat: no-repeat !important;
+  min-height: 85vh;
+  min-height: 85dvh;
+  overflow: hidden !important;
+  clip-path: inset(0) !important;
+  -webkit-clip-path: inset(0) !important;
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
   text-align: center !important;
   box-sizing: border-box !important;
-  padding: 6rem 1.5rem 4rem 1.5rem !important;
+  padding: 6rem 1.5rem 4rem 1.5rem;
 }
 
-/* Hide raw background image tag on published page (rendered via fixed background) */
+/* Fixed background image layer: pinned to viewport, revealed through hero window */
 .hero-reveal-container img.hero-fixed-bg,
 .hero-reveal-container img.hero-bg-img,
 .hero-reveal-container img[data-hero-bg="true"],
-.hero-reveal-active img.hero-fixed-bg,
-.hero-reveal-active img.hero-bg-img,
-.hero-reveal-active img[data-hero-bg="true"],
+.hero-reveal-container > img,
 [data-hero-section="true"] img.hero-fixed-bg,
 [data-hero-section="true"] img.hero-bg-img,
-[data-hero-section="true"] img[data-hero-bg="true"],
-img.hero-fixed-bg,
-img.hero-bg-img,
-img[data-hero-bg="true"],
-#ifjq {
-  display: none !important;
+[data-hero-section="true"] img[data-hero-bg="true"] {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  width: 100dvw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+  max-height: none !important;
+  object-fit: cover !important;
+  object-position: center top !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+  display: block !important;
 }
 
-/* Hide redundant overlay tag as dark gradient is integrated in fixed background */
+/* Fixed dark overlay inside the clipped window */
 .hero-reveal-container .hero-overlay,
 .hero-reveal-container .hero-fixed-overlay,
-.hero-reveal-active .hero-overlay,
-.hero-reveal-active .hero-fixed-overlay,
-.hero-reveal-active #iuth,
-#ivkb #iuth,
-#iuth,
 [data-hero-section="true"] .hero-overlay,
-[data-hero-section="true"] .hero-fixed-overlay,
-.hero-fixed-overlay {
+[data-hero-section="true"] .hero-fixed-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  width: 100dvw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+  display: block !important;
+}
+
+/* Support for CSS background-image heroes (fixed parallax window) */
+.hero-reveal-container[style*="background-image"],
+[data-hero-section="true"][style*="background-image"] {
+  background-attachment: fixed !important;
+  background-position: center top !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+}
+
+/* If a background-image style is applied directly to the container, hide the placeholder img */
+.hero-reveal-container[style*="background-image"] img.hero-fixed-bg,
+.hero-reveal-container[style*="background-image"] img.hero-bg-img,
+.hero-reveal-container[style*="background-image"] img[data-hero-bg="true"] {
   display: none !important;
 }
 
 /* Hero foreground typography and button: scrolls naturally with the section */
 .hero-reveal-container .hero-content,
-.hero-reveal-active .hero-content,
-.hero-reveal-active #ibak,
-#ivkb #ibak,
-#ibak,
 [data-hero-section="true"] .hero-content {
   position: relative !important;
   z-index: 2 !important;
@@ -553,73 +574,72 @@ img[data-hero-bg="true"],
 }
 
 /* Subsequent sections scroll smoothly OVER the hero section */
-#ivkb + section,
-.hero-reveal-active + section,
 .hero-reveal-container + section,
 [data-hero-section="true"] + section,
-#cms-page-content section:not(#ivkb):not([data-hero-section]):not(.hero-reveal-container) {
+#cms-page-content section:not([data-hero-section]):not(.hero-reveal-container) {
   position: relative !important;
   z-index: 10 !important;
-  background-color: #000000 !important;
+  background-color: #000000;
 }
 
-/* Heading style: Stingray script font at 100px matching Wix exactly */
-:where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(h1, #iznl, .c9554) {
-  font-family: 'stingray', 'Stingray', cursive, serif !important;
-  font-size: clamp(3.5rem, 8vw, 6.25rem) !important;
-  color: #FFFFFF !important;
-  font-weight: 400 !important;
-  text-transform: none !important;
-  letter-spacing: 0em !important;
-  line-height: 1.1 !important;
-  margin: 0 0 2rem 0 !important;
-  text-align: center !important;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5) !important;
+/* Default Heading Style: Stingray script font matching Wix (zero specificity so CMS edits override cleanly) */
+:where(.hero-reveal-container, [data-hero-section="true"]) :where(h1, .hero-title) {
+  font-family: 'stingray', 'Stingray', cursive, serif;
+  font-size: clamp(3.5rem, 8vw, 6.25rem);
+  color: #FFFFFF;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0em;
+  line-height: 1.1;
+  margin: 0 0 2rem 0;
+  text-align: center;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
 /* Explicitly omit and hide any counter subtitle in hero section */
-:where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(p.hero-tagline, #comp-m8hpiv364, [data-hero-tagline]) {
+:where(.hero-reveal-container, [data-hero-section="true"]) :where(p.hero-tagline, #comp-m8hpiv364, [data-hero-tagline]) {
   display: none !important;
 }
 
-/* Button style: clean white background, black text, matching Wix */
-:where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(button, a.c9572, a[href="/book-covers"], #if3pf, .hero-btn) {
-  background-color: #FFFFFF !important;
-  color: #000000 !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  text-transform: none !important;
-  letter-spacing: 0em !important;
-  padding: 0.75rem 2rem !important;
-  border-radius: 2px !important;
-  text-decoration: none !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 0.5rem !important;
-  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease !important;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
-  cursor: pointer !important;
+/* Default Button Style: Clean white button matching Wix (zero specificity so CMS edits override cleanly) */
+:where(.hero-reveal-container, [data-hero-section="true"]) :where(button, a.hero-btn, a[href="/book-covers"]) {
+  background-color: #FFFFFF;
+  color: #000000;
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0em;
+  padding: 0.75rem 2rem;
+  border-radius: 2px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
 }
 
-:where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(button, a.c9572, a[href="/book-covers"], #if3pf, .hero-btn):hover {
-  background-color: #E5E5E5 !important;
-  color: #000000 !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+:where(.hero-reveal-container, [data-hero-section="true"]) :where(button, a.hero-btn, a[href="/book-covers"]):hover {
+  background-color: #E5E5E5;
+  color: #000000;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 }
 
 /* Responsive Mobile Alignments: Match Mobile Appearance to Desktop View */
 @media (max-width: 768px) {
   .hero-reveal-container,
-  .hero-reveal-active,
-  [data-hero-section="true"],
-  #ivkb {
+  [data-hero-section="true"] {
     position: relative !important;
     width: 100% !important;
-    min-height: 75vh !important;
-    min-height: 75dvh !important;
-    padding: 5rem 1.25rem 3rem 1.25rem !important;
+    min-height: 75vh;
+    min-height: 75dvh;
+    padding: 5rem 1.25rem 3rem 1.25rem;
+    overflow: hidden !important;
+    clip-path: inset(0) !important;
+    -webkit-clip-path: inset(0) !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
@@ -629,34 +649,75 @@ img[data-hero-bg="true"],
     margin-bottom: 0 !important;
   }
 
-  :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(h1, #iznl, .c9554) {
-    font-size: clamp(2.75rem, 10vw, 4.5rem) !important;
-    line-height: 1.15 !important;
-    margin-bottom: 1.5rem !important;
-    margin-top: 0 !important;
-    text-shadow: 0 4px 16px rgba(0, 0, 0, 0.6) !important;
-    word-break: break-word !important;
-    overflow-wrap: break-word !important;
+  .hero-reveal-container img.hero-fixed-bg,
+  .hero-reveal-container img.hero-bg-img,
+  .hero-reveal-container img[data-hero-bg="true"],
+  .hero-reveal-container > img,
+  [data-hero-section="true"] img.hero-fixed-bg,
+  [data-hero-section="true"] img.hero-bg-img,
+  [data-hero-section="true"] img[data-hero-bg="true"] {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    width: 100dvw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    max-height: none !important;
+    object-fit: cover !important;
+    object-position: center top !important;
+    pointer-events: none !important;
+    z-index: 0 !important;
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
+    display: block !important;
   }
 
-  :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(button, a.c9572, a[href="/book-covers"], #if3pf, .hero-btn) {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0.75rem 1.75rem !important;
-    font-size: 13px !important;
-    font-weight: 500 !important;
-    letter-spacing: 0em !important;
-    text-transform: none !important;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
-    border-radius: 2px !important;
-    margin-top: 0.5rem !important;
-    text-decoration: none !important;
+  .hero-reveal-container .hero-overlay,
+  .hero-reveal-container .hero-fixed-overlay,
+  [data-hero-section="true"] .hero-overlay,
+  [data-hero-section="true"] .hero-fixed-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    width: 100dvw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    pointer-events: none !important;
+    z-index: 1 !important;
+    background: rgba(0, 0, 0, 0.45) !important;
+    display: block !important;
+  }
+
+  :where(.hero-reveal-container, [data-hero-section="true"]) :where(h1, .hero-title) {
+    font-size: clamp(2.75rem, 10vw, 4.5rem);
+    line-height: 1.15;
+    margin-bottom: 1.5rem;
+    margin-top: 0;
+    text-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  :where(.hero-reveal-container, [data-hero-section="true"]) :where(button, a.hero-btn, a[href="/book-covers"]) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.75rem;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0em;
+    text-transform: none;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    border-radius: 2px;
+    margin-top: 0.5rem;
+    text-decoration: none;
   }
 
   /* Intro narrative section below hero (Welcome Statement) */
-  #ivkb + section,
-  .hero-reveal-active + section,
   .hero-reveal-container + section,
   [data-hero-section="true"] + section,
   section:has(> p.font-serif) {
@@ -672,8 +733,6 @@ img[data-hero-bg="true"],
     box-sizing: border-box;
   }
 
-  #ivkb + section p,
-  .hero-reveal-active + section p,
   .hero-reveal-container + section p,
   [data-hero-section="true"] + section p,
   p.font-serif {
@@ -1032,8 +1091,8 @@ img[data-hero-bg="true"],
   #cms-page-content h1[style*="width"],
   #cms-page-content h2[style*="width"],
   #cms-page-content h3[style*="width"],
-  #cms-page-content div:not(.client-marquee-track):not(.client-marquee-wrapper):not([data-hero-section]):not(.hero-reveal-container):not(.hero-fixed-bg):not(#ibak):not(#iuth),
-  #cms-page-content section:not(#ivkb):not([data-hero-section]),
+  #cms-page-content div:not(.client-marquee-track):not(.client-marquee-wrapper):not([data-hero-section]):not(.hero-reveal-container):not(.hero-fixed-bg):not(.hero-content):not(.hero-overlay):not(.hero-fixed-overlay),
+  #cms-page-content section:not(.hero-reveal-container):not([data-hero-section]),
   #cms-page-content p,
   #cms-page-content article {
     max-width: 100% !important;

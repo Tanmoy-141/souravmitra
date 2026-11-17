@@ -1348,69 +1348,71 @@ export function CmsDynamicBlockPortal({
     setTargets(newTargets);
 
     // Hero Section Scroll Effect (Wix-style Fixed Background Parallax Window)
-    let heroEl = containerRef.current.querySelector<HTMLElement>(
-      '#ivkb, [data-hero-section="true"], .hero-reveal-container, section.c1504, [data-section="hero"], [data-block="hero"], [data-hero="true"]',
-    );
-    if (!heroEl) {
-      const firstSection = containerRef.current.querySelector<HTMLElement>("section");
-      if (firstSection && firstSection.querySelector("h1")) {
-        heroEl = firstSection;
-      }
-    }
-    if (heroEl) {
-      heroEl.classList.add("hero-reveal-active");
-      heroEl.setAttribute("data-hero-section", "true");
-
-      // Extract background image from inner image or style
-      let bgUrl = "https://static.wixstatic.com/media/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg/v1/fill/w_1920,h_1080,al_c,q_90,enc_avif,quality_auto/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg";
-      const bgImg = heroEl.querySelector<HTMLImageElement>(
-        'img.hero-fixed-bg, img.hero-bg-img, img[data-hero-bg="true"], #ifjq, img',
+    // Run ONLY on non-category pages (e.g. Home page) to prevent hijacking portfolio pages
+    if (!category && containerRef.current) {
+      const heroEl = containerRef.current.querySelector<HTMLElement>(
+        '.hero-reveal-container, [data-hero-section="true"]',
       );
-      if (bgImg && bgImg.src) {
-        bgUrl = bgImg.src;
-        bgImg.style.setProperty("display", "none", "important");
-      }
+      if (heroEl) {
+        heroEl.style.setProperty("clip-path", "inset(0)");
+        heroEl.style.setProperty("-webkit-clip-path", "inset(0)");
+        heroEl.style.setProperty("overflow", "hidden");
+        heroEl.style.setProperty("position", "relative");
 
-      heroEl.style.setProperty(
-        "background-image",
-        `linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url("${bgUrl}")`,
-        "important",
-      );
-      heroEl.style.setProperty("background-attachment", "fixed", "important");
-      heroEl.style.setProperty("background-position", "center top", "important");
-      heroEl.style.setProperty("background-size", "cover", "important");
-      heroEl.style.setProperty("background-repeat", "no-repeat", "important");
-      heroEl.style.setProperty("min-height", "85vh", "important");
-      heroEl.style.setProperty("position", "relative", "important");
-      heroEl.style.removeProperty("clip-path");
-      heroEl.style.removeProperty("-webkit-clip-path");
-
-      // Ensure content container sits on z-index: 2
-      const contentEl =
-        heroEl.querySelector<HTMLElement>(
-          '.hero-content, #ibak, [data-hero-content="true"]',
-        ) || heroEl.querySelector("h1")?.parentElement;
-      if (contentEl && contentEl !== heroEl) {
-        contentEl.classList.add("hero-content");
-      }
-
-      // Hide overlay element if present
-      const overlayEl = heroEl.querySelector<HTMLElement>(
-        '.hero-overlay, #iuth, .hero-fixed-overlay',
-      );
-      if (overlayEl) {
-        overlayEl.style.setProperty("display", "none", "important");
-      }
-
-      // Remove any counter text from hero per strict user instruction
-      const counterSubtitles = heroEl.querySelectorAll<HTMLElement>(
-        'p.hero-tagline, #comp-m8hpiv364, [data-hero-tagline]',
-      );
-      counterSubtitles.forEach((p) => {
-        if (p.textContent?.includes("550+") || p.textContent?.includes("covers in") || p.classList.contains("hero-tagline")) {
-          p.remove();
+        // Pin background image to viewport for smooth parallax reveal curtain
+        const bgImg = heroEl.querySelector<HTMLImageElement>(
+          'img.hero-fixed-bg, img.hero-bg-img, img[data-hero-bg="true"], .hero-fixed-bg',
+        );
+        if (bgImg) {
+          bgImg.style.setProperty("position", "fixed");
+          bgImg.style.setProperty("top", "0");
+          bgImg.style.setProperty("left", "0");
+          bgImg.style.setProperty("width", "100vw");
+          bgImg.style.setProperty("height", "100vh");
+          bgImg.style.setProperty("object-fit", "cover");
+          bgImg.style.setProperty("object-position", "center top");
+          bgImg.style.setProperty("pointer-events", "none");
+          bgImg.style.setProperty("z-index", "0");
+          bgImg.style.setProperty("transform", "translate3d(0, 0, 0)");
+          bgImg.style.removeProperty("display");
         }
-      });
+
+        // Pin dark overlay inside the clipped window
+        const overlayEl = heroEl.querySelector<HTMLElement>(
+          '.hero-overlay, .hero-fixed-overlay',
+        );
+        if (overlayEl) {
+          overlayEl.style.setProperty("position", "fixed");
+          overlayEl.style.setProperty("top", "0");
+          overlayEl.style.setProperty("left", "0");
+          overlayEl.style.setProperty("width", "100vw");
+          overlayEl.style.setProperty("height", "100vh");
+          overlayEl.style.setProperty("background", "rgba(0, 0, 0, 0.45)");
+          overlayEl.style.setProperty("pointer-events", "none");
+          overlayEl.style.setProperty("z-index", "1");
+          overlayEl.style.removeProperty("display");
+        }
+
+        // Ensure foreground content scrolls naturally
+        const contentEl =
+          heroEl.querySelector<HTMLElement>(
+            '.hero-content, [data-hero-content="true"]',
+          ) || heroEl.querySelector("h1")?.parentElement;
+        if (contentEl && contentEl !== heroEl) {
+          contentEl.style.setProperty("position", "relative");
+          contentEl.style.setProperty("z-index", "2");
+        }
+
+        // Remove any counter text from hero per strict user instruction
+        const counterSubtitles = heroEl.querySelectorAll<HTMLElement>(
+          'p.hero-tagline, #comp-m8hpiv364, [data-hero-tagline]',
+        );
+        counterSubtitles.forEach((p) => {
+          if (p.textContent?.includes("550+") || p.textContent?.includes("covers in") || p.classList.contains("hero-tagline")) {
+            p.remove();
+          }
+        });
+      }
     }
 
     // Initialize intersection-observer counter animations for all counters in container
@@ -1423,216 +1425,6 @@ export function CmsDynamicBlockPortal({
   return (
     <>
       <style>{`
-        /* Hero Section (Wix-style Fixed Background Parallax Window) */
-        .hero-reveal-container,
-        .hero-reveal-active,
-        [data-hero-section="true"],
-        #ivkb {
-          position: relative !important;
-          width: 100% !important;
-          min-height: 85vh !important;
-          min-height: 85dvh !important;
-          background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url("https://static.wixstatic.com/media/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg/v1/fill/w_1920,h_1080,al_c,q_90,enc_avif,quality_auto/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg");
-          background-attachment: fixed !important;
-          background-position: center top !important;
-          background-size: cover !important;
-          background-repeat: no-repeat !important;
-          display: flex !important;
-          flex-direction: column !important;
-          align-items: center !important;
-          justify-content: center !important;
-          text-align: center !important;
-          box-sizing: border-box !important;
-          padding: 6rem 1.5rem 4rem 1.5rem !important;
-        }
-
-        .hero-reveal-container img.hero-fixed-bg,
-        .hero-reveal-container img.hero-bg-img,
-        .hero-reveal-container img[data-hero-bg="true"],
-        .hero-reveal-active img.hero-fixed-bg,
-        .hero-reveal-active img.hero-bg-img,
-        .hero-reveal-active img[data-hero-bg="true"],
-        [data-hero-section="true"] img.hero-fixed-bg,
-        [data-hero-section="true"] img.hero-bg-img,
-        [data-hero-section="true"] img[data-hero-bg="true"],
-        img.hero-fixed-bg,
-        img.hero-bg-img,
-        img[data-hero-bg="true"],
-        #ifjq {
-          display: none !important;
-        }
-
-        .hero-reveal-container .hero-overlay,
-        .hero-reveal-container .hero-fixed-overlay,
-        .hero-reveal-active .hero-overlay,
-        .hero-reveal-active .hero-fixed-overlay,
-        .hero-reveal-active #iuth,
-        #ivkb #iuth,
-        #iuth,
-        [data-hero-section="true"] .hero-overlay,
-        [data-hero-section="true"] .hero-fixed-overlay,
-        .hero-fixed-overlay {
-          display: none !important;
-        }
-
-        .hero-reveal-container .hero-content,
-        .hero-reveal-active .hero-content,
-        .hero-reveal-active #ibak,
-        #ivkb #ibak,
-        #ibak,
-        [data-hero-section="true"] .hero-content {
-          position: relative !important;
-          z-index: 2 !important;
-          display: flex !important;
-          flex-direction: column !important;
-          align-items: center !important;
-          justify-content: center !important;
-          text-align: center !important;
-          max-width: 900px !important;
-          margin: 0 auto !important;
-          width: 100% !important;
-        }
-
-        /* Hero Typography - Stingray Script Font at 100px matching Wix */
-        :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(h1, #iznl, .c9554) {
-          font-family: 'stingray', 'Stingray', cursive, serif !important;
-          font-size: clamp(3.5rem, 8vw, 6.25rem) !important;
-          color: #FFFFFF !important;
-          font-weight: 400 !important;
-          text-transform: none !important;
-          letter-spacing: 0em !important;
-          line-height: 1.1 !important;
-          margin: 0 0 2rem 0 !important;
-          text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5) !important;
-        }
-
-        /* Omit Hero Counter Subtitle */
-        :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(p.hero-tagline, #comp-m8hpiv364, [data-hero-tagline]) {
-          display: none !important;
-        }
-
-        /* Hero Button - Clean White Button matching Wix */
-        :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(button, a.c9572, a[href="/book-covers"], #if3pf, .hero-btn) {
-          background-color: #FFFFFF !important;
-          color: #000000 !important;
-          font-size: 14px !important;
-          font-weight: 500 !important;
-          text-transform: none !important;
-          letter-spacing: 0em !important;
-          padding: 0.75rem 2rem !important;
-          border-radius: 2px !important;
-          text-decoration: none !important;
-          display: inline-flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          gap: 0.5rem !important;
-          transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease !important;
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
-          cursor: pointer !important;
-        }
-
-        :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(button, a.c9572, a[href="/book-covers"], #if3pf, .hero-btn):hover {
-          background-color: #E5E5E5 !important;
-          color: #000000 !important;
-          transform: translateY(-1px) !important;
-          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
-        }
-
-        /* Subsequent sections scroll smoothly OVER the hero section */
-        #ivkb + section,
-        .hero-reveal-active + section,
-        .hero-reveal-container + section,
-        [data-hero-section="true"] + section,
-        #cms-page-content section:not(#ivkb):not([data-hero-section]):not(.hero-reveal-container) {
-          position: relative !important;
-          z-index: 10 !important;
-          background-color: #000000 !important;
-        }
-
-        @media (max-width: 768px) {
-          .hero-reveal-container,
-          .hero-reveal-active,
-          [data-hero-section="true"],
-          #ivkb {
-            position: relative !important;
-            width: 100% !important;
-            min-height: 75vh !important;
-            min-height: 75dvh !important;
-            padding: 5rem 1.25rem 3rem 1.25rem !important;
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: center !important;
-            justify-content: center !important;
-            box-sizing: border-box !important;
-            margin-top: 0 !important;
-            margin-bottom: 0 !important;
-          }
-
-          :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(h1, #iznl, .c9554) {
-            font-size: clamp(2.75rem, 10vw, 4.5rem) !important;
-            line-height: 1.15 !important;
-            margin-bottom: 1.5rem !important;
-            margin-top: 0 !important;
-            text-shadow: 0 4px 16px rgba(0, 0, 0, 0.6) !important;
-            word-break: break-word !important;
-            overflow-wrap: break-word !important;
-          }
-
-          :where(.hero-reveal-container, .hero-reveal-active, [data-hero-section="true"], #ivkb) :where(button, a.c9572, a[href="/book-covers"], #if3pf, .hero-btn) {
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            padding: 0.75rem 1.75rem !important;
-            font-size: 13px !important;
-            font-weight: 500 !important;
-            letter-spacing: 0em !important;
-            text-transform: none !important;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
-            border-radius: 2px !important;
-            margin-top: 0.5rem !important;
-            text-decoration: none !important;
-          }
-            padding: 0.85rem 2.25rem;
-            font-size: 0.75rem;
-            font-weight: 700;
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-            border-radius: 2px;
-            margin-top: 0.5rem;
-            text-decoration: none;
-          }
-
-          /* Prevent and reset CMS free-drag pixel widths, heights, and offsets on mobile */
-          [data-cms-block] h2,
-          [data-cms-block] h3,
-          .c3605,
-          #i6el2 {
-            white-space: normal !important;
-            word-break: break-word !important;
-            overflow-wrap: break-word !important;
-            font-size: clamp(1.25rem, 5.5vw, 1.85rem) !important;
-            line-height: 1.25 !important;
-            max-width: 100% !important;
-          }
-
-          #cms-page-content [style*="top:"],
-          #cms-page-content [style*="bottom:"],
-          #cms-page-content [style*="left:"],
-          #cms-page-content [style*="right:"] {
-            top: auto !important;
-            bottom: auto !important;
-            left: auto !important;
-            right: auto !important;
-          }
-
-          #cms-page-content p {
-            max-width: 100% !important;
-            width: auto !important;
-            height: auto !important;
-          }
-        }
-
         [data-cms-block] {
           border: none !important;
         }

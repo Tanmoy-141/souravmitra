@@ -9661,11 +9661,12 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
           }
         });
 
-        // Normalize hero section and background artwork to avoid letterbox squishing and head clipping
+        // Normalize hero section and background artwork to avoid letterbox squishing and head clipping while preserving custom styles
         const heroSections = wrapper.find?.('.hero-reveal-container, [data-hero-section="true"]') || [];
         heroSections.forEach((hComp) => {
+          const existingStyle = hComp.getStyle?.() || {};
           hComp.addStyle({
-            "min-height": "85vh",
+            "min-height": existingStyle["min-height"] || "85vh",
             "position": "relative",
             "display": "flex",
             "align-items": "center",
@@ -9683,7 +9684,11 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(
               .trim();
             imgComp.addAttributes({ style: cleanStyle });
           }
-          imgComp.addStyle({ "object-fit": "cover", "object-position": "center top" });
+          const existingImgStyle = imgComp.getStyle?.() || {};
+          imgComp.addStyle({
+            "object-fit": existingImgStyle["object-fit"] || "cover",
+            "object-position": existingImgStyle["object-position"] || "center top",
+          });
         });
       } catch (err) {
         console.warn("Failed to sync component styles to CSS rules:", err);

@@ -401,7 +401,7 @@ export default function ProjectDetailView({
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
         {/* Left: Concept Sketch (blueprint style) */}
-        <div className="flex flex-col items-center justify-center p-10 bg-[#0c121c] rounded-xl border border-blue-950/40 relative overflow-hidden">
+        <div className="flex flex-col items-center justify-center p-6 sm:p-10 bg-[#0c121c] rounded-xl border border-blue-950/40 relative overflow-hidden">
           <div className="absolute inset-0 opacity-[0.03] bg-[linear-gradient(rgba(255,255,255,1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,1)_1px,transparent_1px)] bg-size-[16px_16px] pointer-events-none" />
           <span className="text-[10px] tracking-widest uppercase text-blue-400 mb-6 font-bold font-mono">
             Blueprint & Grid Study
@@ -443,7 +443,7 @@ export default function ProjectDetailView({
         </div>
 
         {/* Right: Macro Texture Study */}
-        <div className="flex flex-col items-center justify-center p-10 bg-[#141414] rounded-xl border border-[#252525] relative overflow-hidden">
+        <div className="flex flex-col items-center justify-center p-6 sm:p-10 bg-[#141414] rounded-xl border border-[#252525] relative overflow-hidden">
           <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] bg-size-[12px_12px] pointer-events-none" />
           <span className="text-[10px] tracking-widest uppercase text-amber-500 mb-6 font-bold font-sans">
             Detail Crop & Macro Texture
@@ -511,13 +511,13 @@ export default function ProjectDetailView({
             {/* Action & Stats Bar */}
             <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-[#1e1e1e]">
               {/* Interaction Controls */}
-              <div className="flex flex-wrap items-center gap-2.5">
+              <div className="relative flex flex-wrap items-center gap-2.5">
                 {/* Like / Appreciate Button */}
                 <button
                   type="button"
                   onClick={handleLike}
                   disabled={isLiking}
-                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer border ${
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 min-h-11 sm:min-h-0 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer border ${
                     isLiked
                       ? "bg-rose-600 border-rose-500 text-white shadow-lg shadow-rose-600/30"
                       : "bg-[#111] border-[#2a2a2a] text-gray-300 hover:text-white hover:border-[#444] hover:bg-[#181818]"
@@ -538,11 +538,11 @@ export default function ProjectDetailView({
 
 
                 {/* Share Toggle Button with Dropdown */}
-                <div className="relative">
+                <div className="static sm:relative">
                   <button
                     type="button"
                     onClick={() => setShowShareDropdown(!showShareDropdown)}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#111] border border-[#2a2a2a] hover:border-[#444] hover:bg-[#181818] text-gray-300 hover:text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer">
+                    className="inline-flex items-center gap-2 px-4 py-2.5 min-h-11 sm:min-h-0 rounded-lg bg-[#111] border border-[#2a2a2a] hover:border-[#444] hover:bg-[#181818] text-gray-300 hover:text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer">
                     <svg
                       className="w-4 h-4 text-[#C5A059]"
                       fill="none"
@@ -560,7 +560,7 @@ export default function ProjectDetailView({
 
                   {/* Share Options Dropdown */}
                   {showShareDropdown && (
-                    <div className="absolute top-full left-0 mt-3 p-4 bg-[#0d0d0d] rounded-lg border border-[#2a2a2a] shadow-2xl z-30 min-w-70 sm:min-w-85 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="absolute top-full left-0 right-0 sm:right-auto mt-3 p-4 bg-[#0d0d0d] rounded-lg border border-[#2a2a2a] shadow-2xl z-30 sm:min-w-85 animate-in fade-in slide-in-from-top-2 duration-200">
                       <p className="text-[10px] tracking-widest uppercase text-gray-500 font-bold mb-3 text-center">
                         Share this project via
                       </p>
@@ -822,16 +822,16 @@ export default function ProjectDetailView({
                     <div className="w-10 h-10 rounded-full bg-[#222222] text-[#C5A059] border border-[#333] flex items-center justify-center font-bold text-xs shrink-0 select-none">
                       {comment.initials}
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-white">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-bold text-white truncate">
                           {comment.author}
                         </span>
-                        <span className="text-[10px] text-gray-500">
+                        <span className="text-[10px] text-gray-500 shrink-0">
                           {comment.timeAgo}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-300 mt-2 leading-relaxed">
+                      <p className="text-sm text-gray-300 mt-2 leading-relaxed wrap-break-word">
                         {comment.content}
                       </p>
                     </div>

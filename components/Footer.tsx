@@ -30,10 +30,10 @@ export const Footer = () => {
       <p className="mb-2 text-sm uppercase tracking-widest">
         {settings.footerHeading || "FOLLOW ME ON"}
       </p>
-      <div className="flex justify-center gap-6 mb-4">
+      <div className="flex justify-center gap-1 -mt-2.5 mb-1.5">
         <a
           href={safeUrlOrFallback(socialLinks.facebook)}
-          className="hover:text-[#C5A059]"
+          className="p-2.5 hover:text-[#C5A059]"
           aria-label="Facebook">
           <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
             <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" />
@@ -41,7 +41,7 @@ export const Footer = () => {
         </a>
         <a
           href={safeUrlOrFallback(socialLinks.instagram)}
-          className="hover:text-[#C5A059]"
+          className="p-2.5 hover:text-[#C5A059]"
           aria-label="Instagram">
           <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
             <path d="M12 2c3.176 0 3.56.012 4.81.07 1.23.056 2.06.242 2.76.516.75.292 1.28.64 1.84 1.2.56.56.91 1.09 1.2 1.84.27.7.46 1.53.52 2.76.06 1.25.07 1.63.07 4.81s-.01 3.56-.07 4.81c-.05 1.23-.24 2.06-.52 2.76-.29.75-.64 1.28-1.2 1.84-.56.56-1.09.91-1.84 1.2-.7.27-1.53.46-2.76.52-1.25.06-1.63.07-4.81.07s-3.56-.01-4.81-.07c-1.23-.05-2.06-.24-2.76-.52-.75-.29-1.28-.64-1.84-1.2-.56-.56-.91-1.09-1.2-1.84-.27-.7-.46-1.53-.52-2.76-.06-1.25-.07-1.63-.07-4.81s.01-3.56.07-4.81c.05-1.23.24-2.06.52-2.76.29-.75.64-1.28 1.2-1.84.56-.56 1.09-.91 1.84-1.2.7-.27 1.53-.46 2.76-.52 1.25-.06 1.63-.07 4.81-.07zM12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z" />
@@ -51,7 +51,7 @@ export const Footer = () => {
           href={safeUrlOrFallback(socialLinks.threads || socialLinks.behance)}
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:text-[#C5A059]"
+          className="p-2.5 hover:text-[#C5A059]"
           aria-label="Threads">
           <svg
             className="w-6 h-6 fill-current"
@@ -63,7 +63,7 @@ export const Footer = () => {
         </a>
         <a
           href={safeUrlOrFallback(socialLinks.pinterest)}
-          className="hover:text-[#C5A059]"
+          className="p-2.5 hover:text-[#C5A059]"
           aria-label="Pinterest">
           <svg
             className="w-6 h-6 fill-current"
@@ -77,7 +77,7 @@ export const Footer = () => {
           href={safeUrlOrFallback(socialLinks.linkedin)}
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:text-[#C5A059]"
+          className="p-2.5 hover:text-[#C5A059]"
           aria-label="LinkedIn">
           <svg
             className="w-6 h-6 fill-current"
@@ -90,7 +90,7 @@ export const Footer = () => {
           href={safeUrlOrFallback(socialLinks.x || socialLinks.twitter)}
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:text-[#C5A059]"
+          className="p-2.5 hover:text-[#C5A059]"
           aria-label="X (Twitter)">
           <svg
             className="w-6 h-6 fill-current"

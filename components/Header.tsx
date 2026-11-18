@@ -203,7 +203,7 @@ export const Header = ({
 
   return (
     <header className="sticky top-0 z-50 border-b border-[#333333] bg-[#000000]/95 backdrop-blur-md">
-      <div className="flex justify-between items-center py-3.5 px-4 sm:px-6 md:py-6 md:px-10">
+      <div className="flex justify-between items-center py-3.5 px-4 sm:px-6 md:py-6 md:px-6 lg:px-10">
         <Link
           href="/"
           onClick={() => setIsMenuOpen(false)}
@@ -235,7 +235,7 @@ export const Header = ({
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-8 text-[#D4D4D4] text-sm uppercase tracking-widest font-medium">
+        <nav className="hidden md:flex items-center gap-5 lg:gap-8 text-[#D4D4D4] text-xs lg:text-sm uppercase tracking-wider lg:tracking-widest font-medium whitespace-nowrap">
           {resolvedItems.map((item) =>
             renderNavLink(
               item,
@@ -278,7 +278,7 @@ export const Header = ({
 
       {/* Mobile nav panel with refined dark glass styling */}
       {isMenuOpen && (
-        <nav className="absolute inset-x-0 top-full z-50 flex flex-col gap-4 border-t border-[#262626] bg-[#000000]/98 backdrop-blur-2xl px-5 pb-8 pt-4 text-xs sm:text-sm font-medium uppercase tracking-widest text-[#D4D4D4] shadow-2xl md:hidden">
+        <nav className="absolute inset-x-0 top-full z-50 flex max-h-[calc(100svh-4.5rem)] flex-col gap-4 overflow-y-auto overscroll-contain border-t border-[#262626] bg-[#000000]/98 backdrop-blur-2xl px-5 pb-8 pt-4 text-xs sm:text-sm font-medium uppercase tracking-widest text-[#D4D4D4] shadow-2xl md:hidden">
           {mobilePrimaryItems.length > 0 && (
             <div className="flex flex-col divide-y divide-[#1e1e1e]">
               {mobilePrimaryItems.map((item) =>

@@ -55,10 +55,10 @@ export default async function Home() {
       <HeroSection />
 
       {/* Subsequent Content — scrolls naturally */}
-      <div className="relative z-10 bg-black flex flex-col gap-20 pt-16">
+      <div className="relative z-10 bg-black flex flex-col gap-12 sm:gap-16 md:gap-20 pt-8 sm:pt-12 md:pt-16">
         {/* Portfolio Cards */}
-        <section className="px-10">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <section className="px-4 sm:px-6 md:px-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
             {[
               { title: "Book Cover Portfolio", href: "/book-covers" },
               { title: "Illustration Portfolio", href: "/illustration" },
@@ -67,8 +67,8 @@ export default async function Home() {
               <Link
                 key={item.title}
                 href={item.href}
-                className="group aspect-square bg-[#111111] p-8 flex flex-col justify-end transition-transform hover:scale-105 border border-[#333333]">
-                <h2 className="text-2xl font-serif text-[#FFFFFF] group-hover:text-[#C5A059]">
+                className="group aspect-16/11 sm:aspect-square bg-[#111111] p-6 sm:p-8 flex flex-col justify-end transition-transform hover:scale-105 border border-[#333333] rounded-xs">
+                <h2 className="text-xl sm:text-2xl font-serif text-[#FFFFFF] group-hover:text-[#C5A059]">
                   {item.title}
                 </h2>
               </Link>
@@ -79,8 +79,8 @@ export default async function Home() {
         <TestimonialsSection />
 
         {/* Animated Counters Section */}
-        <section className="bg-[#111111] py-14 border-t border-b border-[#222222]">
-          <div className="container mx-auto px-6 sm:px-10 max-w-6xl grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
+        <section className="bg-[#111111] py-10 sm:py-14 border-t border-b border-[#222222]">
+          <div className="container mx-auto px-4 sm:px-6 md:px-10 max-w-6xl grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 text-center">
             <Counter target={150} label="Projects Completed" />
             <Counter target={50} label="Happy Clients" />
             <Counter target={10} label="Years Experience" />
@@ -88,8 +88,8 @@ export default async function Home() {
         </section>
 
         {/* Final CTA */}
-        <section className="px-10 py-20 text-center">
-          <h2 className="text-4xl font-serif mb-8 text-[#FFFFFF]">
+        <section className="px-4 sm:px-6 md:px-10 py-12 sm:py-20 text-center">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-serif mb-6 sm:mb-8 text-[#FFFFFF]">
             Let&apos;s Create Something Extraordinary Together
           </h2>
           <div className="flex gap-4 justify-center">

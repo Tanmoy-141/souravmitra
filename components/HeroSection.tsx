@@ -23,7 +23,7 @@ export default function HeroSection({
   return (
     <section
       data-hero-section="true"
-      className="hero-reveal-container relative w-full h-[480px] min-h-[460px] max-h-[520px] overflow-hidden flex items-center justify-center text-center px-4 py-10"
+      className="hero-reveal-container relative w-full h-90 sm:h-105 md:h-120 min-h-85 md:min-h-115 max-h-95 sm:max-h-110 md:max-h-130 overflow-hidden flex items-center justify-center text-center px-4 py-8 md:py-10"
       style={{ clipPath: "inset(0)", WebkitClipPath: "inset(0)" }}>
       {/* Fixed background layer pinned to viewport, revealed through this section window */}
       <div
@@ -52,22 +52,22 @@ export default function HeroSection({
           style={{
             fontFamily: "'stingray', 'Stingray', cursive, serif",
           }}
-          className="text-6xl sm:text-7xl md:text-8xl lg:text-[100px] text-white mb-6 font-normal leading-[1.1] tracking-normal drop-shadow-md">
+          className="text-4xl sm:text-6xl md:text-8xl lg:text-[100px] whitespace-nowrap text-white mb-4 sm:mb-6 font-normal leading-[1.1] tracking-normal drop-shadow-md">
           {title}
         </h1>
         {tagline ? (
-          <p className="text-base sm:text-xl md:text-2xl text-gray-200 mb-6 max-w-xl mx-auto drop-shadow-md px-2 leading-relaxed font-light">
+          <p className="text-sm sm:text-lg md:text-2xl text-gray-200 mb-4 sm:mb-6 max-w-xl mx-auto drop-shadow-md px-2 leading-relaxed font-light">
             {tagline}
           </p>
         ) : null}
         <Link
           href={buttonHref}
-          className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-white text-black hover:bg-gray-200 transition-all font-medium text-sm rounded-[2px] shadow-lg cursor-pointer">
+          className="inline-flex items-center justify-center gap-2 px-6 sm:px-8 py-2.5 sm:py-3 bg-white text-black hover:bg-gray-200 transition-all font-medium text-xs sm:text-sm rounded-xs shadow-lg cursor-pointer">
           <span>{buttonText}</span>
           <svg
             viewBox="0 0 200 200"
-            width="14"
-            height="14"
+            width="12"
+            height="12"
             className="fill-current rotate-180"
             aria-hidden="true">
             <path d="M172.5 142a7.485 7.485 0 0 1-5.185-2.073L100 75.808l-67.315 64.12c-2.998 2.846-7.74 2.744-10.606-.234a7.454 7.454 0 0 1 .235-10.565l72.5-69.057a7.524 7.524 0 0 1 10.371 0l72.5 69.057a7.455 7.455 0 0 1 .235 10.565A7.503 7.503 0 0 1 172.5 142z" />

@@ -13,9 +13,12 @@ import "./globals.css";
 
 export const dynamic = "force-dynamic";
 
+// Phones render the same layout as desktop (laid out at 1280px wide, then
+// scaled to fit the screen). Explicitly clear Next.js's default initialScale=1
+// so mobile browsers open fully zoomed out to fit the 1280px desktop width.
 export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
+  width: 1280,
+  initialScale: undefined,
   maximumScale: 5,
   themeColor: "#000000",
 };

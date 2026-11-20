@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation";
 import AdminLogin from "@/components/cms/AdminLogin";
 import MediaLibrary from "@/components/cms/MediaLibrary";
 import ProjectsAdmin from "@/components/cms/ProjectsAdmin";
+import BehanceProjectBuilder from "@/components/cms/BehanceProjectBuilder";
 import MessagesAdmin from "@/components/cms/MessagesAdmin";
 import NavigationAdmin from "@/components/cms/NavigationAdmin";
 import GrapesEditor, {
   type GrapesEditorHandle,
 } from "@/components/cms/GrapesEditor";
 import { CustomPage, Block } from "@/data/cms";
-import { generateProjectDetailHtml } from "@/lib/project-detail-template";
 import { DEFAULT_CONTACT_PAGE_HTML } from "@/lib/contact-template";
 import type { Project } from "@/db/schema";
 import { isSafeUrl, isSafeImageUrl, sanitizeSlugInput } from "@/lib/sanitize";
@@ -45,125 +45,28 @@ const SOCIAL_LINK_FIELDS = [
   ["x", "X"],
 ] as const;
 
-const DEFAULT_CATEGORY_TEMPLATES = [
-  {
-    slug: "template/fine-art",
-    title: "Fine Art Inside Page (Template)",
-    category: "fine-art" as const,
-    sample: {
-      id: "sample-fine-art",
-      slug: "sample-fine-art",
-      title: "Fine Art Presentation (Template)",
-      category: "fine-art" as const,
-      status: "published" as const,
-      medium: "Oil on Canvas",
-      dimensions: '24" x 36"',
-      year: "2024",
-      description:
-        "Classical exhibition study focusing on atmospheric lighting, oil brushwork texture, and narrative depth.",
-      details:
-        "Rendered using multi-layered glazing and tactile pigment impasto on custom linen canvas.",
-      coverImage:
-        "https://static.wixstatic.com/media/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg/v1/fill/w_1920,h_1080,al_c,q_90,enc_avif,quality_auto/022e51_23340f9494d34281bbfc0707b043d411~mv2.jpg",
-      images: [],
-      tags: ["Fine Art", "Oil on Canvas", "Gallery"],
-      isFeatured: false,
-      likes: 124,
-      views: 1450,
-      sortOrder: 0,
-      publisher: null,
-      createdBy: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  },
-  {
-    slug: "template/book-covers",
-    title: "Book Cover Inside Page (Template)",
-    category: "book-covers" as const,
-    sample: {
-      id: "sample-book-cover",
-      slug: "sample-book-cover",
-      title: "Book Cover Presentation (Template)",
-      category: "book-covers" as const,
-      status: "published" as const,
-      medium: "Digital Cover Illustration",
-      dimensions: "6 x 9 inches",
-      year: "2024",
-      publisher: "Penguin Random House",
-      description:
-        "Literary fiction book cover design balancing bold focal hierarchy, bespoke typography, and evocative mood.",
-      details:
-        "Created with high-impact color palettes designed for maximum bookshelf impact and digital thumbnail clarity.",
-      coverImage:
-        "https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=800",
-      images: [],
-      tags: ["Book Cover", "Typography", "Fiction"],
-      isFeatured: false,
-      likes: 98,
-      views: 1120,
-      sortOrder: 0,
-      createdBy: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  },
-  {
-    slug: "template/illustration",
-    title: "Illustration Inside Page (Template)",
-    category: "illustration" as const,
-    sample: {
-      id: "sample-illustration",
-      slug: "sample-illustration",
-      title: "Illustration Presentation (Template)",
-      category: "illustration" as const,
-      status: "published" as const,
-      medium: "Digital Painting / Concept Art",
-      dimensions: "300 DPI High-Res",
-      year: "2024",
-      description:
-        "Concept illustration exploring cinematic focal gradients, volumetric lights, and detailed narrative staging.",
-      details:
-        "Developed from initial thumbnail value studies through to detailed texture finish and cinematic color grading.",
-      coverImage:
-        "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?q=80&w=1920",
-      images: [],
-      tags: ["Illustration", "Concept Art", "Digital Painting"],
-      isFeatured: false,
-      likes: 165,
-      views: 1890,
-      sortOrder: 0,
-      publisher: null,
-      createdBy: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  },
-];
-
 function normalizePages(value: unknown): CustomPage[] {
   let list: CustomPage[] = [];
   if (Array.isArray(value)) {
-    list = value.map((item) => {
-      const page = item as Partial<CmsPage>;
-      return {
-        ...page,
-        blocks: Array.isArray(page.blocks) ? page.blocks : [],
-      } as CustomPage;
-    });
-  }
-
-  // Ensure default category templates are available in the editor list
-  for (const t of DEFAULT_CATEGORY_TEMPLATES) {
-    if (!list.some((p) => p.slug === t.slug)) {
-      list.push({
-        slug: t.slug,
-        title: t.title,
-        status: "published",
-        blocks: [],
-        htmlCache: generateProjectDetailHtml(t.sample),
-      } as CustomPage);
-    }
+    list = value
+      .filter((item) => {
+        const p = item as Partial<CmsPage>;
+        const s = (p.slug || "").replace(/^\/+|\/+$/g, "");
+        // Filter out legacy project templates and project inside pages
+        return (
+          !s.startsWith("template/") &&
+          !s.startsWith("book-covers/") &&
+          !s.startsWith("illustration/") &&
+          !s.startsWith("fine-art/")
+        );
+      })
+      .map((item) => {
+        const page = item as Partial<CmsPage>;
+        return {
+          ...page,
+          blocks: Array.isArray(page.blocks) ? page.blocks : [],
+        } as CustomPage;
+      });
   }
 
   return list;
@@ -242,6 +145,7 @@ export default function AdminDashboard() {
   const [pages, setPages] = useState<CustomPage[]>([]);
 
   const [activePage, setActivePage] = useState<CustomPage | null>(null);
+  const [behanceBuilderProject, setBehanceBuilderProject] = useState<Project | null>(null);
 
   const editorRef = useRef<GrapesEditorHandle>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -312,38 +216,6 @@ export default function AdminDashboard() {
         setLoadingProjects(false);
       }
     }
-  };
-
-  const handleEditProjectInside = (project: Project) => {
-    const slug = `${project.category}/${project.id}`;
-    const slugByTitle = `${project.category}/${project.slug}`;
-
-    // 1. Check if page already exists in state
-    const existing = pages.find((p) => p.slug === slug || p.slug === slugByTitle);
-    if (existing) {
-      setActivePage(existing);
-      setActiveTab("pages");
-      setViewTrash(false);
-      setShowProjectPicker(false);
-      return;
-    }
-
-    // 2. Generate initial HTML tailored to this project's category & data
-    const initialHtml = generateProjectDetailHtml(project);
-    const newProjectPage: CustomPage = {
-      slug,
-      title: `${project.title} (${project.category.replace("-", " ")})`,
-      status: "published",
-      blocks: [],
-      // @ts-expect-error adding htmlCache to CustomPage
-      htmlCache: initialHtml,
-    };
-
-    setPages((prev) => [newProjectPage, ...prev]);
-    setActivePage(newProjectPage);
-    setActiveTab("pages");
-    setViewTrash(false);
-    setShowProjectPicker(false);
   };
 
   useEffect(() => {
@@ -1128,23 +1000,8 @@ export default function AdminDashboard() {
   const collectionPages = pages.filter((p) =>
     ["book-covers", "illustration", "fine-art"].includes(normalizeSlug(p.slug)),
   );
-  const templatePages = pages.filter((p) =>
-    normalizeSlug(p.slug).startsWith("template/"),
-  );
-  const projectPages = pages.filter((p) => {
-    const s = normalizeSlug(p.slug);
-    return (
-      s.startsWith("book-covers/") ||
-      s.startsWith("illustration/") ||
-      s.startsWith("fine-art/")
-    );
-  });
   const otherPages = pages.filter(
-    (p) =>
-      !corePages.includes(p) &&
-      !collectionPages.includes(p) &&
-      !templatePages.includes(p) &&
-      !projectPages.includes(p),
+    (p) => !corePages.includes(p) && !collectionPages.includes(p),
   );
   const isProtectedPage = activePage
     ? ["", "about", "contact", "book-covers", "illustration", "fine-art"].includes(
@@ -1350,24 +1207,6 @@ export default function AdminDashboard() {
                     ))}
                   </optgroup>
                 )}
-                {templatePages.length > 0 && (
-                  <optgroup label="Project Inside Templates (By Type)">
-                    {templatePages.map((page) => (
-                      <option key={page.id ?? page.slug} value={page.slug}>
-                        🎨 {page.title}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                {projectPages.length > 0 && (
-                  <optgroup label="Customized Project Insides">
-                    {projectPages.map((page) => (
-                      <option key={page.id ?? page.slug} value={page.slug}>
-                        🖼️ {page.title}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
                 {otherPages.length > 0 && (
                   <optgroup label="Other Custom Pages">
                     {otherPages.map((page) => (
@@ -1383,10 +1222,10 @@ export default function AdminDashboard() {
                 type="button"
                 onClick={handleOpenProjectPicker}
                 className="h-7 text-[11px] px-2.5 uppercase tracking-wider font-bold border border-[#C5A059]/70 text-[#C5A059] hover:bg-[#C5A059] hover:text-black rounded transition-colors shrink-0 inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer disabled:opacity-40"
-                title="Select any portfolio project to visually edit its inside page"
+                title="Open the visual project canvas builder for any portfolio artwork"
                 disabled={viewTrash}>
                 <span>🎨</span>
-                <span>Edit Project Inside...</span>
+                <span>Project Canvas Builder...</span>
               </button>
 
               <button
@@ -1425,7 +1264,7 @@ export default function AdminDashboard() {
 
       {activeTab === "projects" ? (
         <div className="flex-1 overflow-y-auto p-6 md:p-12 bg-[#000000]">
-          <ProjectsAdmin onEditInsidePage={handleEditProjectInside} />
+          <ProjectsAdmin />
         </div>
       ) : activeTab === "messages" ? (
         <div className="flex-1 overflow-y-auto bg-[#000000]">
@@ -2066,10 +1905,10 @@ export default function AdminDashboard() {
             <div className="p-5 border-b border-[#222] flex items-center justify-between">
               <div>
                 <span className="text-[10px] text-[#C5A059] uppercase tracking-widest font-bold block">
-                  Visual Editor &bull; Portfolio Project Insides
+                  Portfolio Projects &bull; Visual Canvas Builder
                 </span>
                 <h3 className="text-lg font-serif text-white font-bold mt-0.5">
-                  Select a Project to Edit Inside Page
+                  Select a Project to Edit Presentation Canvas
                 </h3>
               </div>
               <button
@@ -2148,18 +1987,36 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleEditProjectInside(proj)}
-                      className="px-3.5 py-1.5 bg-[#C5A059] hover:bg-white text-black font-bold uppercase tracking-wider text-[11px] rounded transition-colors shrink-0">
-                      Open in Visual Editor &rarr;
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowProjectPicker(false);
+                          setBehanceBuilderProject(proj);
+                        }}
+                        className="px-4 py-1.5 bg-[#C5A059] hover:bg-white text-black font-bold uppercase tracking-wider text-[11px] rounded transition-colors cursor-pointer shadow-md">
+                        Open Canvas &rarr;
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
             </div>
           </div>
         </div>
+      )}
+
+      {/* Behance Project Builder launched from the Pages toolbar picker */}
+      {behanceBuilderProject && (
+        <BehanceProjectBuilder
+          project={behanceBuilderProject}
+          onClose={() => setBehanceBuilderProject(null)}
+          onSaved={(saved) => {
+            setPickerProjects((prev) =>
+              prev.map((item) => (item.id === saved.id ? saved : item)),
+            );
+          }}
+        />
       )}
     </div>
   );

@@ -68,6 +68,7 @@ export async function PATCH(
     };
 
     if (data.title !== undefined) updates.title = sanitizeHtml(data.title);
+    if (data.category !== undefined) updates.category = data.category;
     if (data.description !== undefined) updates.description = data.description ? sanitizeHtml(data.description) : null;
     if (data.medium !== undefined) updates.medium = data.medium || null;
     if (data.dimensions !== undefined) updates.dimensions = data.dimensions || null;

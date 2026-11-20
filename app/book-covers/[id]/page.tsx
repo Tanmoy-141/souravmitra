@@ -1,12 +1,10 @@
 import { notFound } from "next/navigation";
 import ProjectDetailView from "@/components/ProjectDetailView";
 import { getProjectById, getProjectBySlug } from "@/lib/projects";
-import { db } from "@/db";
-import { pages } from "@/db/schema";
-import { eq, and, isNull, or } from "drizzle-orm";
-import { sanitizeHtml, safeCssForStyleTag } from "@/lib/sanitize";
-import CmsDynamicBlockPortal from "@/components/cms/CmsDynamicBlockPortal";
-import { renderProjectWithTemplate } from "@/lib/project-detail-template";
+import {
+  extractAvailabilityTag,
+  getProjectDetailExtras,
+} from "@/lib/project-detail-data";
 
 export const dynamic = "force-dynamic";
 
@@ -29,70 +27,8 @@ export default async function BookCoverDetail({
     notFound();
   }
 
-  // 1. Check for specific published project page in CMS
-  const exactSlug = `book-covers/${project.id}`;
-  const slugByTitle = `book-covers/${project.slug}`;
+  const extras = await getProjectDetailExtras(project.id, "book-covers");
 
-  const cmsPageResult = await db
-    .select()
-    .from(pages)
-    .where(
-      and(
-        or(eq(pages.slug, exactSlug), eq(pages.slug, slugByTitle)),
-        eq(pages.status, "published"),
-        isNull(pages.deletedAt)
-      )
-    )
-    .limit(1);
-
-  const customPage = cmsPageResult[0];
-  if (customPage?.htmlCache?.trim()) {
-    const safeHtml = sanitizeHtml(customPage.htmlCache);
-    return (
-      <main className="min-h-screen pb-24">
-        {customPage.cssCache && (
-          <style>{safeCssForStyleTag(customPage.cssCache)}</style>
-        )}
-        <div id="cms-page-content" className="w-full" suppressHydrationWarning>
-          <CmsDynamicBlockPortal html={safeHtml} projectId={project.id} />
-        </div>
-      </main>
-    );
-  }
-
-  // 2. Check for category template in CMS
-  const templateResult = await db
-    .select()
-    .from(pages)
-    .where(
-      and(
-        eq(pages.slug, "template/book-covers"),
-        eq(pages.status, "published"),
-        isNull(pages.deletedAt)
-      )
-    )
-    .limit(1);
-
-  const templatePage = templateResult[0];
-  if (templatePage?.htmlCache?.trim()) {
-    const renderedHtml = renderProjectWithTemplate(
-      templatePage.htmlCache,
-      project
-    );
-    const safeHtml = sanitizeHtml(renderedHtml);
-    return (
-      <main className="min-h-screen pb-24">
-        {templatePage.cssCache && (
-          <style>{safeCssForStyleTag(templatePage.cssCache)}</style>
-        )}
-        <div id="cms-page-content" className="w-full" suppressHydrationWarning>
-          <CmsDynamicBlockPortal html={safeHtml} projectId={project.id} />
-        </div>
-      </main>
-    );
-  }
-
-  // 3. Fallback to default ProjectDetailView with artwork cover image support
   return (
     <ProjectDetailView
       id={project.id}
@@ -101,12 +37,19 @@ export default async function BookCoverDetail({
       genreOrMedium={project.medium ?? "Book Cover"}
       year={Number(project.year ?? 2024)}
       coverImage={project.coverImage || undefined}
+      images={(project.images as string[]) ?? []}
       description={project.description ?? ""}
+      notes={project.details ?? undefined}
       likes={project.likes}
       views={project.views}
       tags={(project.tags as string[]) ?? []}
       publisher={project.publisher ?? undefined}
+      dimensions={project.dimensions ?? undefined}
+      availability={extractAvailabilityTag(project.tags)}
       backUrl="/book-covers"
+      artistName={extras.artistName}
+      artistAvatar={extras.artistAvatar}
+      relatedProjects={extras.relatedProjects}
     />
   );
 }

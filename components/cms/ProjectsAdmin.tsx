@@ -4,6 +4,7 @@ import Image from "next/image";
 import MediaLibrary from "./MediaLibrary";
 import BehanceProjectBuilder from "./BehanceProjectBuilder";
 import { parseBehancePresentation } from "@/lib/behance-modules";
+import { safeUrlOrFallback } from "@/lib/sanitize";
 import type { Project, MediaAsset } from "@/db/schema";
 
 type Category = "book-covers" | "illustration" | "fine-art";
@@ -573,7 +574,10 @@ export default function ProjectsAdmin() {
 
                     {/* Live View Link */}
                     <a
-                      href={`/${encodeURIComponent(p.category)}/${encodeURIComponent(p.id)}`}
+                      href={safeUrlOrFallback(
+                        `/${encodeURIComponent(p.category)}/${encodeURIComponent(p.id)}`,
+                        "#",
+                      )}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-2 py-1.5 rounded border border-[#2e2e2e] text-gray-400 hover:text-[#C5A059] text-[10px] font-semibold uppercase tracking-wider transition-colors">
@@ -729,7 +733,10 @@ export default function ProjectsAdmin() {
                 )}
 
                 <a
-                  href={`/${encodeURIComponent(p.category)}/${encodeURIComponent(p.id)}`}
+                  href={safeUrlOrFallback(
+                    `/${encodeURIComponent(p.category)}/${encodeURIComponent(p.id)}`,
+                    "#",
+                  )}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[10px] px-2 py-1 border border-[#333] text-gray-400 hover:text-white transition-colors rounded"

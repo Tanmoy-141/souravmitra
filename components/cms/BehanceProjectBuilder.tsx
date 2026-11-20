@@ -13,7 +13,7 @@ import {
   serializeBehancePresentation,
   type BehanceModule,
 } from "@/lib/behance-modules";
-import { isSafeImageUrl } from "@/lib/sanitize";
+import { isSafeImageUrl, safeUrlOrFallback, isSafeUrl } from "@/lib/sanitize";
 
 type Category = "book-covers" | "illustration" | "fine-art";
 
@@ -347,7 +347,17 @@ export default function BehanceProjectBuilder({
     }
   };
 
-  const liveUrl = projectId ? `/${category}/${projectId}` : null;
+  const safeCategory: Category =
+    category === "illustration" || category === "fine-art"
+      ? category
+      : "book-covers";
+
+  const rawLiveUrl = projectId
+    ? `/${encodeURIComponent(safeCategory)}/${encodeURIComponent(projectId)}`
+    : null;
+
+  const liveUrl =
+    rawLiveUrl && isSafeUrl(rawLiveUrl) ? safeUrlOrFallback(rawLiveUrl, "") : "";
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[#000000] text-[#D4D4D4]">
@@ -393,9 +403,9 @@ export default function BehanceProjectBuilder({
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
-          {liveUrl && status === "published" && (
+          {Boolean(liveUrl) && status === "published" && (
             <a
-              href={liveUrl}
+              href={safeUrlOrFallback(liveUrl, "#")}
               target="_blank"
               rel="noopener noreferrer"
               className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#141414] border border-[#2c2c2c] hover:border-[#C5A059] text-xs font-semibold text-gray-300 hover:text-white transition-colors">

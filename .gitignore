@@ -28,6 +28,7 @@ Thumbs.db
 # IDE and tool artifacts
 .vscode/
 .playwright-mcp/
+.mcp.json
 
 # Local uploaded files
 public/uploads/*

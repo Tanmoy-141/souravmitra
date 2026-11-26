@@ -1,6 +1,7 @@
 import { eq, and, asc, desc } from "drizzle-orm";
 import { db } from "@/db";
 import { projects, type Project } from "@/db/schema";
+import { trimHyphens } from "@/lib/sanitize";
 
 export type ProjectCategory = "book-covers" | "illustration" | "fine-art";
 
@@ -66,9 +67,10 @@ export async function getProjectByIdOrSlug(
 // short random suffix on a collision (Postgres error code 23505) rather
 // than looping guesses here.
 export function slugify(title: string): string {
-  return title
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return trimHyphens(
+    title
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-"),
+  );
 }

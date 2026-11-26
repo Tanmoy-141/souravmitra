@@ -1,4 +1,4 @@
-import { sanitizeHtml, sanitizeCss } from '../lib/sanitize';
+import { sanitizeHtml, sanitizeCss, sanitizeSlug, sanitizePathSlug, trimHyphens } from '../lib/sanitize';
 import { sanitizeLogValue } from '../lib/email';
 
 const htmlPayloads = [
@@ -20,6 +20,14 @@ const logPayloads = [
   { name: 'unicode line sep', input: 'line1\u2028line2\u2029line3', expected: 'line1 line2 line3' },
   { name: 'ansi escape & ctrl', input: 'bad\x1b[31mred\x00null\x7fdel', expected: 'bad [31mred null del' },
   { name: 'non-string nullish', input: undefined as unknown, expected: '' },
+];
+
+const slugPayloads = [
+  { name: 'trimHyphens all dashes', fn: () => trimHyphens('---'), expected: '' },
+  { name: 'trimHyphens keeps inner', fn: () => trimHyphens('--a-b--'), expected: 'a-b' },
+  { name: 'sanitizeSlug standard', fn: () => sanitizeSlug('  Hello World!!  '), expected: 'hello-world' },
+  { name: 'sanitizePathSlug nested', fn: () => sanitizePathSlug('/Fine-Art/--Piece_1--/'), expected: 'fine-art/piece_1' },
+  { name: 'sanitizePathSlug redos resistance', fn: () => sanitizePathSlug(`${'-'.repeat(100_000)}a`), expected: 'a' },
 ];
 
 function runTests() {
@@ -49,6 +57,16 @@ function runTests() {
     const passed = result === p.expected;
     if (!passed) failed++;
     console.log(`LOG  [${p.name}]: ${passed ? 'PASS' : `FAIL (got: ${JSON.stringify(result)})`}`);
+  });
+
+  // Test Slug & ReDoS Resistance
+  slugPayloads.forEach(p => {
+    const start = Date.now();
+    const result = p.fn();
+    const elapsed = Date.now() - start;
+    const passed = result === p.expected && elapsed < 1000;
+    if (!passed) failed++;
+    console.log(`SLUG [${p.name}]: ${passed ? `PASS (${elapsed}ms)` : `FAIL (got: ${JSON.stringify(result)} in ${elapsed}ms)`}`);
   });
 
   if (failed > 0) {

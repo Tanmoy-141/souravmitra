@@ -2,6 +2,10 @@
 // failing, so password reset / username recovery are fully testable
 // locally before Resend is configured.
 
+function sanitizeLogValue(value: string) {
+  return value.replace(/[\r\n\u2028\u2029]/g, " ");
+}
+
 interface SendEmailParams {
   to: string;
   subject: string;
@@ -11,17 +15,20 @@ interface SendEmailParams {
 export async function sendEmail({ to, subject, text }: SendEmailParams) {
   const apiKey = process.env.RESEND_API_KEY;
   const isProduction = process.env.NODE_ENV === "production";
+  const safeTo = sanitizeLogValue(to);
+  const safeSubject = sanitizeLogValue(subject);
+  const safeText = sanitizeLogValue(text);
 
   if (!apiKey) {
     if (isProduction) {
       console.warn(
-        `[email] RESEND_API_KEY not configured in production. Email suppressed for security. To: ${to}, Subject: ${subject}`,
+        `[email] RESEND_API_KEY not configured in production. Email suppressed for security. To: ${safeTo}, Subject: ${safeSubject}`,
       );
     } else {
       console.log("[email] RESEND_API_KEY not set — logging instead of sending:");
-      console.log(`  To: ${to}`);
-      console.log(`  Subject: ${subject}`);
-      console.log(`  Body: ${text}`);
+      console.log(`  To: ${safeTo}`);
+      console.log(`  Subject: ${safeSubject}`);
+      console.log(`  Body: ${safeText}`);
     }
     return;
   }
@@ -34,7 +41,7 @@ export async function sendEmail({ to, subject, text }: SendEmailParams) {
   if (!fromAddress) {
     if (isProduction) {
       console.warn(
-        `[email] RESEND_FROM_EMAIL is missing in production. Email suppressed for security. To: ${to}, Subject: ${subject}`,
+        `[email] RESEND_FROM_EMAIL is missing in production. Email suppressed for security. To: ${safeTo}, Subject: ${safeSubject}`,
       );
     } else {
       console.error(
@@ -43,9 +50,9 @@ export async function sendEmail({ to, subject, text }: SendEmailParams) {
           'Resend dashboard (e.g. "Sourav Mitra Portfolio <hello@yourdomain.com>"). ' +
           "Logging instead of sending:",
       );
-      console.log(`  To: ${to}`);
-      console.log(`  Subject: ${subject}`);
-      console.log(`  Body: ${text}`);
+      console.log(`  To: ${safeTo}`);
+      console.log(`  Subject: ${safeSubject}`);
+      console.log(`  Body: ${safeText}`);
     }
     return;
   }

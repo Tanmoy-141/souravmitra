@@ -134,14 +134,26 @@ export function isSafeImageUrl(url: unknown): boolean {
 export const isSafeFaviconUrl = isSafeImageUrl;
 
 /**
+ * Strips leading and trailing hyphens in O(n) time without regex backtracking.
+ */
+export function trimHyphens(value: string): string {
+  let start = 0;
+  let end = value.length;
+  while (start < end && value.charCodeAt(start) === 45 /* '-' */) start++;
+  while (end > start && value.charCodeAt(end - 1) === 45 /* '-' */) end--;
+  return value.slice(start, end);
+}
+
+/**
  * Creates a URL-friendly slug from a string.
  */
 export function sanitizeSlug(input: string): string {
-  return input
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return trimHyphens(
+    input
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-"),
+  );
 }
 
 /**
@@ -153,11 +165,7 @@ export function sanitizePathSlug(input: string): string {
   return trimmed
     .toLowerCase()
     .split("/")
-    .map((segment) =>
-      segment
-        .replace(/[^a-z0-9_-]+/g, "-")
-        .replace(/^-+|-+$/g, "")
-    )
+    .map((segment) => trimHyphens(segment.replace(/[^a-z0-9_-]+/g, "-")))
     .filter(Boolean)
     .join("/");
 }

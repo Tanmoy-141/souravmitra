@@ -8,11 +8,11 @@
  */
 export function sanitizeLogValue(value: unknown): string {
   const str = typeof value === "string" ? value : String(value ?? "");
-  // Replace CR/LF first using the explicit alternation recognized by static analysis,
-  // then strip remaining ASCII/Unicode control and line-separator characters.
+  // Normalize control/line characters to spaces so lines stay readable,
+  // then apply CodeQL's empty-string newline strip recognized by js/log-injection.
   return str
-    .replace(/\n|\r/g, " ")
-    .replace(/[\u0000-\u001F\u007F-\u009F\u2028\u2029]/g, " ");
+    .replace(/[\u0000-\u001F\u007F-\u009F\u2028\u2029]/g, " ")
+    .replace(/\n|\r/g, "");
 }
 
 interface SendEmailParams {

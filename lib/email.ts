@@ -3,7 +3,7 @@
 // locally before Resend is configured.
 
 function sanitizeLogValue(value: string) {
-  return value.replace(/[\r\n\u2028\u2029]/g, " ");
+  return value.replace(/[\u0000-\u001F\u007F-\u009F\u2028\u2029]/g, " ");
 }
 
 interface SendEmailParams {
